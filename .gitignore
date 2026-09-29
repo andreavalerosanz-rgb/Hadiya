@@ -1,0 +1,5 @@
+# runtime state: sessions, paired devices, push keys, uploads, screenshots
+data/
+__pycache__/
+*.log
+.claude/
