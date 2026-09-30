@@ -46,6 +46,7 @@ aside{background:var(--char);border-right:1px solid var(--spool);height:100vh;po
 .rack h2 a{color:var(--flag);text-decoration:none;display:flex;align-items:center;gap:4px}
 .rack h2 a .i{width:14px;height:14px}
 .item{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:3px;text-decoration:none;color:var(--edge);min-height:34px}
+button.item{width:100%;border:0;background:none;font:inherit;text-align:left;cursor:pointer}
 @media (hover:hover){.item:hover{background:var(--panel)}}
 .item[aria-current]{background:var(--spool);box-shadow:inset 3px 0 0 var(--flag)}
 .item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -206,6 +207,10 @@ a.btn-p,a.btn-s,a.btn-q{text-decoration:none}
 .teamrow{display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;background:var(--punch-2);border-radius:3px}
 .teamrow .flabel{margin:0;flex:1}
 details.adv{margin-top:14px;border-top:1px solid #d8d3cb;padding-top:10px}
+details.fold>summary{cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 8px;font:600 13px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute)}
+details.fold>summary small{margin-left:auto}
+details.fold>summary .i{width:15px;height:15px}
+details.fold>:not(summary){margin-left:10px}
 details.adv summary{cursor:pointer;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-mute)}
 
 /* ---------- logs ---------- */
@@ -290,6 +295,7 @@ a.att:hover{border-color:var(--flag)}
 .st.asking .i{animation:blink 1.1s steps(2) infinite}
 .frame.asking .win{box-shadow:inset 0 4px 0 var(--flag)}
 .alert{display:flex;align-items:center;gap:12px;width:100%;border:0;cursor:pointer;text-align:left;text-decoration:none;background:var(--grain),var(--flag);color:var(--ink);padding:12px 32px;font:500 15px/1.3 var(--body)}
+p.alert{margin:0;cursor:default}
 .alert b{font:700 16px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase}
 .alert .go{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font:700 14px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase}
 .alert .i{width:20px;height:20px}
@@ -629,7 +635,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 -->
 <aside class="rack" id="rack" aria-label="Sessions, workflows and runs"></aside>
 <main><div id="alert" aria-live="polite"></div><div id="main"></div></main>
-<datalist id="projects"></datalist><datalist id="sites"></datalist>
+<datalist id="projects"></datalist><datalist id="sites"></datalist><datalist id="folders"></datalist>
 <input type="file" id="filepick" multiple hidden>
 <dialog id="decide" class="decide" aria-labelledby="decide-h"></dialog>
 <script>
@@ -638,6 +644,7 @@ const $ = s => document.querySelector(s);
 const main = $('#main');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const api = (p, o = {}) => fetch('/api/' + p, {...o, headers: {'Content-Type': 'application/json', 'X-Flow': '1'}})
+  .then(r => r.status == 401 ? location.reload() : r)  // signed out or unpaired: the server shows its sign-in page
   .then(r => r.json().then(j => r.ok ? j : Promise.reject(new Error(j.error || r.statusText))));
 const ago = t => { const s = Date.now() / 1000 - t; return s < 60 ? 'now' : s < 3600 ? (s / 60 | 0) + 'm' : s < 86400 ? (s / 3600 | 0) + 'h' : (s / 86400 | 0) + 'd'; };
 const dur = (a, b) => { if (!a || !b) return ''; const s = b - a; return s < 60 ? s.toFixed(0) + 's' : s < 3600 ? (s / 60).toFixed(1) + 'm' : (s / 3600).toFixed(1) + 'h'; };
@@ -911,7 +918,7 @@ addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
 const shown = new WeakMap();  // last HTML assigned per element; skip identical writes (no layout, no lost focus)
 const setHTML = (sel, h) => { const el = $(sel); if (el && shown.get(el) !== h) { el.innerHTML = h; shown.set(el, h); } };
 async function refresh() {
-  const [all, use, q, w] = await Promise.all([api('runs').catch(() => []), api('usage').catch(() => ({})), api('queue').catch(() => queue), api('workflows').catch(() => ({}))]);
+  const [all, use, q, w, me] = await Promise.all([api('runs').catch(() => []), api('usage').catch(() => ({})), api('queue').catch(() => queue), api('workflows').catch(() => ({})), api('me').catch(() => ({}))]);
   queue = q; wfs = w;
   if (isRemote == null) { const r = await fetch('/api/remote'); isRemote = r.status == 403; if (r.ok) phoneOn = (j => j.lan.on || j.tunnel.on || j.tailnet.on)(await r.json()); }
   if (isRemote) regSW();
@@ -929,13 +936,14 @@ async function refresh() {
     <div class="rack-body" id="rack-body">
     <a class="item" href="#" ${!kind ? 'aria-current="page"' : ''}>${icon('home')}<span>Home</span></a>
     <a class="item" href="#guide" ${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}<span>How to use Flows</span></a>
+    ${me.user ? `<button class="item" data-act="logout">${icon('x')}<span>Sign out</span><small>${esc(me.user)}</small></button>` : ''}
     ${isRemote ? '' : `<a class="item" href="#phone" ${kind == 'phone' ? 'aria-current="page"' : ''}>${icon('phone')}<span>Phone access</span>${phoneOn ? '<small>ON</small>' : ''}</a>`}
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
     <h2 class="cap">Sessions <a href="#" data-act="focusStart" aria-label="New session">${icon('plus')}New</a></h2>
     ${sessions.slice(0, 12).map(r => delRow('run:' + r.id, 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`)).join('') || '<p class="none">No sessions yet</p>'}
     <h2 class="cap">Workflows <a href="#templates" aria-label="New workflow">${icon('plus')}New</a></h2>
-    ${Object.entries(wfs).map(([k, w]) => delRow('wf:' + k, 'workflow', w.name, `<a class="item" href="#wf/${k}" ${cur('wf', k)}>${icon(w.steps?.[0]?.icon || PRESETS[w.steps?.[0]?.preset]?.icon || 'list')}<span>${esc(w.name)}</span><small>${w.steps.length} step${w.steps.length == 1 ? '' : 's'}</small></a>`)).join('') || '<p class="none">No workflows yet</p>'}
+    ${wfRows(cur)}
     <h2 class="cap">Runs</h2>
     ${runs.slice(0, 12).map(r => delRow('run:' + r.id, 'run', wfs[r.workflow_id]?.name || r.name, `<a class="item" href="#run/${r.id}" ${cur('run', r.id)}>${mark(r.status)}<span>${esc(wfs[r.workflow_id]?.name || r.name)}</span><small>${ago(r.started)}</small></a>`)).join('') || '<p class="none">No runs yet</p>'}
     ${pushPanel()}${usagePanel(use)}</div>`);
@@ -946,7 +954,7 @@ async function refresh() {
   setHTML('#sites', [...sites].map(p => `<option value="${esc(p)}">`).join(''));
   // a session waiting on a decision is flagged from every other page
   const asking = sessions.filter(r => r.status == 'asking' && !(kind == 'session' && id == r.id));
-  setHTML('#alert', asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
+  setHTML('#alert', (me.claude_logged_in === false ? `<p class="alert" role="status">${icon('help')}<span><b>Claude isn't signed in</b> for your account. Connect over SSH and run <code>claude login</code> once, then start your session again.</span></p>` : '') + asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
   const n = sessions.filter(r => r.status == 'asking').length;
   document.title = n ? `(${n}) Decision needed · Flows` : 'Flows';
 }
@@ -1219,8 +1227,19 @@ ACT.startSession = async (_, btn, q) => {
     location.hash = 'session/' + id;
   } catch (e) { toast('Could not start: ' + e.message, true); btn?.removeAttribute('aria-busy'); }
 };
+ACT.logout = async () => { await api('logout', {method: 'POST'}).catch(() => {}); location.reload(); };
 ACT.fromTemplate = id => { pendingTpl = id; location.hash = 'wf/' + crypto.randomUUID().slice(0, 8); };
 
+const shut = new Set(JSON.parse(localStorage.shutFolders || '[]'));
+function toggleFolder(el) { el.open ? shut.delete(el.dataset.f) : shut.add(el.dataset.f); localStorage.shutFolders = JSON.stringify([...shut]); }
+function wfRows(cur) {
+  const row = ([k, w]) => delRow('wf:' + k, 'workflow', w.name, `<a class="item" href="#wf/${k}" ${cur('wf', k)}>${icon(w.steps?.[0]?.icon || PRESETS[w.steps?.[0]?.preset]?.icon || 'list')}<span>${esc(w.name)}</span><small>${w.steps.length} step${w.steps.length == 1 ? '' : 's'}</small></a>`);
+  const by = {};
+  for (const e of Object.entries(wfs)) (by[(e[1].folder || '').trim()] ||= []).push(e);
+  const dirs = Object.keys(by).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return dirs.map(f => `<details class="fold" data-f="${esc(f)}" ${shut.has(f) ? '' : 'open'} ontoggle="toggleFolder(this)"><summary>${icon('folder')}<span>${esc(f)}</span><small>${by[f].length}</small></summary>${by[f].map(row).join('')}</details>`).join('')
+    + (by[''] || []).map(row).join('') || '<p class="none">No workflows yet</p>';
+}
 /* ============ workflow builder ============ */
 function editor(id) {
   const tpl = TEMPLATES.find(t => t.id == pendingTpl); pendingTpl = null;
@@ -1245,6 +1264,7 @@ function markDirty() {
   const h = $('#dirty-h'); if (h) h.textContent = 'Unsaved changes';
 }
 function drawEditor() {
+  $('#folders').innerHTML = [...new Set(Object.values(wfs).map(w => w.folder).filter(Boolean))].map(f => `<option value="${esc(f)}">`).join('');
   const d = draft, s = d.steps[sel];
   const after = ins == null ? '' : ins == 0 ? 'at the start' : `after “${d.steps[ins - 1]?.name || 'step ' + ins}”`;
   main.innerHTML = `
@@ -1253,6 +1273,7 @@ function drawEditor() {
         <input class="title-in" data-bind="name" value="${esc(d.name)}" aria-label="Workflow name">
         <div class="paths">
           <label class="path" title="Project folder the agents work in">${icon('folder')}<span class="sr">Project folder</span><input data-bind="cwd" list="projects" value="${esc(d.cwd)}" placeholder="~/…/wp-content/themes/your-theme"></label>
+          <label class="path" title="Folder in the workflows list">${icon('list')}<span class="sr">Folder</span><input data-bind="folder" list="folders" value="${esc(d.folder || '')}" placeholder="Folder (optional)"></label>
           <label class="path" title="Local site for browser checks, available as {{site}}">${icon('globe')}<span class="sr">Local site</span><input data-bind="site" list="sites" value="${esc(d.site)}" placeholder="http://localhost:8080"></label>
         </div>
       </div>
@@ -1512,6 +1533,7 @@ function drawRun(r) {
     ${legend('Click a step to see what it did')}
     ${r.status == 'failed' ? `<section class="window failbox"><h3>${icon('x')}Stopped at step ${failedAt + 1}${failedAt >= 0 ? ': ' + esc(r.steps[failedAt].name) : ''}</h3><p style="margin:0;white-space:pre-wrap">${esc(failReason(r))}</p>
       <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">${wfs[r.workflow_id] ? `<a class="btn-q" href="#wf/${r.workflow_id}">${icon('pencil')}Fix the workflow</a>` : ''}<button class="btn-s" data-act="rerun">${icon('redo')}Run again</button></div></section>` : ''}
+    ${r.status == 'done' && wfs[wfs[r.workflow_id]?.next] ? `<section class="window"><h3>${icon('check')}Stage listo: pendiente de tu OK</h3><p style="margin:0 0 14px">Revisa stage. Si todo está bien, esto lanza «${esc(wfs[wfs[r.workflow_id].next].name)}» con el bloque PROD_INPUT de este run.</p><button class="btn-s" data-act="approveNext">${icon('right')}OK, desplegar a producción</button></section>` : ''}
     ${r.input ? `<section class="window"><h3>${icon('chat')}Input</h3><p style="margin:0;white-space:pre-wrap">${esc(r.input)}</p></section>` : ''}
     <section class="window" aria-live="polite">
       <h3>${icon(frames[pick]?.icon || 'list')}Step ${pick + 1}: ${esc(frames[pick]?.title || '')}</h3>
@@ -1525,6 +1547,13 @@ function drawRun(r) {
 }
 ACT.selRun = i => { runSel = +i; lastSig = ''; forceStick = true; drawRun(window._run); };
 ACT.cancelRun = async id => { await api(`runs/${id}/cancel`, {method: 'POST'}); toast('Cancelling…'); };
+ACT.approveNext = async () => {
+  const r = window._run, next = wfs[r.workflow_id]?.next, res = r.steps.at(-1)?.result || '';
+  const input = res.match(/PROD_INPUT[\s\S]*?(?=```|$)/)?.[0] || res;
+  if (!confirm(`¿Desplegar a PRODUCCIÓN con este bloque?\n\n${input.slice(0, 600)}`)) return;
+  try { const {id} = await api(`workflows/${next}/run`, {method: 'POST', body: JSON.stringify({input})}); location.hash = 'run/' + id; }
+  catch (e) { toast('Could not start: ' + e.message, true); }
+};
 ACT.rerun = async () => {
   const r = window._run;
   try { const {id} = await api(`workflows/${r.workflow_id}/run`, {method: 'POST', body: JSON.stringify({input: r.input})}); location.hash = 'run/' + id; }
