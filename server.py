@@ -4,7 +4,7 @@
 Each step runs `claude -p` using your logged-in CLI (subscription auth).
 Run: python3 server.py  ->  http://localhost:8787
 """
-import base64, gzip, hashlib, hmac, json, os, re, secrets, shutil, socket, subprocess, threading, time, uuid
+import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shutil, socket, subprocess, threading, time, uuid
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -12,15 +12,75 @@ from urllib.parse import unquote, urlsplit
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).parent
-RUNS = ROOT / "data" / "runs"
-SHOTS = ROOT / "data" / "shots"
-UPLOADS = ROOT / "data" / "uploads"  # files attached to session messages, data/uploads/<run>/<name>
+DATA = ROOT / "data"
+# Multi-user mode (see DEPLOY.md) is on when data/users.json exists: logins, per-user data, and every
+# `claude` runs as that person's Linux user via sudo. Without the file: single user, no login, as always.
+USERS_FILE = DATA / "users.json"
+MULTI = USERS_FILE.exists()
+if MULTI:
+    os.umask(0o077)  # runs, sessions, workflows: readable by the server user only
+RUNS = DATA / "runs"
 RUNS.mkdir(parents=True, exist_ok=True)
-UPLOADS.mkdir(exist_ok=True)
 MAX_UPLOAD = 20 << 20
 MAX_IMAGE = 3_750_000  # the API refuses images over 5 MB of base64; bigger ones go by path
-WF_FILE = ROOT / "data" / "workflows.json"
 PORT = int(os.environ.get("PORT", 8787))
+HOSTS = ("localhost", "127.0.0.1", *filter(None, os.environ.get("FLOWS_HOSTS", "").split(",")))  # public names behind a proxy
+
+
+def load_users():
+    return json.loads(USERS_FILE.read_text()) if USERS_FILE.exists() else {}
+
+
+def hash_pw(pw, salt=None):
+    salt = salt or secrets.token_hex(16)
+    return salt + "$" + hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 600_000).hex()
+
+
+def check_pw(pw, stored):
+    return hmac.compare_digest(hash_pw(pw, stored.split("$")[0]), stored)
+
+
+def unix_home(owner):
+    return pwd.getpwnam(load_users()[owner]["unix"]).pw_dir
+
+
+def udir(owner, kind, rid="", make=False):
+    """data/<kind>/<run> (single user), or data/users/<owner>/<kind>/<run>: group-owned by the owner's
+    primary group, setgid, so their agent can read uploads and write screenshots (DEPLOY.md)."""
+    base = DATA / "users" / owner if owner else DATA
+    d = base / kind / rid
+    if make:
+        d.mkdir(parents=True, exist_ok=True)
+        if owner:
+            gid = pwd.getpwnam(load_users()[owner]["unix"]).pw_gid
+            for x in {base, base / kind, d}:
+                os.chown(x, -1, gid)
+                os.chmod(x, 0o2770)
+    return d
+
+
+def workdir(owner, path):
+    """The project folder: ~ is the owner's home, and in multi-user mode it must stay inside it."""
+    path = path or "~"
+    if not owner:
+        return os.path.expanduser(path)
+    home = unix_home(owner)
+    d = os.path.normpath(os.path.join(home, "" if path == "~" else path[2:] if path.startswith("~/") else path))
+    if os.path.commonpath([home, d]) != home:
+        raise ValueError(f"The project folder must be inside {home}")
+    return d
+
+
+def launch(owner, cmd, cwd, extra=None):
+    """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
+    if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
+        raise ValueError("This run has no owner")
+    if owner:
+        cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd, "--",
+               *[f"{k}={v}" for k, v in (extra or {}).items()], *cmd]
+        cwd = None  # the server user can't enter their home; sudo -D does it as them
+    return subprocess.Popen(cmd, cwd=cwd, env={**ENV, **(extra or {})}, text=True, stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 # Drop API keys so the CLI uses the subscription login, and any parent Claude
 # session's vars so child runs don't piggyback on (or break) the host's auth.
 ENV = {k: v for k, v in os.environ.items()
@@ -41,38 +101,62 @@ for f in RUNS.glob("*.json"):
         r["pending"] = {}  # questions die with their process
     runs[r["id"]] = r
 
-USAGE_FILE = ROOT / "data" / "usage.json"
-usage = json.loads(USAGE_FILE.read_text()) if USAGE_FILE.exists() else {}
+usages = {}  # owner (None in single-user mode) -> their subscription's limits: everyone has their own plan
 
 
-def note_usage(ev):
+def use(owner):
+    if owner not in usages:
+        f = usage_file(owner)
+        usages[owner] = json.loads(f.read_text()) if f.exists() else {}
+    return usages[owner]
+
+
+def usage_file(owner):
+    return DATA / "usage" / f"{owner}.json" if owner else DATA / "usage.json"
+
+
+def save_usage(owner):
+    usage_file(owner).parent.mkdir(exist_ok=True)
+    usage_file(owner).write_text(json.dumps(use(owner)))
+
+
+def note_usage(ev, owner):
     """Keep the latest subscription limits (5-hour / weekly utilization) that the CLI reports."""
-    info = ev.get("rate_limit_info") or {}
+    info, usage = ev.get("rate_limit_info") or {}, use(owner)
     if info:
         usage.update({"windows": info.get("unifiedWindows") or usage.get("windows"), "status": info.get("status"),
                       "type": info.get("rateLimitType"), "resetsAt": info.get("resetsAt"), "ts": ev.get("ts") or time.time()})
-        USAGE_FILE.write_text(json.dumps(usage))
+        save_usage(owner)
 
 
-def limited_until():
+def note_auth(res, owner):
+    """Remember whether the owner's CLI is logged in (a result asking to /login says it isn't)."""
+    ok = not (res.get("is_error") and re.search(r"/login|not logged in|invalid api key", str(res.get("result")), re.I))
+    if use(owner).get("auth", True) != ok:
+        use(owner)["auth"] = ok
+        save_usage(owner)
+
+
+def limited_until(owner):
     """Epoch when the subscription limit resets, or 0 if we may run now."""
+    usage = use(owner)
     t = usage.get("resetsAt") or 0
     return t if usage.get("status") == "rejected" and t > time.time() else 0
 
 
-def hit_limit(res):
+def hit_limit(res, owner):
     """Did this turn end because the usage limit ran out? Records the reset time so the queue waits for it."""
     text = str((res or {}).get("result") or "")
     if not (res and res.get("is_error")):
         return False
-    if limited_until():
+    if limited_until(owner):
         return True
     if not re.search(r"usage limit|hit your limit|limit reached|rate.?limit", text, re.I):
         return False
     # no reset time from the CLI: parse "limit reached|<epoch>", else retry in 15 min
     m = re.search(r"\|(\d{10})", text)
-    usage.update(status="rejected", resetsAt=int(m.group(1)) if m else time.time() + 900)
-    USAGE_FILE.write_text(json.dumps(usage))
+    use(owner).update(status="rejected", resetsAt=int(m.group(1)) if m else time.time() + 900)
+    save_usage(owner)
     return True
 
 
@@ -107,35 +191,40 @@ def save_run(r):
     (RUNS / f"{r['id']}.json").write_text(json.dumps(r))
 
 
-def load_wfs():
-    return json.loads(WF_FILE.read_text()) if WF_FILE.exists() else {}
+def wf_file(owner):
+    return DATA / "workflows" / f"{owner}.json" if owner else DATA / "workflows.json"
 
 
-def save_wfs(w):
-    WF_FILE.write_text(json.dumps(w, indent=2))
+def load_wfs(owner):
+    return json.loads(wf_file(owner).read_text()) if wf_file(owner).exists() else {}
+
+
+def save_wfs(w, owner):
+    wf_file(owner).parent.mkdir(exist_ok=True)
+    wf_file(owner).write_text(json.dumps(w, indent=2))
 
 
 def render(template, inp, prev, site=""):
     return template.replace("{{input}}", inp).replace("{{prev}}", prev).replace("{{site}}", site)
 
 
-def browser(cmd, tools, run_id):
+def browser(cmd, tools, r):
     """Attach Playwright (headless Chrome) when the step may use the browser.
     Returns a system-prompt note pinning screenshots to data/shots/<run> (relative names resolve to the project)."""
     if "mcp__playwright" not in tools:
         return ""
-    out = SHOTS / run_id
-    out.mkdir(parents=True, exist_ok=True)
+    out = udir(r.get("owner"), "shots", r["id"], make=True)
     cmd += ["--mcp-config", json.dumps({"mcpServers": {"playwright": {"command": "npx", "args": [
         "-y", "@playwright/mcp@0.0.82", "--headless", "--isolated", "--ignore-https-errors", "--output-dir", str(out)]}}})]
     return (f"When you take browser screenshots, always pass an absolute filename inside {out}/ "
             f"(e.g. {out}/home-1440.png). Never save screenshots into the project.")
 
 
-def keep_shots_out(ev, cwd, run_id, seen):
+def keep_shots_out(ev, cwd, r, seen):
     """Models sometimes save screenshots with a bare filename, which Playwright writes into the project.
     Move those into data/shots/<run> once the tool has finished, so projects stay clean."""
-    for x in (ev.get("message") or {}).get("content") or []:
+    m = ev.get("message")
+    for x in (m.get("content") if isinstance(m, dict) else None) or []:
         if not isinstance(x, dict):
             continue
         if x.get("type") == "tool_use" and str(x.get("name", "")).endswith("browser_take_screenshot"):
@@ -144,10 +233,13 @@ def keep_shots_out(ev, cwd, run_id, seen):
                 seen[x["id"]] = name
         elif x.get("type") == "tool_result" and x.get("tool_use_id") in seen:
             src = Path(cwd) / seen.pop(x["tool_use_id"])
-            dst = SHOTS / run_id / src.name
-            if src.suffix.lower() in (".png", ".jpg", ".jpeg") and src.is_file() and not dst.exists():
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                src.replace(dst)
+            dst = udir(r.get("owner"), "shots", r["id"]) / src.name
+            try:  # multi-user: the server can't reach into the owner's home, so the file stays put
+                if src.suffix.lower() in (".png", ".jpg", ".jpeg") and src.is_file() and not dst.exists():
+                    udir(r.get("owner"), "shots", r["id"], make=True)
+                    src.replace(dst)
+            except OSError:
+                pass
 
 
 def image_type(raw):
@@ -158,23 +250,25 @@ def image_type(raw):
     return "image/webp" if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP" else None
 
 
-def save_files(rid, files):
+def save_files(r, files):
     """Check every upload, then write them to data/uploads/<run>/ (basename only, deduped).
     files: [{name, data: base64}] -> [{name, path, media, b64?}]"""
     files = files or []
     for f in files:
         if len(f.get("data") or "") * 3 // 4 > MAX_UPLOAD:
             raise ValueError(f"{Path(str(f.get('name'))).name} is over {MAX_UPLOAD >> 20} MB")
-    out, d = [], UPLOADS / rid
+    out = []
     for f in files:
         raw = base64.b64decode(f.get("data") or "")
         name = re.sub(r"[^\w.\- ]", "_", Path(str(f.get("name") or "")).name).strip(". ")[-120:] or "file"
-        d.mkdir(parents=True, exist_ok=True)
+        d = udir(r.get("owner"), "uploads", r["id"], make=True)
         dst, n = d / name, 1
         while dst.exists():
             n += 1
             dst = d / f"{Path(name).stem}-{n}{Path(name).suffix}"
         dst.write_bytes(raw)
+        if r.get("owner"):
+            os.chmod(dst, 0o640)  # the owner's agent reads it through the group
         media = image_type(raw)
         out.append({"name": dst.name, "path": str(dst), "media": media,
                     "b64": base64.b64encode(raw).decode() if media and len(raw) <= MAX_IMAGE else None})
@@ -193,8 +287,8 @@ def delete_run(rid):
     if p:
         p.terminate()
     (RUNS / f"{rid}.json").unlink(missing_ok=True)
-    for d in (SHOTS, UPLOADS):
-        shutil.rmtree(d / rid, ignore_errors=True)
+    for k in ("shots", "uploads"):
+        shutil.rmtree(udir(r.get("owner"), k, rid), ignore_errors=True)
 
 
 def execute(r):
@@ -214,7 +308,7 @@ def execute(r):
                 tools = ",".join(filter(None, ["Agent,Task", tools]))
             if tools:
                 cmd += ["--allowedTools", tools]
-            notes.append(browser(cmd, tools, r["id"]))
+            notes.append(browser(cmd, tools, r))
             if any(notes):
                 cmd += ["--append-system-prompt", "\n\n".join(filter(None, notes))]
             s = {"name": step.get("name") or f"Step {i + 1}", "status": "running",
@@ -223,9 +317,8 @@ def execute(r):
                 if r["status"] != "running":
                     return
                 r["steps"].append(s)
-            cwd = os.path.expanduser(step.get("cwd") or r["workflow"].get("cwd") or "~")
-            p = subprocess.Popen(cmd, cwd=cwd, env=ENV, text=True, stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            cwd = workdir(r.get("owner"), step.get("cwd") or r["workflow"].get("cwd"))
+            p = launch(r.get("owner"), cmd, cwd)
             procs[r["id"]] = p
             # stdin avoids the ~128KB argv limit when {{prev}} is large
             p.stdin.write(render(step["prompt"], r["input"], prev, r["workflow"].get("site") or ""))
@@ -237,11 +330,12 @@ def execute(r):
                 except ValueError:
                     ev = {"type": "raw", "text": line.rstrip()}
                 ev["ts"] = time.time()
-                keep_shots_out(ev, cwd, r["id"], seen)
+                keep_shots_out(ev, cwd, r, seen)
                 if ev.get("type") == "rate_limit_event":
-                    note_usage(ev)
+                    note_usage(ev, r.get("owner"))
                 if ev.get("type") == "result":
                     res = ev
+                    note_auth(ev, r.get("owner"))
                 with lock:
                     s["events"].append(ev)
             p.wait()
@@ -253,7 +347,7 @@ def execute(r):
                              cost=res.get("total_cost_usd") or 0)
                     r["cost"] += s["cost"]
                     prev = s["result"]
-                elif r["status"] == "running" and hit_limit(res):
+                elif r["status"] == "running" and hit_limit(res, r.get("owner")):
                     r["steps"].pop()  # redone from scratch when the limit resets
                     r["status"] = "waiting"
                     return
@@ -274,9 +368,9 @@ def execute(r):
             save_run(r)
 
 
-def start_run(wf_id, inp):
-    wf = load_wfs()[wf_id]
-    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "workflow_id": wf_id,
+def start_run(wf_id, inp, owner):
+    wf = load_wfs(owner)[wf_id]
+    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "workflow_id": wf_id, "owner": owner,
          "name": wf["name"], "input": inp, "status": "running", "started": time.time(),
          "ended": None, "cost": 0, "steps": [], "workflow": wf}
     with lock:
@@ -293,34 +387,32 @@ def spawn(r):
     cmd = ["claude", "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
            "--permission-prompt-tool", "stdio", "--permission-mode", c.get("permission_mode") or "default",
            "--allowedTools", ",".join(filter(None, ["Agent,Task", c.get("allowed_tools")])),
-           "--add-dir", str(UPLOADS)]  # so attached files are readable from any project folder
+           "--add-dir", str(udir(r.get("owner"), "uploads", make=True))]  # so attached files are readable from any project folder
     if c.get("model"):
         cmd += ["--model", c["model"]]
-    note = browser(cmd, c.get("allowed_tools") or "", r["id"])
+    note = browser(cmd, c.get("allowed_tools") or "", r)
     cmd += ["--append-system-prompt", "\n\n".join(filter(None, [ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))), note]))]
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
         r["cost_base"] = r["cost"]  # new process reports cost from zero
-    p = subprocess.Popen(cmd, cwd=os.path.expanduser(c.get("cwd") or "~"), text=True,
-                         env={**ENV, "CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL": "true"},
-                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), {"CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL": "true"})
     procs[r["id"]] = p
     threading.Thread(target=pump, args=(r, p), daemon=True).start()
     return p
 
 
 def pump(r, p):
-    seen, cwd = {}, os.path.expanduser(r["config"].get("cwd") or "~")
+    seen, cwd = {}, workdir(r.get("owner"), r["config"].get("cwd"))
     for line in p.stdout:
         try:
             ev = json.loads(line)
         except ValueError:
             ev = {"type": "raw", "text": line.rstrip()}
         ev["ts"] = time.time()
-        keep_shots_out(ev, cwd, r["id"], seen)
+        keep_shots_out(ev, cwd, r, seen)
         t, sub = ev.get("type"), ev.get("subtype")
         if t == "rate_limit_event":
-            note_usage(ev)
+            note_usage(ev, r.get("owner"))
         if t == "control_request":
             req = ev.get("request") or {}
             if req.get("subtype") != "can_use_tool":
@@ -347,7 +439,8 @@ def pump(r, p):
             if t == "system" and sub == "init":
                 r["session_id"] = ev.get("session_id")
             if t == "result":
-                if hit_limit(ev):
+                note_auth(ev, r.get("owner"))
+                if hit_limit(ev, r.get("owner")):
                     r["waiting"] = True  # the queue worker sends "continue" once the limit resets
                 r["turn_done"] = True
                 r["cost"] = r.get("cost_base", 0) + (ev.get("total_cost_usd") or 0)
@@ -464,13 +557,14 @@ def configure(r, body):
         return "after-turn"
 
 
-def start_session(body):
+def start_session(body, owner):
     text = body.get("message", "").strip()
-    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "kind": "session",
+    workdir(owner, body.get("cwd"))  # refuse a folder outside their home before the session exists
+    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "kind": "session", "owner": owner,
          "name": text.splitlines()[0][:60] if text else "Session", "status": "working",
          "started": time.time(), "ended": None, "cost": 0, "events": [], "session_id": None,
          "config": {k: body.get(k) for k in ("cwd", "model", "permission_mode", "allowed_tools", "agents", "caps", "sub_models")}}
-    files = save_files(r["id"], body.get("files"))
+    files = save_files(r, body.get("files"))
     with lock:
         runs[r["id"]] = r
     send(r, text, files=files)
@@ -575,7 +669,7 @@ def notify(r, body):
         pass
     if VAPID:
         payload = json.dumps({"title": title, "body": body[:300], "tag": r["id"], "url": f"/#session/{r['id']}"}).encode()
-        for s in list(push["subs"].values()):
+        for s in [s for s in push["subs"].values() if s.get("owner") == r.get("owner")]:
             threading.Thread(target=push_one, args=(s["sub"], payload), daemon=True).start()
 
 
@@ -589,13 +683,23 @@ def save_queue():
     QUEUE_FILE.write_text(json.dumps(queue))
 
 
-def enqueue(body):
+def own(rid, user):
+    """The run, if this user owns it (KeyError, so a 404, otherwise)."""
+    r = runs[rid]
+    if r.get("owner") != user:
+        raise KeyError(rid)
+    return r
+
+
+def enqueue(body, owner):
     """body: {kind: "workflow", wf_id, input}, {kind: "session", ...start_session body}
     or {kind: "message", run_id, text, files?}: sent to that session once it is free."""
-    item = {**body, "id": uuid.uuid4().hex[:8], "added": time.time()}
+    item = {**body, "id": uuid.uuid4().hex[:8], "added": time.time(), "owner": owner}
     k = body.get("kind")
-    item["name"] = (load_wfs()[body["wf_id"]]["name"] if k == "workflow" else
-                    (body.get("text") or "Message").strip().splitlines()[0][:60] if k == "message" and runs[body["run_id"]] else
+    if k == "session":
+        workdir(owner, body.get("cwd"))
+    item["name"] = (load_wfs(owner)[body["wf_id"]]["name"] if k == "workflow" else
+                    (body.get("text") or "Message").strip().splitlines()[0][:60] if k == "message" and own(body["run_id"], owner) else
                     (body.get("message") or "Session").strip().splitlines()[0][:60])
     with lock:
         queue.append(item)
@@ -608,11 +712,10 @@ def busy(r):
 
 
 def tick():
-    if limited_until():
-        return
+    """Each owner's queue runs one task at a time and pauses while their own usage limit is out."""
     with lock:
-        waiting = [r for r in runs.values() if r["status"] == "waiting" or
-                   (r.get("waiting") and r["status"] in ("idle", "stopped", "failed"))]
+        waiting = [r for r in runs.values() if bool(r.get("owner")) == MULTI and not limited_until(r.get("owner")) and (r["status"] == "waiting" or
+                   (r.get("waiting") and r["status"] in ("idle", "stopped", "failed")))]
         for r in waiting:
             if r.get("kind") == "session":
                 r["status"] = "stopped" if r["status"] == "failed" else r["status"]
@@ -626,23 +729,25 @@ def tick():
         due, sent = [], set()
         for q in [q for q in queue if q.get("kind") == "message"]:
             r = runs.get(q["run_id"])
-            if not r:
+            if not r or r.get("owner") != q.get("owner"):
                 queue.remove(q)
-            elif q["run_id"] not in sent and not busy(r):
+            elif bool(q.get("owner")) == MULTI and q["run_id"] not in sent and not busy(r) and not limited_until(r.get("owner")):
                 sent.add(q["run_id"])
                 queue.remove(q)
                 due.append((r, q))
         save_queue()
     for r, q in due:
-        send(r, q.get("text", ""), files=save_files(r["id"], q.get("files")))
+        send(r, q.get("text", ""), files=save_files(r, q.get("files")))
     with lock:
-        tasks = [q for q in queue if q.get("kind") != "message"]
-        if not tasks or any(r.get("queued") and busy(r) for r in runs.values()):
+        free = lambda o: not limited_until(o) and not any(r.get("queued") and busy(r) and r.get("owner") == o for r in runs.values())
+        tasks = [q for q in queue if q.get("kind") != "message" and bool(q.get("owner")) == MULTI and free(q.get("owner"))]
+        if not tasks:
             return
         item = tasks[0]
         queue.remove(item)
         save_queue()
-    rid = start_run(item["wf_id"], item.get("input", "")) if item.get("kind") == "workflow" else start_session(item)
+    o = item.get("owner")
+    rid = start_run(item["wf_id"], item.get("input", ""), o) if item.get("kind") == "workflow" else start_session(item, o)
     runs[rid]["queued"] = True
 
 
@@ -822,11 +927,36 @@ f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/pair',{method:
 const j=await r.json().catch(()=>({}));if(r.ok)location.replace('/');else document.getElementById('err').textContent=j.error||'Could not pair';};
 if(m)f.requestSubmit();</script></body></html>"""
 
+# ---------- multi-user logins: hashed session tokens in data/sessions.json ----------
+SESS_FILE = DATA / "sessions.json"
+logins = json.loads(SESS_FILE.read_text()) if SESS_FILE.exists() else {}  # sha256(token) -> {user, salt, exp}
+fails = {}  # user name, or "*" for everyone -> times of recent failed logins
+SESSION_DAYS, FAIL_WINDOW = 30, 900
+
+
+def save_logins():
+    SESS_FILE.write_text(json.dumps(logins))
+    os.chmod(SESS_FILE, 0o600)
+
+
+def locked(k):
+    fails[k] = [t for t in fails.get(k, []) if t > time.time() - FAIL_WINDOW]
+    return len(fails[k]) >= (50 if k == "*" else 5)
+
+
+LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Pair with Flows", b"Sign in to Flows") + b"""<main>
+<div class="band">Sign in to Flows</div><form id="f"><label for="u">User</label><input id="u" autocomplete="username" autocapitalize="none" required>
+<label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required>
+<button>Sign in</button><div id="err" role="alert"></div></form></main><script>
+const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({user:f.u.value,password:f.p.value})});
+const j=await r.json().catch(()=>({}));if(r.ok)location.reload();else document.getElementById('err').textContent=j.error||'Could not sign in';};</script></body></html>"""
+
 
 def slim(ev):
     """Wire copy of an event: drop base64 image data, cap tool_result text (stored event untouched)."""
     ev = {k: v for k, v in ev.items() if k != "tool_use_result"}  # unused by client, duplicates the result (incl. base64)
-    c = (ev.get("message") or {}).get("content")
+    m = ev.get("message")
+    c = m.get("content") if isinstance(m, dict) else None
     if not isinstance(c, list):
         return ev
     cut = lambda t: t[:6000] + "\n…" if isinstance(t, str) and len(t) > 6000 else t
@@ -903,12 +1033,58 @@ class H(BaseHTTPRequestHandler):
         cookie = f"flows_device={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={DEVICE_DAYS * 86400}{secure}"
         return self.send(200, {"ok": True}, headers=[("Set-Cookie", cookie)])
 
+    def who(self):
+        """Multi-user: the signed-in user, or None. A password change or deluser ends their sessions."""
+        tok = SimpleCookie(self.headers.get("Cookie", "")).get("flows_session")
+        s = tok and logins.get(hashlib.sha256(tok.value.encode()).hexdigest())
+        u = s and load_users().get(s["user"])
+        return s["user"] if u and s["exp"] > time.time() and u["pw"].split("$")[0] == s["salt"] else None
+
+    def login(self, body):
+        name, pw = str(body.get("user") or ""), str(body.get("password") or "")
+        if locked(name) or locked("*"):
+            return self.send(429, {"error": "Too many failed sign-ins. Try again in 15 minutes."})
+        u = load_users().get(name)
+        if not check_pw(pw, (u or {}).get("pw") or "x$") or not u:  # hash anyway: no timing hint that a user exists
+            for k in (name, "*"):
+                fails[k].append(time.time())
+            return self.send(403, {"error": "Wrong user or password"})
+        tok = secrets.token_urlsafe(32)
+        with lock:
+            logins.update({k: v for k, v in logins.items() if v["exp"] > time.time()} | {
+                hashlib.sha256(tok.encode()).hexdigest(): {"user": name, "salt": u["pw"].split("$")[0], "exp": time.time() + SESSION_DAYS * 86400}})
+            save_logins()
+        secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" or self.server is listeners.get("tunnel", {}).get("srv") else ""
+        return self.send(200, {"ok": True}, headers=[("Set-Cookie", f"flows_session={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={SESSION_DAYS * 86400}{secure}")])
+
     def route(self):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         p = self.path.split("?")[0].strip("/").split("/")
         m = self.command
-        if self.remote:
+        u = self.user = None
+        if MULTI:  # signed-in users on every listener; the phone pairing below is single-user only
+            if not self.remote and self.headers.get("Host", "").split(":")[0] not in HOSTS:
+                return self.send(403, {"error": "bad host"})
+            if m != "GET" and self.headers.get("X-Flow") != "1":
+                return self.send(403, {"error": "missing X-Flow header"})
+            if m == "POST" and p == ["api", "login"]:
+                return self.login(body)
+            u = self.user = self.who()
+            public = m == "GET" and (p in (["manifest.json"], ["sw.js"]) or (len(p) == 2 and p[0] == "icons"))
+            if not u and not public:
+                if m == "GET" and p == [""]:
+                    return self.send(200, LOGIN_HTML, "text/html; charset=utf-8")
+                return self.send(401, {"error": "Sign in first"})
+            if m == "POST" and p == ["api", "logout"]:
+                tok = SimpleCookie(self.headers.get("Cookie", "")).get("flows_session")
+                with lock:
+                    logins.pop(hashlib.sha256(tok.value.encode()).hexdigest(), None)
+                    save_logins()
+                return self.send(200, {"ok": True}, headers=[("Set-Cookie", "flows_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")])
+            if p[:2] == ["api", "remote"] and not load_users()[u].get("admin"):
+                return self.send(403, {"error": "Only an admin can manage remote access"})
+        elif self.remote:
             # Phone listeners: nothing but the pairing page until this device is paired. The install
             # files hold no data and browsers fetch the manifest and icons without cookies, so they're open.
             public = m == "GET" and (p in (["manifest.json"], ["sw.js"]) or (len(p) == 2 and p[0] == "icons"))
@@ -951,13 +1127,14 @@ class H(BaseHTTPRequestHandler):
                     save_remote()
                     return self.send(200, remote_status())
             if m == "GET" and len(p) == 3 and p[0] == "shots":
-                f = (SHOTS / Path(p[1]).name / Path(p[2]).name)  # basename only: no path traversal
+                f = udir(u, "shots", own(Path(p[1]).name, u)["id"]) / Path(p[2]).name  # basename only: no path traversal
                 if f.suffix in (".png", ".jpeg", ".jpg") and f.is_file():
                     return self.send(200, f.read_bytes(), "image/png" if f.suffix == ".png" else "image/jpeg")
                 return self.send(404, {"error": "no such screenshot"})
             if m == "GET" and len(p) == 3 and p[0] == "uploads":
-                f = (UPLOADS / Path(unquote(p[1])).name / Path(unquote(p[2])).name).resolve()
-                if f.parent.parent != UPLOADS.resolve() or not f.is_file():
+                base = udir(u, "uploads").resolve()
+                f = (base / own(Path(unquote(p[1])).name, u)["id"] / Path(unquote(p[2])).name).resolve()
+                if f.parent.parent != base or not f.is_file():
                     return self.send(404, {"error": "no such file"})
                 raw = f.read_bytes()
                 # images inline; anything else downloads, so an uploaded .html can never run on this origin
@@ -970,20 +1147,27 @@ class H(BaseHTTPRequestHandler):
                 if self.headers.get("If-None-Match") == et:
                     return self.send(304, b"", "text/html; charset=utf-8", hd)
                 return self.send(200, raw, "text/html; charset=utf-8", hd)
+            if m == "GET" and p == ["api", "me"]:
+                if not u:
+                    return self.send(200, {"user": None, "admin": True, "claude_logged_in": True})
+                home = unix_home(u)
+                # the server usually can't look inside a 700 home: then go by what their last run said
+                auth = os.path.exists(f"{home}/.claude/.credentials.json") if os.access(home, os.X_OK) else use(u).get("auth", True)
+                return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth})
             if p[:2] == ["api", "workflows"]:
-                wfs = load_wfs()
+                wfs = load_wfs(u)
                 if m == "GET" and len(p) == 2:
                     return self.send(200, wfs)
                 if m == "PUT" and len(p) == 3:
                     wfs[p[2]] = body
-                    save_wfs(wfs)
+                    save_wfs(wfs, u)
                     return self.send(200, {"ok": True})
                 if m == "DELETE" and len(p) == 3:
                     wfs.pop(p[2], None)
-                    save_wfs(wfs)
+                    save_wfs(wfs, u)
                     return self.send(200, {"ok": True})
                 if m == "POST" and len(p) == 4 and p[3] == "run":
-                    return self.send(200, {"id": start_run(p[2], body.get("input", ""))})
+                    return self.send(200, {"id": start_run(p[2], body.get("input", ""), u)})
             if m == "GET" and p == ["sw.js"]:
                 return self.send(200, SW_JS.encode(), "text/javascript", [("Service-Worker-Allowed", "/")])
             if m == "GET" and len(p) == 2 and p[0] == "icons":
@@ -1001,22 +1185,23 @@ class H(BaseHTTPRequestHandler):
                     if not ep.startswith("https://"):
                         return self.send(400, {"error": "bad subscription"})
                     if body.get("off"):
-                        push["subs"].pop(ep, None)
+                        if push["subs"].get(ep, {}).get("owner") == u:
+                            push["subs"].pop(ep, None)
                     else:
-                        push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40]}
+                        push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40], "owner": u}
                     PUSH_FILE.write_text(json.dumps(push))
                     return self.send(200, {"ok": True})
             if m == "GET" and p == ["api", "usage"]:
-                return self.send(200, usage)
+                return self.send(200, use(u))
             if p[:2] == ["api", "queue"]:
                 if m == "GET" and len(p) == 2:
-                    return self.send(200, {"items": [{k: v for k, v in q.items() if k != "files"} for q in queue],
-                                           "limited_until": limited_until()})
+                    return self.send(200, {"items": [{k: v for k, v in q.items() if k != "files"} for q in queue if q.get("owner") == u],
+                                           "limited_until": limited_until(u)})
                 if m == "POST" and len(p) == 2:
-                    return self.send(200, {"id": enqueue(body)})
+                    return self.send(200, {"id": enqueue(body, u)})
                 if m == "DELETE" and len(p) == 3:
                     with lock:
-                        queue[:] = [q for q in queue if q["id"] != p[2]]
+                        queue[:] = [q for q in queue if q["id"] != p[2] or q.get("owner") != u]
                         save_queue()
                     return self.send(200, {"ok": True})
             if p[:2] == ["api", "runs"]:
@@ -1024,15 +1209,16 @@ class H(BaseHTTPRequestHandler):
                     if m == "GET" and len(p) == 2:
                         skip = ("steps", "workflow", "input", "events", "config")
                         return self.send(200, sorted(
-                            ({k: v for k, v in r.items() if k not in skip} for r in runs.values()),
+                            ({k: v for k, v in r.items() if k not in skip} for r in runs.values() if r.get("owner") == u),
                             key=lambda r: r["started"], reverse=True))
                     if m == "GET" and len(p) == 3:
-                        r = runs[p[2]]
+                        r = own(p[2], u)
                         if "events" in r:  # sessions grow large: client polls with ?since=<count>
                             since = int(self.path.partition("since=")[2] or 0)
                             return self.send(200, {**r, "events": [slim(e) for e in r["events"][since:]], "total": len(r["events"])})
                         return self.send(200, r)
                     if m == "POST" and len(p) == 4 and p[3] == "cancel":
+                        own(p[2], u)
                         if runs[p[2]]["status"] == "waiting":
                             runs[p[2]].update(status="cancelled", ended=time.time())
                             save_run(runs[p[2]])
@@ -1042,14 +1228,14 @@ class H(BaseHTTPRequestHandler):
                                 procs[p[2]].terminate()
                         return self.send(200, {"ok": True})
                     if m == "DELETE" and len(p) == 3:
-                        delete_run(p[2])
+                        delete_run(own(p[2], u)["id"])
                         return self.send(200, {"ok": True})
             if p[:2] == ["api", "sessions"] and m == "POST":
                 if len(p) == 2:
-                    return self.send(200, {"id": start_session(body)})
-                r = runs[p[2]]
+                    return self.send(200, {"id": start_session(body, u)})
+                r = own(p[2], u)
                 if p[3:] == ["message"]:
-                    send(r, body.get("text", ""), body.get("agents"), body.get("sub_models"), save_files(r["id"], body.get("files")))
+                    send(r, body.get("text", ""), body.get("agents"), body.get("sub_models"), save_files(r, body.get("files")))
                     return self.send(200, {"ok": True})
                 if p[3:] == ["model"]:
                     set_model(r, body.get("model") or "")
@@ -1081,8 +1267,43 @@ class RH(H):
     remote = True
 
 
+def admin_cli(cmd, name, *rest):
+    """python3 server.py adduser <name> <unix_user> [--admin] | passwd <name> | deluser <name>"""
+    import getpass
+    us = load_users()
+    if cmd == "deluser":
+        us.pop(name)
+    else:
+        if cmd == "adduser":
+            if not re.fullmatch(r"[a-z0-9_-]{1,32}", name) or name in us:
+                raise SystemExit("name: 1-32 of a-z 0-9 _ - and not taken")
+            pwd.getpwnam(rest[0])  # the Linux user must exist
+            us[name] = {"unix": rest[0], "admin": "--admin" in rest}
+        pw = getpass.getpass(f"Password for {name}: ")
+        if len(pw) < 10 or pw != getpass.getpass("Again: "):
+            raise SystemExit("Passwords must match and be at least 10 characters")
+        us[name]["pw"] = hash_pw(pw)  # a new salt also ends their open sessions
+    USERS_FILE.write_text(json.dumps(us, indent=1))
+    os.chmod(USERS_FILE, 0o600)
+    print("Saved. Restart Flows if this created data/users.json (turns on multi-user mode).")
+
+
 if __name__ == "__main__":
-    print(f"Flows on http://localhost:{PORT}")
+    import sys
+    if sys.argv[1:2] and sys.argv[1] in ("adduser", "passwd", "deluser"):
+        try:
+            admin_cli(*sys.argv[1:])
+        except (TypeError, IndexError, KeyError) as e:
+            raise SystemExit(f"{admin_cli.__doc__}\n({e!r})")
+        raise SystemExit
+    if MULTI:  # the owners' agents must reach data/users/<name>/ but list nothing on the way
+        for d in (DATA, DATA / "users"):
+            d.mkdir(exist_ok=True)
+            os.chmod(d, 0o711)
+        for f in DATA.iterdir():  # everything else (runs, keys, sessions): server user only
+            if f.name != "users":
+                os.chmod(f, f.stat().st_mode & 0o700)
+    print(f"Flows on http://localhost:{PORT}" + (f" ({len(load_users())} users, sign-in required)" if MULTI else ""))
     if remote.get("tailnet"):
         listeners["tailnet"] = {"srv": serve(("127.0.0.1", TAILNET_PORT), RH)}  # tailscaled keeps its serve config
         print(f"Tailscale phone listener on 127.0.0.1:{TAILNET_PORT}")
