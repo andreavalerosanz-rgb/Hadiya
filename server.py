@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlsplit
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).parent
-DATA = ROOT / "data"
+DATA = Path(os.environ.get("FLOWS_DATA") or ROOT / "data")  # the .deb sets ~/.local/share/flows
 # Multi-user mode (see DEPLOY.md) is on when data/users.json exists: logins, per-user data, and every
 # `claude` runs as that person's Linux user via sudo. Without the file: single user, no login, as always.
 USERS_FILE = DATA / "users.json"
@@ -71,8 +71,48 @@ def workdir(owner, path):
     return d
 
 
+# Packages: what someone's agents can reach. "dev" = everything. "admin" = Google Workspace only:
+# no file, shell or browser tools, and no other MCP server. Per person (users.json "package"),
+# else per install (FLOWS_PACKAGE, set by the .deb).
+GOOGLE = ("mcp__claude_ai_Google_Drive", "mcp__claude_ai_Gmail", "mcp__claude_ai_Google_Calendar")
+PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", "mcp": GOOGLE}}
+
+
+def package(owner):
+    p = (load_users()[owner].get("package") if owner else None) or os.environ.get("FLOWS_PACKAGE") or "dev"
+    return p if p in PACKAGES else "admin"  # a typo must not grant everything
+
+
+def allowed(owner, tool):
+    """May this person's package use the tool at all? (Asked tools outside it are refused, never shown.)"""
+    pk = PACKAGES[package(owner)]
+    return not pk or tool in pk["tools"].split(",") + ["Task"] or str(tool).startswith(pk["mcp"])
+
+
+def fence(owner, cmd):
+    """Clamp a `claude` command line to the owner's package, whatever the step or session asked for."""
+    pk = PACKAGES[package(owner)]
+    if not pk:
+        return cmd
+    out, it = [], iter(cmd)
+    for a in it:
+        if a == "--permission-mode":
+            next(it)
+            a = "--permission-mode=default"  # bypass would let every MCP tool through
+        elif a == "--allowedTools":
+            a = "--allowedTools=" + ",".join(t for t in next(it).split(",") if allowed(owner, t.strip()))
+        elif a == "--mcp-config":  # Playwright
+            next(it)
+            continue
+        out.append(a)
+    # ponytail: user/project settings could still pre-allow a non-Google MCP tool; the sudo users of an admin
+    # package have a fresh ~/.claude. --strict-mcp-config would be tighter but also drops the claude.ai connectors.
+    return out + ["--tools=" + pk["tools"]]  # built-ins: Read, Bash, Edit, WebFetch… all gone
+
+
 def launch(owner, cmd, cwd, extra=None):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
+    cmd = fence(owner, cmd)
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
@@ -419,6 +459,10 @@ def pump(r, p):
                 write(p, {"type": "control_response", "response": {
                     "subtype": "error", "request_id": ev.get("request_id"), "error": "unsupported by Flows"}})
                 continue
+            if not allowed(r.get("owner"), req.get("tool_name")):
+                write(p, {"type": "control_response", "response": {"subtype": "success", "request_id": ev.get("request_id"), "response": {
+                    "behavior": "deny", "message": f"Not available in the {package(r.get('owner'))} package of Flows."}}})
+                continue
             with lock:
                 r.setdefault("pending", {})[ev["request_id"]] = {
                     "id": ev["request_id"], "tool": req.get("tool_name"), "input": req.get("input") or {},
@@ -572,7 +616,7 @@ def start_session(body, owner):
 
 
 # ---------- notifications: native on this desktop, Web Push to subscribed phones ----------
-PUSH_FILE = ROOT / "data" / "push.json"
+PUSH_FILE = DATA / "push.json"
 push = json.loads(PUSH_FILE.read_text()) if PUSH_FILE.exists() else {}
 push.setdefault("subs", {})  # endpoint -> {sub, name}
 try:  # the only non-stdlib piece; without it phones just don't get push
@@ -674,7 +718,7 @@ def notify(r, body):
 
 
 # ---------- queue: tasks that start one at a time, and pause while the usage limit is out ----------
-QUEUE_FILE = ROOT / "data" / "queue.json"
+QUEUE_FILE = DATA / "queue.json"
 queue = json.loads(QUEUE_FILE.read_text()) if QUEUE_FILE.exists() else []
 RESUME = "Continue where you left off. (Resumed automatically after the usage limit reset.)"
 
@@ -764,7 +808,7 @@ def worker():
 # Trust comes from the socket, never from headers: the 127.0.0.1:PORT listener is the laptop.
 # Phone traffic arrives on separate listeners (Wi-Fi IP, and a tunnel-only port) whose handler
 # requires a paired-device cookie on every request. Only the laptop can pair, revoke, or toggle.
-REMOTE_FILE = ROOT / "data" / "remote.json"
+REMOTE_FILE = DATA / "remote.json"
 remote = json.loads(REMOTE_FILE.read_text()) if REMOTE_FILE.exists() else {}
 remote.setdefault("devices", {})  # sha256(token) -> {name, created, last}
 TUNNEL_PORT = PORT + 2
@@ -821,15 +865,19 @@ def set_tunnel(on):
     if on and "tunnel" not in listeners:
         exe = shutil.which("cloudflared") or os.path.expanduser("~/.local/bin/cloudflared")
         srv = serve(("127.0.0.1", TUNNEL_PORT), RH)
-        proc = subprocess.Popen([exe, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{TUNNEL_PORT}"],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=die_with_parent)
-        t = listeners["tunnel"] = {"srv": srv, "proc": proc, "url": None}
+        t = listeners["tunnel"] = {"srv": srv, "proc": None, "url": None}
 
         def read():
+            # Spawned here, not in the request thread: PDEATHSIG fires when the forking *thread* exits.
+            proc = t["proc"] = subprocess.Popen([exe, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{TUNNEL_PORT}"],
+                                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=die_with_parent)
+            if listeners.get("tunnel") is not t:  # turned off before we got here
+                proc.terminate()
             for line in proc.stdout:
                 m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
                 if m and not t["url"]:
                     t["url"] = m.group(0)
+            proc.wait()
         threading.Thread(target=read, daemon=True).start()
     elif not on:
         stop("tunnel")
@@ -950,6 +998,33 @@ LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Pair with Flows", b"Sign in
 <button>Sign in</button><div id="err" role="alert"></div></form></main><script>
 const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({user:f.u.value,password:f.p.value})});
 const j=await r.json().catch(()=>({}));if(r.ok)location.reload();else document.getElementById('err').textContent=j.error||'Could not sign in';};</script></body></html>"""
+
+
+sub_scan = {}  # run id -> (events scanned, {tool_use_id: {id, desc, status}})
+
+
+def subs_of(r):
+    """The lead's subagents and their state, same rules as tasksOf() in index.html. Scans only new events."""
+    evs = r.get("events") or []
+    n, T = sub_scan.get(r["id"], (0, {}))
+    if n > len(evs):
+        n, T = 0, {}
+    for e in evs[n:]:
+        m = e.get("message")
+        c = [x for x in (m.get("content") if isinstance(m, dict) else None) or [] if isinstance(x, dict)]
+        t = e.get("type")
+        if t == "assistant" and not e.get("parent_tool_use_id"):
+            for x in c:
+                if x.get("type") == "tool_use" and x.get("name") in ("Agent", "Task"):
+                    T[x["id"]] = {"id": x["id"], "desc": (x.get("input") or {}).get("description") or "Subagent", "status": "running"}
+        elif t == "system" and e.get("subtype") == "task_notification" and e.get("tool_use_id") in T:
+            T[e["tool_use_id"]]["status"] = "done" if e.get("status") == "completed" else e.get("status")
+        elif t == "user":
+            for x in c:
+                if x.get("type") == "tool_result" and x.get("tool_use_id") in T and "Async agent launched" not in json.dumps(x.get("content")):
+                    T[x["tool_use_id"]]["status"] = "failed" if x.get("is_error") else "done"
+    sub_scan[r["id"]] = (len(evs), T)
+    return list(T.values())
 
 
 def slim(ev):
@@ -1149,11 +1224,11 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, raw, "text/html; charset=utf-8", hd)
             if m == "GET" and p == ["api", "me"]:
                 if not u:
-                    return self.send(200, {"user": None, "admin": True, "claude_logged_in": True})
+                    return self.send(200, {"user": None, "admin": True, "claude_logged_in": True, "package": package(None)})
                 home = unix_home(u)
                 # the server usually can't look inside a 700 home: then go by what their last run said
                 auth = os.path.exists(f"{home}/.claude/.credentials.json") if os.access(home, os.X_OK) else use(u).get("auth", True)
-                return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth})
+                return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth, "package": package(u)})
             if p[:2] == ["api", "workflows"]:
                 wfs = load_wfs(u)
                 if m == "GET" and len(p) == 2:
@@ -1209,7 +1284,8 @@ class H(BaseHTTPRequestHandler):
                     if m == "GET" and len(p) == 2:
                         skip = ("steps", "workflow", "input", "events", "config")
                         return self.send(200, sorted(
-                            ({k: v for k, v in r.items() if k not in skip} for r in runs.values() if r.get("owner") == u),
+                            ({**{k: v for k, v in r.items() if k not in skip}, **({"subs": subs_of(r)} if r.get("kind") == "session" else {})}
+                             for r in runs.values() if r.get("owner") == u),
                             key=lambda r: r["started"], reverse=True))
                     if m == "GET" and len(p) == 3:
                         r = own(p[2], u)
@@ -1268,7 +1344,7 @@ class RH(H):
 
 
 def admin_cli(cmd, name, *rest):
-    """python3 server.py adduser <name> <unix_user> [--admin] | passwd <name> | deluser <name>"""
+    """python3 server.py adduser <name> <unix_user> [--admin] [--package admin] | passwd <name> | deluser <name>"""
     import getpass
     us = load_users()
     if cmd == "deluser":
@@ -1279,6 +1355,10 @@ def admin_cli(cmd, name, *rest):
                 raise SystemExit("name: 1-32 of a-z 0-9 _ - and not taken")
             pwd.getpwnam(rest[0])  # the Linux user must exist
             us[name] = {"unix": rest[0], "admin": "--admin" in rest}
+            if "--package" in rest:
+                us[name]["package"] = rest[rest.index("--package") + 1]
+                if us[name]["package"] not in PACKAGES:
+                    raise SystemExit(f"package: one of {', '.join(PACKAGES)}")
         pw = getpass.getpass(f"Password for {name}: ")
         if len(pw) < 10 or pw != getpass.getpass("Again: "):
             raise SystemExit("Passwords must match and be at least 10 characters")

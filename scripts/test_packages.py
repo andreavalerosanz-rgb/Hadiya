@@ -1,0 +1,19 @@
+"""python3 scripts/test_packages.py — the admin package clamps every claude command line."""
+import os, sys
+os.environ["FLOWS_PACKAGE"] = "admin"
+os.environ["FLOWS_DATA"] = "/tmp/flows-test-packages"
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import server as s
+
+cmd = s.fence(None, ["claude", "-p", "--permission-mode", "bypassPermissions",
+                     "--allowedTools", "Agent,Task,Bash,Read,mcp__plugin_figma_figma,mcp__claude_ai_Gmail__get_thread",
+                     "--mcp-config", "{}", "--model", "haiku"])
+assert cmd == ["claude", "-p", "--permission-mode=default", "--allowedTools=Agent,Task,mcp__claude_ai_Gmail__get_thread",
+               "--model", "haiku", "--tools=Agent,ToolSearch,AskUserQuestion"], cmd
+assert s.allowed(None, "mcp__claude_ai_Google_Drive__create_file") and s.allowed(None, "AskUserQuestion")
+assert not any(s.allowed(None, t) for t in ("Bash", "Edit", "mcp__claude_ai_Trello__x", "mcp__playwright__browser_click"))
+os.environ["FLOWS_PACKAGE"] = "dev"
+assert s.fence(None, ["claude", "--allowedTools", "Bash"]) == ["claude", "--allowedTools", "Bash"]
+os.environ["FLOWS_PACKAGE"] = "typo"
+assert s.package(None) == "admin"
+print("ok")
