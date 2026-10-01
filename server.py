@@ -116,8 +116,9 @@ def launch(owner, cmd, cwd, extra=None):
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
-        cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd, "--",
-               *[f"{k}={v}" for k, v in (extra or {}).items()], *cmd]
+        # VAR=value must come before "--": after it, sudo takes it for the command (and finds no rule)
+        cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd,
+               *[f"{k}={v}" for k, v in (extra or {}).items()], "--", *cmd]
         cwd = None  # the server user can't enter their home; sudo -D does it as them
     return subprocess.Popen(cmd, cwd=cwd, env={**ENV, **(extra or {})}, text=True, stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

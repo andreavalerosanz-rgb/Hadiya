@@ -41,11 +41,11 @@ while a and a[0].startswith("-") and a[0] != "--":
     if o in ("-u", "-D"):
         v = a.pop(0)
         cwd = v if o == "-D" else cwd
-if a[:1] == ["--"]:
-    a.pop(0)
-while "=" in a[0]:
+while "=" in a[0]:  # like real sudo: VAR=value only before "--"
     k, v = a.pop(0).split("=", 1)
     env[k] = v
+if a[:1] == ["--"]:
+    a.pop(0)
 os.chdir(cwd)
 os.execvpe(a[0], a, env)
 """)
