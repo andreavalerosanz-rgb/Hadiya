@@ -4,3 +4,5 @@ __pycache__/
 *.log
 .claude/
 dist/
+.impeccable/build/
+.impeccable/questions/
