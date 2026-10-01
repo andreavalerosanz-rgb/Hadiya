@@ -75,7 +75,12 @@ def workdir(owner, path):
 # no file, shell or browser tools, and no other MCP server. Per person (users.json "package"),
 # else per install (FLOWS_PACKAGE, set by the .deb).
 GOOGLE = ("mcp__claude_ai_Google_Drive", "mcp__claude_ai_Gmail", "mcp__claude_ai_Google_Calendar")
-PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", "mcp": GOOGLE}}
+PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", "mcp": GOOGLE, "note": (
+    "You help someone with no technical background with their Google Workspace: Gmail, Google Drive and Google Calendar. "
+    "Those are your only tools and they are deferred: before saying you can't reach their mail, files or calendar, "
+    "load them with ToolSearch (e.g. \"gmail\", \"drive\", \"calendar\") and use them. "
+    "Answer in the person's language, in plain everyday words, with no technical terms, tool names or code. "
+    "Before sending, saving or changing anything, say exactly what you will do; the person approves it in a popup.")}}
 
 
 def package(owner):
@@ -104,10 +109,13 @@ def fence(owner, cmd):
         elif a == "--mcp-config":  # Playwright
             next(it)
             continue
+        elif a == "--append-system-prompt":
+            a = "--append-system-prompt=" + next(it) + "\n\n" + pk["note"]
+            pk = {**pk, "note": ""}  # used up
         out.append(a)
     # ponytail: user/project settings could still pre-allow a non-Google MCP tool; the sudo users of an admin
     # package have a fresh ~/.claude. --strict-mcp-config would be tighter but also drops the claude.ai connectors.
-    return out + ["--tools=" + pk["tools"]]  # built-ins: Read, Bash, Edit, WebFetch… all gone
+    return out + ["--tools=" + pk["tools"]] + (["--append-system-prompt=" + pk["note"]] if pk["note"] else [])  # built-ins: Read, Bash, Edit, WebFetch… all gone
 
 
 def launch(owner, cmd, cwd, extra=None):

@@ -625,6 +625,326 @@ details.mdet .cnt{display:none}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+
+/* ================= admin package: "La ventanilla" (everything scoped to body.adm) ================= */
+body.adm{
+  --a-blue:#1f4fd1; --a-blue-d:#163a9c; --a-blue-2:#2a5ae0; --a-tint:#dce5ff;
+  --a-red:#d93d2b; --a-red-d:#a32a1b; --a-green:#0f8a5f; --a-green-d:#09603f; --a-amber:#f2a900; --a-amber-d:#b07b00;
+  --a-ink:#111a2e; --a-ink-2:#26324d; --a-ground:#e9edf3; --a-rack:#f5f7fa; --a-paper:#fdfcf7; --a-line:#c4ccd9; --a-mute:#4b556b;
+  --a-led:#ffb43a; --a-led-off:#1e2945; --a-ok:#0b7350; --a-bad:#b32a1c;
+  --a-font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,sans-serif; --a-dot:"Doto",ui-monospace,monospace;
+  color-scheme:light;background:var(--a-ground);color:var(--a-ink);font:18px/1.55 var(--a-font);grid-template-columns:280px minmax(0,1fr);height:auto;min-height:100%;
+  caret-color:var(--a-blue);accent-color:var(--a-blue);scrollbar-color:#9aa5b8 var(--a-ground);
+}
+body.adm ::selection{background:var(--a-amber);color:var(--a-ink)}
+body.adm :focus-visible{outline:3px solid var(--a-ink);outline-offset:3px}
+body.adm .a-disp :focus-visible,body.adm .a-band :focus-visible{outline-color:#fff}
+body.adm main{padding-bottom:0}
+body.adm a{text-underline-offset:3px}
+body.adm .grow{flex:1}
+@keyframes a-pulse{50%{opacity:.35}}
+
+/* rack */
+body.adm aside{background:var(--a-rack);border-right:1px solid var(--a-line);padding:20px 14px 24px;color:var(--a-ink)}
+body.adm .a-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;border:0;margin:0;text-decoration:none;color:var(--a-ink)}
+body.adm .a-brand .i{width:34px;height:34px;color:var(--a-blue);stroke-width:1.9}
+body.adm .a-brand b{font:800 28px/1 var(--a-font);letter-spacing:-.01em}
+body.adm .rack-toggle{border:2px solid var(--a-line);color:var(--a-ink);border-radius:10px;background:#fff}
+body.adm .qdot{background:var(--a-amber);box-shadow:0 0 0 2px #fff}
+.a-new{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:58px;border:0;border-bottom:4px solid var(--a-blue-d);border-radius:12px;background:var(--a-blue);color:#fff;font:700 19px/1 var(--a-font);cursor:pointer;transition:background .15s}
+.a-new:hover{background:var(--a-blue-2)}
+.a-new .i{width:22px;height:22px;stroke-width:2.2}
+body.adm .rack .a-rh{display:block;margin:26px 10px 6px;font:800 17px/1.2 var(--a-font);color:var(--a-ink);letter-spacing:0;text-transform:none}
+.a-list{list-style:none;margin:0;padding:0}
+.a-tk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px;border-radius:10px;text-decoration:none;color:inherit;min-height:56px}
+.a-tk:hover{background:#fff}
+.a-tk[aria-current]{background:#fff;box-shadow:inset 0 0 0 2px var(--a-blue)}
+.a-tk .a-no{font:800 17px/1.35 var(--a-font);color:var(--a-blue-d);font-variant-numeric:tabular-nums}
+.a-nm{min-width:0;font-size:16px;line-height:1.35}
+.a-nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-tk .a-s{font-size:14px}.a-tk .a-s .i{width:15px;height:15px}
+.a-tk time{font-size:14px;line-height:1.35;color:var(--a-mute);white-space:nowrap;text-align:right}
+.a-none{color:var(--a-mute);font-size:16px;margin:4px 10px}
+.a-foot{margin-top:22px;border-top:1px solid var(--a-line);padding-top:12px;display:flex;flex-direction:column;gap:2px}
+.a-link{display:flex;align-items:center;gap:10px;width:100%;min-height:50px;padding:0 10px;border:0;border-radius:10px;background:none;color:inherit;text-decoration:none;text-align:left;cursor:pointer;font:600 17px/1.2 var(--a-font)}
+.a-link:hover,.a-link[aria-current]{background:#fff}
+.a-link .i{width:22px;height:22px}
+.a-link small{margin-left:auto;color:var(--a-mute);font-size:14px;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
+/* state marks: always icon + word */
+.a-s{display:inline-flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap}
+.a-s .i{width:18px;height:18px;stroke-width:2.2}
+.a-s.working{color:var(--a-blue)}
+.a-s.idle,.a-s.done{color:var(--a-ok)}
+.a-s.failed{color:var(--a-bad)}
+.a-s.stopped,.a-s.waiting,.a-s.cancelled,.a-s.interrupted{color:var(--a-mute)}
+.a-s.asking{background:var(--a-amber);color:var(--a-ink);padding:3px 10px 3px 8px;border-radius:999px}
+.a-s.working .i,.a-s.asking .i{animation:a-pulse 1.6s ease-in-out infinite}
+
+/* buttons */
+.a-btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 20px;border:2px solid transparent;border-radius:12px;font:700 18px/1.1 var(--a-font);cursor:pointer;text-decoration:none;text-align:center;transition:background .15s,border-color .15s,transform .15s var(--ease)}
+.a-btn .i{width:22px;height:22px;stroke-width:2}
+.a-pri{background:var(--a-blue);color:#fff;border-bottom:4px solid var(--a-blue-d)}
+.a-pri:hover{background:var(--a-blue-2)}
+.a-sec{background:#fff;color:var(--a-ink);border-color:var(--a-line)}
+.a-sec:hover{border-color:var(--a-ink)}
+.a-q{background:transparent;color:var(--a-ink);border:0;padding:0 10px;font-weight:600;text-decoration:underline;text-underline-offset:4px}
+.a-q:hover{color:var(--a-blue-d)}
+.a-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.75)}
+.a-ghost:hover{background:rgba(255,255,255,.12);border-color:#fff}
+.a-btn:disabled,.a-btn[aria-busy=true]{opacity:.6;cursor:progress;transform:none}
+body.adm .mic[aria-pressed=true],body.adm .mic[aria-pressed=true]:hover{background:var(--a-red);border-color:var(--a-red);color:#fff}
+
+/* home: dispenser + turn board + stubs */
+.a-home{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(360px,1fr);gap:28px;align-items:start;padding:32px 36px 56px;max-width:1500px}
+.a-disp{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0) 32%),var(--a-blue);color:#fff;border-radius:26px 26px 16px 16px;border-bottom:6px solid var(--a-blue-d);padding:30px 32px 56px;box-shadow:0 24px 38px -24px rgba(17,26,46,.6)}
+.a-disp h1{margin:0;font:800 52px/1.05 var(--a-font);letter-spacing:-.02em;text-wrap:balance}
+.a-lede{margin:10px 0 20px;color:var(--a-tint);font-size:18px;max-width:62ch}
+.a-disp textarea{display:block;width:100%;min-height:132px;max-height:40vh;border:0;border-radius:14px;background:var(--a-paper);color:var(--a-ink);padding:16px 18px;font:20px/1.5 var(--a-font);resize:vertical;box-shadow:inset 0 2px 5px rgba(17,26,46,.28)}
+.a-disp textarea::placeholder{color:#5b6477}
+.a-keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}
+.a-key{--k:var(--a-red);--kd:var(--a-red-d);display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 14px 0;border:0;border-bottom:6px solid var(--kd);border-radius:14px;background:var(--k);color:#fff;cursor:pointer;text-align:left;overflow:hidden;transition:transform .14s var(--ease),box-shadow .14s var(--ease)}
+.a-key.k-docs{--k:var(--a-green);--kd:var(--a-green-d)}
+.a-key.k-cal{--k:var(--a-amber);--kd:var(--a-amber-d);color:var(--a-ink)}
+.a-key.k-other{--k:var(--a-ink);--kd:#000}
+.a-key .i{width:30px;height:30px;stroke-width:2}
+.a-key b{font:800 21px/1.1 var(--a-font);overflow-wrap:normal;hyphens:none;white-space:nowrap}
+.a-disp{container-type:inline-size}
+@container (max-width:760px){.a-keys{grid-template-columns:repeat(2,minmax(0,1fr))}.a-bar>.a-ghost{flex:1 1 40%}.a-pedir{flex:1 0 100%}.a-mhide{display:none}}
+.a-key small{display:block;flex:1 0 auto;align-self:stretch;margin:6px -14px 0;padding:8px 14px 10px;background:var(--a-paper);color:var(--a-ink);font-size:15px;line-height:1.3}
+@media (hover:hover){.a-key:hover{transform:translateY(-2px)}}
+.a-key:active{transform:translateY(3px)}
+.a-key[aria-pressed=true]{box-shadow:0 0 0 3px var(--a-blue),0 0 0 6px #fff}
+.a-ex{margin-top:18px}
+.a-ex:empty{display:none}
+.a-ex p{margin:0 0 8px;color:var(--a-tint);font-size:16px}
+.a-ex ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.a-ex button{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:10px 16px;border:0;border-radius:10px;background:var(--a-paper);color:var(--a-ink);font:500 17px/1.3 var(--a-font);text-align:left;cursor:pointer;transition:background .15s}
+.a-ex button:hover{background:#fff}
+.a-ex button .i{width:18px;height:18px;color:var(--a-blue)}
+.a-disp .atts{margin-top:10px}
+.a-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+.a-pedir{min-height:64px;padding:0 36px;background:var(--a-paper);color:var(--a-ink);border:0;border-bottom:5px solid #aab5ca;font-size:24px;font-weight:800}
+.a-pedir:hover{background:#fff}
+.a-pedir .i{width:26px;height:26px;color:var(--a-blue)}
+.a-slot{position:absolute;left:50%;bottom:16px;width:min(380px,72%);height:14px;transform:translateX(-50%);border-radius:7px;background:#0a1430;box-shadow:inset 0 3px 5px rgba(0,0,0,.65)}
+.a-out{position:absolute;top:7px;left:14px;right:14px;z-index:20;overflow:hidden;pointer-events:none;padding:0 10px 26px}
+.a-out .a-tkw{transform:translateY(-110%)}
+
+/* the LED turn board */
+.a-board{background:var(--a-ink);color:#e6ebf5;border-radius:18px;padding:22px 20px 16px;box-shadow:0 18px 30px -20px rgba(17,26,46,.7)}
+.a-board h2{margin:0 0 14px;font:800 24px/1.1 var(--a-font);color:#fff}
+.a-row{display:grid;grid-template-columns:64px minmax(0,1fr) 114px;gap:12px;align-items:center;min-height:66px;padding:10px 6px;border-top:1px solid var(--a-ink-2);border-radius:4px;color:inherit;text-decoration:none}
+.a-row.a-hd{min-height:0;padding:0 6px 8px;border-top:0;font:700 14px/1 var(--a-font);letter-spacing:.06em;text-transform:uppercase;color:#9fb0cf}
+a.a-row:hover{background:#18233d}
+.a-row.asking{background:#1a2541}
+.a-subj{min-width:0;font-size:16px;line-height:1.3}
+.a-subj b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;color:#fff}
+.a-subj small{display:block;color:#a9b6cf;font-size:14px;margin-top:2px}
+.a-board .a-s{font-size:15px}.a-board .a-s .i{width:16px;height:16px}
+.a-board .a-s.working{color:#a9c1ff}.a-board .a-s.idle{color:#7fe0b4}.a-board .a-s.waiting{color:#c9d3e6}
+.a-led{position:relative;display:inline-block;font:800 32px/1 var(--a-dot);color:var(--a-led);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.a-led::before{content:attr(data-off);position:absolute;inset:0;color:var(--a-led-off)}
+.a-led>span{position:relative}
+.a-empty{padding:6px 6px 10px}
+.a-empty .a-led{font-size:72px}
+.a-empty p{margin:12px 0 0;color:#c9d3e6;font-size:17px;max-width:34ch}
+.a-stubs{grid-column:1/-1;margin-top:8px}
+.a-stubs h2{margin:0;font:800 28px/1.15 var(--a-font)}
+.a-stubs>p{margin:6px 0 16px;color:var(--a-mute);font-size:17px}
+.a-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));border-top:2px dashed var(--a-line);border-left:2px dashed var(--a-line)}
+.a-grid>li{border-right:2px dashed var(--a-line);border-bottom:2px dashed var(--a-line)}
+.a-stub{position:relative;display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-content:start;height:100%;min-height:188px;padding:16px 18px 18px;background:var(--a-paper);color:inherit;text-decoration:none;transition:background .15s}
+.a-stub:hover{background:#fff}
+.a-stub .a-sno{font:800 30px/1 var(--a-font);font-variant-numeric:tabular-nums}
+.a-stub time{font-size:14px;color:var(--a-mute);text-align:right}
+.a-stub .a-cat,.a-stub .a-snm,.a-stub .a-s{grid-column:1/-1}
+.a-snm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-weight:600;font-size:17px;line-height:1.35}
+.a-stub .a-s{align-self:end;font-size:15px}
+.a-stub.punched::after{content:"";position:absolute;right:18px;bottom:16px;width:24px;height:24px;border-radius:50%;background:var(--a-ground);box-shadow:inset 0 2px 4px rgba(17,26,46,.45)}
+
+/* errand chip */
+.a-cat{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:16px}
+.a-ci{--k:var(--a-mute);display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border-radius:7px;background:var(--k);color:#fff}
+.a-ci .i{width:17px;height:17px;stroke-width:2.1}
+.a-ci.k-mail{--k:var(--a-red)}.a-ci.k-docs{--k:var(--a-green)}.a-ci.k-cal{--k:var(--a-amber);color:var(--a-ink)}.a-ci.k-other{--k:var(--a-ink)}
+
+/* the ticket: thermal paper, torn bottom edge */
+.a-tkw{filter:drop-shadow(0 8px 12px rgba(17,26,46,.2))}
+.a-ticket{--z:9px;position:relative;background:var(--a-paper);color:var(--a-ink);padding:16px 22px calc(18px + var(--z));border-radius:6px 6px 0 0;
+  -webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/calc(2*var(--z)) 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/calc(2*var(--z)) 100%}
+.a-tt{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:2px dashed var(--a-line);margin-bottom:12px}
+.a-tno{font-size:17px;font-weight:700}
+.a-tno b{font:800 46px/1 var(--a-font);letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-left:4px}
+.a-tt time{font-size:15px;color:var(--a-mute);text-align:right;white-space:nowrap}
+.a-ticket p{margin:10px 0 0;font-size:19px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.a-ticket .a-tfoot{display:block;margin-top:14px;color:var(--a-mute);font-size:14px}
+.a-print p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* alerts, banners */
+.a-alert{display:flex;align-items:center;gap:12px;padding:14px 36px;background:var(--a-amber);color:var(--a-ink);text-decoration:none;font-size:18px;line-height:1.35}
+.a-alert .i{width:24px;height:24px;flex:none}
+.a-alert .go{margin-left:auto;font-weight:800;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+p.a-alert{margin:0}
+.a-alert.login{background:var(--a-ink);color:#fff}
+.a-askbar{display:flex;align-items:center;gap:12px;width:100%;margin:16px 0 0;padding:14px 18px;border:0;border-radius:14px;background:var(--a-amber);color:var(--a-ink);font:500 18px/1.35 var(--a-font);text-align:left;cursor:pointer;min-height:56px}
+.a-askbar .i{width:24px;height:24px;flex:none}
+.a-askbar .go{margin-left:auto;font-weight:800;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+
+/* conversation */
+.a-conv{max-width:920px;margin:0 auto;padding:0 36px}
+.a-where{position:sticky;top:0;z-index:6;display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;padding:20px 0 14px;background:var(--a-ground);border-bottom:1px solid var(--a-line)}
+.a-where h1{flex:1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0;font:800 30px/1.2 var(--a-font);font-variant-numeric:tabular-nums}
+.a-sep{color:var(--a-mute);font-weight:400}
+.a-where .a-s{font-size:24px}.a-where .a-s .i{width:24px;height:24px}
+.a-where .a-s.asking{padding:4px 14px 4px 10px}
+.a-conv>#a-tk .a-tkw{margin:22px 0 4px;max-width:600px}
+.a-log{display:flex;flex-direction:column;gap:16px;padding:18px 0 6px}
+.a-log.logbox{max-height:none;overflow:visible;padding-right:0}
+.a-say{font-size:19px;line-height:1.6;max-width:68ch;overflow-wrap:anywhere}
+.a-say p{margin:0 0 .55em}.a-say>:last-child{margin-bottom:0}
+.a-say h3{margin:.9em 0 .3em;font-size:20px;line-height:1.3}
+.a-say ul,.a-say ol{margin:0 0 .6em;padding-left:1.3em}
+.a-say li{margin:.25em 0}
+.a-say ol>li{margin:.7em 0}
+.a-say li>ul{margin:.15em 0 0;padding-left:1em}
+.a-say li>ul>li{margin:.1em 0}
+.a-say li>p{margin:.25em 0 0}
+.a-say a,.a-note a{color:var(--a-blue-d)}
+.a-you{align-self:flex-end;max-width:min(62ch,88%);background:var(--a-tint);color:var(--a-ink);border-radius:16px 16px 4px 16px;padding:12px 16px;font-size:18px;white-space:pre-wrap;overflow-wrap:anywhere}
+.a-who{display:block;margin-bottom:2px;font-size:14px;font-weight:800;color:var(--a-blue-d)}
+.a-you .atts{white-space:normal}
+.a-act,.a-note{display:flex;align-items:center;gap:10px;font-size:16px;line-height:1.35;color:var(--a-mute)}
+.a-act .a-ci{width:26px;height:26px}
+.a-note .i{width:20px;height:20px;flex:none}
+.a-note b{color:var(--a-ink)}
+.a-err{background:#fbe9e6;color:var(--a-bad);border-radius:12px;padding:12px 16px;font-size:17px}
+.a-live{display:flex;align-items:center;gap:10px;margin:8px 0 20px;font-size:18px;font-weight:700;color:var(--a-blue-d)}
+.a-live .i{width:22px;height:22px}
+.a-live.working .i{animation:a-pulse 1.6s ease-in-out infinite}
+.a-live.idle,.a-live.done{color:var(--a-ok)}.a-live.failed{color:var(--a-bad)}.a-live.stopped,.a-live.waiting{color:var(--a-mute)}
+.a-live.asking{color:var(--a-ink)}
+.a-comp{position:sticky;bottom:0;z-index:5;margin-top:8px;padding:14px 36px 16px;background:var(--a-paper);border-top:1px solid var(--a-line);box-shadow:0 -14px 24px -14px rgba(17,26,46,.28)}
+.a-comp>*{max-width:848px;margin-inline:auto}
+.a-comp.yours{border-top:4px solid var(--a-ok)}
+.a-comp label{display:block;margin-bottom:6px;font-weight:700;font-size:17px}
+.a-comp textarea{display:block;width:100%;min-height:64px;max-height:35vh;border:2px solid var(--a-line);border-radius:12px;background:#fff;color:var(--a-ink);padding:12px 14px;font:18px/1.5 var(--a-font);resize:vertical}
+.a-comp textarea:focus{outline:0;border-color:var(--a-blue)}
+.a-comp textarea::placeholder{color:#5b6477}
+.a-comp .a-bar{margin-top:10px}
+body.adm .att{border:1px solid var(--a-line);background:#fff;color:var(--a-ink);border-radius:10px;font-size:15px}
+body.adm .att .ic{color:var(--a-ink);width:40px;height:40px}
+body.adm .a-you .att{background:rgba(255,255,255,.7)}
+body.adm .drop{outline:3px dashed var(--a-blue);outline-offset:4px}
+body.adm .a-disp.drop{outline-color:var(--a-ink)}
+
+/* decision dialog */
+body.adm dialog.decide{width:min(680px,calc(100% - 24px));border-radius:20px;background:var(--a-paper);color:var(--a-ink);box-shadow:0 30px 70px rgba(17,26,46,.45)}
+body.adm dialog.decide::backdrop{background:rgba(17,26,46,.55)}
+.a-band{padding:20px 24px 18px;background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0) 60%),var(--a-blue);color:#fff;border-bottom:5px solid var(--a-blue-d)}
+.a-band h2{display:flex;align-items:center;gap:12px;margin:0;font:800 28px/1.15 var(--a-font)}
+.a-band .i{width:30px;height:30px;stroke-width:2}
+.a-band p{margin:4px 0 0;color:var(--a-tint);font-size:17px}
+.a-dbody{padding:20px 24px 10px}
+.a-dbody fieldset{border:0;margin:0 0 18px;padding:0}
+.a-dbody legend{margin-bottom:12px;padding:0;font:700 21px/1.35 var(--a-font)}
+.a-hint{margin:-4px 0 10px;color:var(--a-mute);font-size:16px}
+body.adm .opt{align-items:center;gap:14px;min-height:60px;margin:0 0 10px;padding:14px 16px;border:2px solid var(--a-line);border-radius:12px;background:#fff}
+body.adm .opt:hover{border-color:var(--a-ink)}
+body.adm .opt b{font:700 18px/1.3 var(--a-font);letter-spacing:0;text-transform:none}
+body.adm .opt small{color:var(--a-mute);font-size:15.5px}
+body.adm .opt .box{width:26px;height:26px;margin:0;border:2px solid var(--a-ink)}
+body.adm .opt .box .i{width:16px;height:16px}
+body.adm .opt:has(input[name^=q]:checked){border-color:var(--a-blue);box-shadow:inset 0 0 0 1px var(--a-blue);background:#f1f5ff}
+body.adm .opt:has(input[name^=q]:checked) .box{background:var(--a-blue);border-color:var(--a-blue);color:#fff}
+body.adm .opt:has(input[name^=q]:focus-visible){outline:3px solid var(--a-ink);outline-offset:2px}
+body.adm .opt.other input[type=text],.a-why input{width:100%;min-height:48px;margin-top:8px;padding:8px 12px;border:2px solid var(--a-line);border-radius:10px;background:var(--a-paper);font:17px/1.4 var(--a-font)}
+.a-why input{background:#fff}
+.a-why label{display:block;margin:18px 0 0;font-weight:700;font-size:16px}
+.a-always{order:3;flex:1 0 100%;justify-content:flex-start;min-height:44px;padding:0 2px}
+body.adm .dfoot{gap:10px;padding:14px 24px 18px;background:var(--a-paper);border-top:1px solid var(--a-line)}
+.a-dbody h3{margin:0 0 14px;font:800 26px/1.2 var(--a-font)}
+.a-letter{background:#fff;border:1px solid var(--a-line);border-radius:12px;padding:4px 16px 12px}
+.a-letter dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 16px;margin:0}
+.a-letter dt,.a-letter dd{margin:0;padding:9px 0;border-bottom:1px dashed var(--a-line)}
+.a-letter dt{font-weight:700;color:var(--a-mute)}
+.a-letter dd{overflow-wrap:anywhere}
+.a-body{margin:10px 0 0;max-height:32vh;overflow:auto;white-space:pre-wrap;font-size:17px;overflow-wrap:anywhere}
+.a-letter .a-hint{margin:10px 0 0}
+
+/* help */
+.a-page{max-width:1120px;padding:32px 36px 56px}
+.a-page h1{margin:0;font:800 46px/1.1 var(--a-font);letter-spacing:-.02em;text-wrap:balance}
+.a-page>header p{margin:10px 0 0;max-width:62ch;color:var(--a-mute);font-size:19px}
+.a-steps{list-style:none;margin:30px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.a-steps .a-tkw,.a-steps .a-ticket{height:100%}
+.a-steps h2{margin:0;font:800 23px/1.25 var(--a-font)}
+.a-steps p{font-size:18px;white-space:normal}
+.a-can{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:36px 0 28px}
+.a-can section{background:#fff;border-radius:16px;padding:22px 24px}
+.a-can h2{display:flex;align-items:center;gap:10px;margin:0 0 10px;font:800 24px/1.2 var(--a-font)}
+.a-can h2 .i{width:26px;height:26px;stroke-width:2.2}
+.a-can .ok h2 .i{color:var(--a-ok)}.a-can .no h2 .i{color:var(--a-bad)}
+.a-can ul{margin:0;padding-left:1.2em;font-size:18px}
+.a-can li{margin:.35em 0}
+
+body.adm .toast{background:var(--a-ink);color:#fff;font:600 17px/1.35 var(--a-font);letter-spacing:0;text-transform:none;border-radius:12px;padding:14px 18px;box-shadow:0 12px 28px -8px rgba(17,26,46,.5);max-width:min(460px,calc(100vw - 32px))}
+body.adm .toast.err{background:var(--a-bad);color:#fff}
+
+@media (max-width:1100px) and (min-width:821px){
+  .a-home{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:820px),(max-height:500px) and (orientation:landscape){
+  body.adm{grid-template-columns:minmax(0,1fr)}
+  body.adm aside{padding:10px 14px!important;border-right:0;border-bottom:1px solid var(--a-line);background:var(--a-rack)}
+  body.adm .a-brand{padding:4px}
+  body.adm .a-brand b{font-size:24px}
+  body.adm .a-brand .i{width:30px;height:30px}
+  body.adm.menu-open aside{background:var(--a-rack)}
+  body.adm.menu-open .rack-top{background:var(--a-rack)}
+  body.adm .rack-toggle{width:48px;height:48px}
+  .a-new{margin-top:10px}
+  .a-home{grid-template-columns:minmax(0,1fr);gap:20px;padding:14px 14px 40px}
+  .a-disp{padding:22px 18px 50px;border-radius:20px 20px 14px 14px}
+  .a-disp h1{font-size:38px}
+  .a-lede{font-size:17px;margin-bottom:16px}
+  .a-disp textarea{min-height:110px;font-size:18px}
+  .a-keys{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .a-bar>.a-ghost{flex:1 1 40%}
+  .a-mhide{display:none}
+  .a-pedir{flex:1 0 100%}
+  .a-row{grid-template-columns:58px minmax(0,1fr) 112px;gap:10px}
+  .a-board .a-s{font-size:14px}
+  .a-led{font-size:28px}
+  .a-empty .a-led{font-size:60px}
+  .a-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .a-stub{min-height:170px;padding:14px}
+  .a-alert{padding:12px 16px}
+  .a-conv{padding:0 14px}
+  .a-where{padding:14px 0 10px}
+  .a-where h1{font-size:23px}
+  .a-where .a-s{font-size:19px}.a-where .a-s .i{width:20px;height:20px}
+  .a-where .a-stop{min-height:44px;padding:0 6px}
+  .a-say{font-size:18px}
+  .a-you{max-width:92%}
+  .a-comp{padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+  .a-comp label{font-size:15px;margin-bottom:4px}
+  .a-comp textarea{min-height:52px;font-size:17px}
+  .a-comp .a-bar{flex-wrap:nowrap;margin-top:8px}
+  .a-comp .lbl{display:none}
+  .a-comp .a-sec{width:52px;padding:0}
+  .a-comp .a-pri{flex:1}
+  .a-page{padding:20px 14px 40px}
+  .a-page h1{font-size:34px}
+  .a-steps,.a-can{grid-template-columns:minmax(0,1fr)}
+  .a-band h2{font-size:23px}
+  .a-dbody{padding:16px 16px 6px}
+  .a-dbody h3{font-size:22px}
+  body.adm .dfoot{padding:12px 16px calc(14px + env(safe-area-inset-bottom))}
+  body.adm .dfoot>.a-btn{flex:1 1 100%}
+  body.adm .dfoot>.a-always{justify-content:center;text-align:center}
+  body.adm .opt.other input[type=text],.a-why input{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -656,6 +976,7 @@ const pad = n => String(n).padStart(2, '0');
 const kTok = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(n >= 1e4 ? 0 : 1) + 'k' : String(n || 0);
 const until = t => { const s = t - Date.now() / 1000; if (s <= 0) return 'now'; const h = s / 3600 | 0, m = (s % 3600) / 60 | 0; return h >= 24 ? `in ${h / 24 | 0}d ${h % 24}h` : `in ${h}h ${m}m`; };
 const now = () => Date.now() / 1000;
+const tr = (en, es) => PKG == 'admin' ? es : en;  // the admin package speaks Spanish; dev output unchanged
 function toast(msg, err) {
   const t = document.createElement('div');
   t.className = 'toast' + (err ? ' err' : ''); t.setAttribute('role', 'status'); t.textContent = msg;
@@ -704,6 +1025,13 @@ const P = {
   wifi: '<path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r=".9"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>', list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/>',
+  doc: '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M14 14h2M8 17.5h2"/>',
+  talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
+  ticket: '<path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4z"/><path d="M14.5 7v1.5M14.5 11.25v1.5M14.5 15.5V17"/>',
+  pause: '<path d="M9 6v12M15 6v12"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
 };
 const icon = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${P[n] || P.bricks}</svg>`;
 const STATE = {  // normalized frame state -> [label, mark icon]
@@ -932,6 +1260,7 @@ async function refresh() {
   if (isRemote && !push) await pushLoad();
   sessions = all.filter(r => r.kind == 'session').map(r => r.waiting ? {...r, status: 'waiting'} : r);
   runs = all.filter(r => r.kind != 'session');
+  if (PKG == 'admin') return admRefresh(me);
   const [kind, id] = location.hash.slice(1).split('/');
   const cur = (k, i) => kind == k && id == i ? 'aria-current="page"' : '';
   const menuOpen = document.body.classList.contains('menu-open'), nq = queue.items.length, ask = sessions.some(r => r.status == 'asking');
@@ -983,40 +1312,41 @@ const MAX_MB = 20;
 let att = [];
 function addFiles(list) {
   for (const f of list) {
-    if (f.size > MAX_MB << 20) { toast(`“${f.name}” is over ${MAX_MB} MB. Attach a smaller file.`, true); continue; }
+    if (f.size > MAX_MB << 20) { toast(tr(`“${f.name}” is over ${MAX_MB} MB. Attach a smaller file.`, `“${f.name}” pesa más de ${MAX_MB} MB. Adjunta un archivo más pequeño.`), true); continue; }
     att.push({f, url: /^image\/(png|jpeg|gif|webp)$/.test(f.type) ? URL.createObjectURL(f) : ''});
   }
   drawAtts();
 }
 function drawAtts() {
   const el = $('#atts'); if (!el) return;
-  el.innerHTML = att.map((a, i) => `<span class="att">${a.url ? `<img src="${a.url}" alt="">` : icon('file')}<span>${esc(a.f.name)}</span><button type="button" class="ic" data-act="unattach" data-arg="${i}" aria-label="Remove ${esc(a.f.name)}" title="Remove">${icon('x')}</button></span>`).join('');
+  el.innerHTML = att.map((a, i) => `<span class="att">${a.url ? `<img src="${a.url}" alt="">` : icon('file')}<span>${esc(a.f.name)}</span><button type="button" class="ic" data-act="unattach" data-arg="${i}" aria-label="${tr('Remove', 'Quitar')} ${esc(a.f.name)}" title="${tr('Remove', 'Quitar')}">${icon('x')}</button></span>`).join('');
 }
 const packFiles = () => Promise.all(att.map(a => new Promise((ok, no) => {
   const fr = new FileReader(); fr.onload = () => ok({name: a.f.name, data: fr.result.split(',')[1] || ''}); fr.onerror = no; fr.readAsDataURL(a.f);
 })));
 /* ---- dictation: one recognizer at a time, text appended to the target textarea ---- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const micBtn = (sel, cls) => SR ? `<button type="button" class="${cls} mic" data-act="dictate" data-arg="${sel}" aria-pressed="false" aria-label="Dictate" title="Dictate">${icon('mic')}<span class="lbl">Dictate</span></button>` : '';
+const micBtn = (sel, cls) => SR ? `<button type="button" class="${cls} mic" data-act="dictate" data-arg="${sel}" aria-pressed="false" aria-label="${tr('Dictate', 'Dictar')}" title="${tr('Dictate', 'Dictar')}">${icon('mic')}<span class="lbl">${tr('Dictate', 'Dictar')}</span></button>` : '';
 let rec = null;
 const micSync = on => document.querySelectorAll('.mic').forEach(b => {
   const p = !!on && b.dataset.arg == on;
-  b.setAttribute('aria-pressed', p); b.setAttribute('aria-label', p ? 'Stop dictation' : 'Dictate'); b.title = p ? 'Stop dictation' : 'Dictate'; b.querySelector('.lbl').textContent = p ? 'Stop' : 'Dictate';
+  const l = p ? tr('Stop dictation', 'Parar el dictado') : tr('Dictate', 'Dictar');
+  b.setAttribute('aria-pressed', p); b.setAttribute('aria-label', l); b.title = l; b.querySelector('.lbl').textContent = p ? tr('Stop', 'Parar') : tr('Dictate', 'Dictar');
 });
 ACT.dictate = sel => {
   if (rec) return rec.stop();
   const ta = $(sel); if (!ta) return;
   const r = rec = new SR(), base = ta.value + (ta.value && !/\s$/.test(ta.value) ? ' ' : '');
-  r.continuous = r.interimResults = true; r.lang = navigator.language;
+  r.continuous = r.interimResults = true; r.lang = tr(navigator.language, 'es-ES');
   r.onresult = e => {
     let fin = '', tmp = '';
     for (const x of e.results) (x.isFinal ? (fin += x[0].transcript) : (tmp += x[0].transcript));
     ta.value = base + fin + tmp; ta.dispatchEvent(new Event('input', {bubbles: true}));
   };
   r.onerror = e => {
-    if (e.error == 'not-allowed' || e.error == 'service-not-allowed') toast('Microphone blocked. Allow microphone access for this site in the browser settings.', true);
-    else if (e.error == 'no-speech') toast('Did not hear anything. Tap the mic and try again.', true);
-    else if (e.error != 'aborted') toast('Dictation stopped: ' + e.error, true);
+    if (e.error == 'not-allowed' || e.error == 'service-not-allowed') toast(tr('Microphone blocked. Allow microphone access for this site in the browser settings.', 'El micrófono está bloqueado. Permite el micrófono para esta página en el navegador.'), true);
+    else if (e.error == 'no-speech') toast(tr('Did not hear anything. Tap the mic and try again.', 'No he oído nada. Pulsa Dictar y vuelve a intentarlo.'), true);
+    else if (e.error != 'aborted') toast(tr('Dictation stopped: ' + e.error, 'El dictado se ha parado. Vuelve a intentarlo.'), true);
   };
   r.onend = () => { if (rec == r) rec = null; micSync(); };
   try { r.start(); micSync(sel); } catch { rec = null; }
@@ -1100,6 +1430,7 @@ async function route() {
   $('#decide')?.close?.();
   await refresh();
   const [kind, id, agent] = location.hash.slice(1).split('/');
+  if (PKG == 'admin') return admRoute(kind, id);
   document.body.classList.toggle('sess', kind == 'session');
   document.body.classList.remove('menu-open');
   window.scrollTo(0, 0);
@@ -1476,7 +1807,7 @@ function capLog(evs, fn) {
   const lim = sess?.lim?.[sessSel] || LOG_MAX, out = [];
   let i = evs.length;
   while (i-- > 0 && out.length < lim) { const h = fn(evs[i]); if (h) out.push(h); }
-  return (i >= 0 ? `<div><button class="btn-s" data-act="moreLog">Show earlier</button></div>` : '') + out.reverse().join('');
+  return (i >= 0 ? (PKG == 'admin' ? `<div><button class="a-btn a-sec" data-act="moreLog">Ver mensajes anteriores</button></div>` : `<div><button class="btn-s" data-act="moreLog">Show earlier</button></div>`) : '') + out.reverse().join('');
 }
 ACT.moreLog = () => {
   const lb = $('.logbox'), h0 = pageScrolls(lb) ? document.documentElement.scrollHeight : lb.scrollHeight;
@@ -1572,11 +1903,11 @@ ACT.rerun = async () => {
 async function showSession() {
   const g = ++pollGen, id = sess.id;
   let r;
-  try { r = await api(`runs/${id}?since=${sess.events.length}`); } catch { if (g == pollGen) main.innerHTML = '<header class="head"><h1>Session not found</h1></header>'; return; }
+  try { r = await api(`runs/${id}?since=${sess.events.length}`); } catch { if (g == pollGen) main.innerHTML = PKG == 'admin' ? '<div class="a-page"><h1>No encontramos esta petición</h1><p><a class="a-btn a-pri" href="#">Volver al inicio</a></p></div>' : '<header class="head"><h1>Session not found</h1></header>'; return; }
   if (g != pollGen || sess.id != id) return;  // superseded by navigation or a newer poll
   const changed = r.events.length || !sess.r || r.status != sess.r.status || r.cost != sess.r.cost;
   sess.events.push(...r.events); sess.r = r;
-  if (changed) drawSession();
+  if (changed) (PKG == 'admin' ? admDrawSession : drawSession)();
   syncAsk();
   clearTimeout(timer);
   timer = setTimeout(showSession, LIVE.includes(r.status) ? 1000 : 4000);
@@ -1661,20 +1992,20 @@ function drawSession() {
 /* ---- decisions: questions and permission checks from the agents ---- */
 function syncAsk() {
   const pend = Object.values(sess.r.pending || {}).sort((a, b) => a.ts - b.ts), q = pend[0], dlg = $('#decide');
-  $('#s-ask').innerHTML = q ? `<button class="alert" data-act="openAsk" style="margin:14px 32px 0;width:calc(100% - 64px);max-width:1096px">${icon('help')}<span><b>${pend.length > 1 ? pend.length + ' decisions' : 'A decision'} waiting for you</b> · ${esc(askTitle(q))}</span><span class="go">Answer ${icon('right')}</span></button>` : '';
+  $('#s-ask').innerHTML = q && PKG == 'admin' ? admAskBar(pend, q) : q ? `<button class="alert" data-act="openAsk" style="margin:14px 32px 0;width:calc(100% - 64px);max-width:1096px">${icon('help')}<span><b>${pend.length > 1 ? pend.length + ' decisions' : 'A decision'} waiting for you</b> · ${esc(askTitle(q))}</span><span class="go">Answer ${icon('right')}</span></button>` : '';
   if (!q) { if (dlg.open) dlg.close(); askOpen = null; return; }
   if (askOpen == q.id) return;          // already showing this one; keep the user's selections
   askOpen = q.id;
   drawAsk(q);
   if (!dlg.open) { dlg.showModal(); focusPrimary(); }
 }
-const focusPrimary = () => $('#decide .dfoot .btn-p')?.focus({preventScroll: true});  // not the text field: iOS would raise the keyboard over the buttons
+const focusPrimary = () => $('#decide .dfoot .btn-p, #decide .dfoot .a-pri')?.focus({preventScroll: true});  // not the text field: iOS would raise the keyboard over the buttons
 const askTitle = q => q.tool == 'AskUserQuestion' ? (q.input.questions || []).map(x => x.question).join(' · ') : `Allow ${TOOLNAME(q.tool)[1]}: ${toolArg(q.input) || 'this tool'}?`;
 function drawAsk(q) {
   const dlg = $('#decide');
   if (q.tool == 'AskUserQuestion') {
     const qs = q.input.questions || [];
-    dlg.innerHTML = `<form method="dialog" id="ask-form">
+    dlg.innerHTML = PKG == 'admin' ? admAskQ(qs) : `<form method="dialog" id="ask-form">
       <div class="band"><div class="perf"></div><h2>${icon('help')}The agents need a decision</h2><div class="perf"></div></div>
       <div class="dbody">
         ${qs.map((x, i) => `<fieldset>
@@ -1698,14 +2029,14 @@ function drawAsk(q) {
       const f = new FormData(e.target), answers = {};
       for (const [i, x] of qs.entries()) {
         const vals = f.getAll('q' + i).map(v => v == '__other' ? (f.get('o' + i) || '').trim() : v).filter(Boolean);
-        if (!vals.length) return toast('Answer every question, or let Claude decide', true);
+        if (!vals.length) return toast(tr('Answer every question, or let Claude decide', 'Contesta todas las preguntas, o pulsa «Decide tú».'), true);
         answers[x.question] = vals.join(', ');
       }
       reply({id: q.id, allow: true, answers});
     });
   } else {
     const [ic, nm] = TOOLNAME(q.tool);
-    dlg.innerHTML = `<form method="dialog" id="ask-form">
+    dlg.innerHTML = PKG == 'admin' ? admAskPerm(q) : `<form method="dialog" id="ask-form">
       <div class="band"><div class="perf"></div><h2>${icon('help')}Permission needed</h2><div class="perf"></div></div>
       <div class="dbody">
         <p style="margin:0 0 10px;font-size:16px">An agent wants to use a tool this session is not allowed to use on its own:</p>
@@ -1729,7 +2060,7 @@ async function reply(body) {
   try {
     await api(`sessions/${sess.id}/answer`, {method: 'POST', body: JSON.stringify(body)});
     $('#decide').close(); askOpen = null; clearTimeout(timer); showSession();
-  } catch (e) { toast('Could not answer: ' + e.message, true); }
+  } catch (e) { toast(tr('Could not answer: ' + e.message, 'No se ha podido enviar tu respuesta. Inténtalo otra vez.'), true); }
 }
 ACT.openAsk = () => { const d = $('#decide'); if (!d.open && d.dataset.id) { d.showModal(); focusPrimary(); } };
 ACT.closeAsk = () => $('#decide').close();
@@ -1773,7 +2104,7 @@ async function send(text, agents, sub_models, files) {
   try {
     await api(`sessions/${sess.id}/message`, {method: 'POST', body: JSON.stringify({text, agents, sub_models, files})});
     clearTimeout(timer); showSession(); return true;
-  } catch (e) { toast('Not sent: ' + e.message, true); }
+  } catch (e) { toast(tr('Not sent: ' + e.message, 'No se ha podido enviar. Revisa la conexión e inténtalo otra vez.'), true); }
 }
 ACT.selAgent = id => { sessSel = id; forceStick = true; drawSession(); if (id == 'lead' && sess.r.status == 'asking') ACT.openAsk(); };
 ACT.sendMsg = async () => {
@@ -1925,6 +2256,313 @@ function guide() {
     ${sec('check', 'Permissions in plain words', `<p style="margin:0 0 8px">Every step or session has a list of what it may do without asking:</p><ul class="steps">
       ${capsFor().map(c => `<li><b>${esc(c.name)}</b>: ${esc(c.note)}</li>`).join('')}</ul>
       <p class="hint">Cost shown is Claude's API-equivalent estimate; on your subscription you are not charged per run.</p>`)}`;
+}
+
+/* ============ admin package: "La ventanilla" ============
+   Same data, polling and API as the dev bench; only these renderers differ. Spanish, ask-and-talk only. */
+const KEYS = {
+  mail: {n: 'Correo', i: 'mail', l: 'Resumir, buscar, contestar', ex: ['Resume los correos que he recibido hoy', 'Busca el último presupuesto que me enviaron', 'Prepara un borrador de respuesta al último correo de …']},
+  docs: {n: 'Documentos', i: 'doc', l: 'Encontrar y leer archivos', ex: ['Busca el contrato de alquiler y dime cuándo vence', '¿Qué documentos he cambiado esta semana?', 'Resume el último informe que hay en mi Drive']},
+  cal: {n: 'Agenda', i: 'cal', l: 'Mirar y apuntar citas', ex: ['¿Qué reuniones tengo mañana?', 'Busca un hueco libre de una hora esta semana', 'Apunta una reunión con …']},
+  other: {n: 'Otra cosa', i: 'talk', l: 'Lo que necesites', ex: ['Mira si alguien me ha pedido algo por correo y aún no he contestado', 'Hazme un resumen de mi semana: correos importantes y reuniones', 'Busca la factura de …']},
+};
+const ASTATE = {working: ['Atendiendo', 'dot'], asking: ['Te necesita', 'bell'], idle: ['Listo', 'check'], done: ['Listo', 'check'], stopped: ['Pausado · escribe para seguir', 'pause'],
+  cancelled: ['Pausado · escribe para seguir', 'pause'], interrupted: ['Pausado · escribe para seguir', 'pause'], failed: ['No se pudo', 'x'], waiting: ['En espera', 'clock']};
+const BOARD = {asking: 0, working: 1, waiting: 2, idle: 3};  // on the turn board, in this order; the rest are stubs
+// a lead that ended after finishing its turn is done, not paused; only work cut off mid-turn is "Pausado"
+const admSt = r => r.waiting ? 'waiting' : ['stopped', 'interrupted', 'cancelled'].includes(r.status) && r.turn_done ? 'done' : r.status;
+const astate = s => (a => `<span class="a-s ${s}">${icon(a[1])}<span>${a[0]}</span></span>`)(ASTATE[s] || ASTATE.stopped);
+const hace = t => { const s = now() - t; return s < 60 ? 'ahora' : s < 3600 ? `hace ${s / 60 | 0} min` : s < 86400 ? `hace ${s / 3600 | 0} h` : s < 172800 ? 'ayer' : `hace ${s / 86400 | 0} días`; };
+const cuando = t => { const d = new Date(t * 1000); return (d.toDateString() == new Date().toDateString() ? 'hoy' : d.toLocaleDateString('es-ES', {day: 'numeric', month: 'short'})) + ', ' + d.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'}); };
+let NO = {}, admKey = null;  // ticket numbers: sessions by start time, oldest = 001
+const cats = () => { try { return JSON.parse(localStorage.getItem('flows.cat') || '{}'); } catch { return {}; } };
+const setCat = (id, k) => { const m = cats(); if (m[id] == k) return; m[id] = k; try { localStorage.setItem('flows.cat', JSON.stringify(m)); } catch {} };
+function catKey(id) {  // the one source: the key pressed, else the first Google tool used (needs the events, so learnt when opened), remembered
+  const k = cats()[id];
+  if (k || sess?.id != id || !sess.events) return k || '';
+  for (const e of sess.events) { const x = e.type == 'assistant' && (e.message?.content || []).find(x => x.type == 'tool_use' && toolCat(x.name)); if (x) { setCat(id, toolCat(x.name)); return toolCat(x.name); } }
+  return '';
+}
+const catName = id => KEYS[catKey(id)]?.n || 'Petición';
+const catChip = k => `<span class="a-cat"><span class="a-ci k-${KEYS[k] ? k : 'none'}">${icon(KEYS[k]?.i || 'ticket')}</span>${esc(KEYS[k]?.n || 'Petición')}</span>`;
+const toolCat = n => /Gmail/.test(n) ? 'mail' : /Google_Drive/.test(n) ? 'docs' : /Calendar/.test(n) ? 'cal' : '';
+const admTicket = (no, k, text, t, cls = '', foot = '') => `<div class="a-tkw ${cls}"><div class="a-ticket"><div class="a-tt"><span class="a-tno">Turno<b>${esc(no)}</b></span><time>${cuando(t)}</time></div>
+  ${catChip(k)}<p>${esc(text)}</p>${foot ? `<small class="a-tfoot">${foot}</small>` : ''}</div></div>`;
+const led = no => `<span class="a-led" data-off="888"><span>${esc(no)}</span></span>`;
+
+function admRefresh(me) {
+  const b = document.body;
+  if (!b.classList.contains('adm')) {
+    b.classList.add('adm'); document.documentElement.lang = 'es';
+    $('meta[name=theme-color]').content = '#e9edf3'; $('#rack').setAttribute('aria-label', 'Menú y peticiones');
+    const l = document.createElement('link'); l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700;800&family=Doto:wght@800&display=swap';
+    document.head.append(l);
+  }
+  NO = Object.fromEntries([...sessions].sort((a, c) => a.started - c.started).map((r, i) => [r.id, String(i + 1).padStart(3, '0')]));
+  const [kind, id] = location.hash.slice(1).split('/'), menuOpen = b.classList.contains('menu-open');
+  const need = sessions.filter(r => r.status == 'asking'), mine = [...sessions].sort((a, c) => c.started - a.started);
+  setHTML('#rack', `
+    <div class="rack-top"><a class="brand a-brand" href="#">${icon('ticket')}<b>Flows</b></a>
+      <button class="ic rack-toggle" data-act="menu" aria-expanded="${menuOpen}" aria-controls="rack-body" aria-label="${menuOpen ? 'Cerrar el menú' : 'Menú' + (need.length ? ', una petición te necesita' : '')}">${icon(menuOpen ? 'x' : 'menu')}${need.length && !menuOpen ? '<i class="qdot"></i>' : ''}</button></div>
+    <div class="rack-body" id="rack-body">
+      <button class="a-new" data-act="admNew">${icon('plus')}Nueva petición</button>
+      <h2 class="a-rh">Mis peticiones</h2>
+      ${mine.length ? `<ul class="a-list">${mine.map(r => `<li><a class="a-tk" href="#session/${r.id}" ${kind == 'session' && id == r.id ? 'aria-current="page"' : ''}>
+        <span class="a-no">${NO[r.id]}</span><span class="a-nm"><b>${esc(r.name)}</b>${astate(admSt(r))}</span><time>${hace(r.started)}</time></a></li>`).join('')}</ul>` : '<p class="a-none">Todavía no hay ninguna.</p>'}
+      <nav class="a-foot" aria-label="Más">
+        <a class="a-link" href="#guide" ${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}Ayuda</a>
+        ${me.user ? `<button class="a-link" data-act="logout">${icon('out')}Salir<small>${esc(me.user)}</small></button>` : ''}
+      </nav>
+    </div>`);
+  setHTML('#alert', (me.claude_logged_in === false ? `<p class="a-alert login" role="status">${icon('help')}<span>Tu cuenta todavía no está conectada a Claude. Pide a quien te dio acceso que la conecte.</span></p>` : '')
+    + need.filter(r => !(kind == 'session' && id == r.id)).map(r => `<a class="a-alert" href="#session/${r.id}">${icon('bell')}<span><b>El turno ${NO[r.id]} te necesita</b> · ${esc(r.name)}</span><span class="go">Contestar ${icon('right')}</span></a>`).join(''));
+  document.title = need.length ? `(${need.length}) Te necesita · Flows` : 'Flows';
+  if (!kind && $('#a-board')) { setHTML('#a-board', admBoard()); setHTML('#a-stubs', admStubs()); }
+}
+function admRoute(kind, id) {
+  document.body.classList.remove('sess', 'menu-open');
+  scrollTo(0, 0);
+  if (kind == 'session' && id) { sess = {id, events: []}; sessSel = 'lead'; showSession(); }
+  else if (kind == 'guide') admGuide();
+  else { if (kind) history.replaceState(null, '', location.pathname); admHome(); }
+}
+
+/* ---- home: the dispenser, the turn board, the stubs ---- */
+function admHome() {
+  admKey = null;
+  main.innerHTML = `<div class="a-home">
+    <section class="a-disp" id="start" aria-labelledby="a-h">
+      <h1 id="a-h">¿Qué necesitas?</h1>
+      <p class="a-lede">Escríbelo aquí o pulsa una tecla para ver ideas. Al pedir te damos un número, y te avisamos cuando te necesitemos.</p>
+      <label class="sr" for="a-msg">Tu petición</label>
+      <textarea id="a-msg" rows="4" placeholder="Escríbelo con tus palabras, como se lo dirías a un compañero">${esc(localStorage.getItem('flows.adm.draft') || '')}</textarea>
+      <div class="atts" id="atts" aria-label="Archivos adjuntos"></div>
+      <div class="a-keys" role="group" aria-label="Ideas por tema">${Object.entries(KEYS).map(([k, x]) => `<button type="button" class="a-key k-${k}" data-act="admKey" data-arg="${k}" aria-pressed="false">${icon(x.i)}<b>${x.n}</b><small>${x.l}</small></button>`).join('')}</div>
+      <div class="a-ex" id="a-ex" aria-live="polite"></div>
+      <div class="a-bar">
+        <button type="button" class="a-btn a-ghost" data-act="attach">${icon('clip')}<span class="lbl">Adjuntar<span class="a-mhide"> archivo</span></span></button>
+        ${micBtn('#a-msg', 'a-btn a-ghost')}<span class="grow"></span>
+        <button type="button" class="a-btn a-pedir" data-act="admPedir">${icon('ticket')}Pedir</button>
+      </div>
+      <div class="a-slot" aria-hidden="true"><div class="a-out" id="a-out"></div></div>
+    </section>
+    <section class="a-board" aria-labelledby="a-bh"><h2 id="a-bh">Turnos</h2><div id="a-board" aria-live="polite">${admBoard()}</div></section>
+    <section class="a-stubs" aria-labelledby="a-sh"><h2 id="a-sh">Tus resguardos</h2><p>Tus peticiones anteriores. Abre una para leerla o seguir con ella.</p><div id="a-stubs">${admStubs()}</div></section>
+  </div>`;
+  const ta = $('#a-msg');
+  ta.addEventListener('input', () => { try { localStorage.setItem('flows.adm.draft', ta.value); } catch {} });
+  ta.addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.admPedir(null, $('.a-pedir')); });
+}
+function admBoard() {
+  const act = sessions.filter(r => r.status in BOARD).sort((a, c) => BOARD[a.status] - BOARD[c.status] || c.started - a.started);
+  const next = String(sessions.length + 1).padStart(3, '0');
+  if (!act.length) return `<div class="a-empty">${led(next)}<p>${sessions.length ? `Ahora no tienes nada en curso. Tu próximo número será el ${next}.` : 'Todavía no has pedido nada. Tu primer número será el 001.'}</p></div>`;
+  return `<div class="a-row a-hd" aria-hidden="true"><span>Nº</span><span>Asunto</span><span>Estado</span></div>`
+    + act.map(r => `<a class="a-row ${r.status}" href="#session/${r.id}" aria-label="Turno ${NO[r.id]}, ${esc(catName(r.id))}: ${esc(r.name)}. ${ASTATE[r.status][0]}">
+      ${led(NO[r.id])}<span class="a-subj"><b>${esc(r.name)}</b><small>${esc(catName(r.id))} · ${hace(r.started)}</small></span>${astate(r.status)}</a>`).join('');
+}
+function admStubs() {
+  const past = sessions.filter(r => !(r.status in BOARD)).sort((a, c) => c.started - a.started);
+  if (!past.length) return '<p class="a-none" style="margin:0">Aquí se guardan tus peticiones cuando terminan.</p>';
+  return `<ul class="a-grid">${past.map(r => `<li><a class="a-stub ${admSt(r) == 'done' ? 'punched' : ''}" href="#session/${r.id}">
+    <span class="a-sno">${NO[r.id]}</span><time>${hace(r.ended || r.started)}</time>${catChip(catKey(r.id))}<span class="a-snm">${esc(r.name)}</span>${astate(admSt(r))}</a></li>`).join('')}</ul>`;
+}
+ACT.admKey = k => {
+  admKey = admKey == k ? null : k;
+  document.querySelectorAll('.a-key').forEach(b => b.setAttribute('aria-pressed', b.dataset.arg == admKey));
+  $('#a-ex').innerHTML = admKey ? `<p>Ideas para ${KEYS[admKey].n}. Pulsa una para usarla:</p><ul>${KEYS[admKey].ex.map((x, i) => `<li><button type="button" data-act="admEx" data-arg="${i}">${icon('pencil')}${esc(x)}</button></li>`).join('')}</ul>` : '';
+};
+ACT.admEx = i => {
+  const ta = $('#a-msg'); ta.value = KEYS[admKey].ex[i].replace(/ …$/, ' ');
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); ta.dispatchEvent(new Event('input', {bubbles: true}));
+};
+ACT.admNew = () => {
+  if (location.hash.length > 1) location.hash = ''; else { document.body.classList.remove('menu-open'); refresh(); }
+  setTimeout(() => $('#a-msg')?.focus(), 120);
+};
+function admPrint(no, k, text) {  // the signature moment: the ticket slides out of the slot
+  const out = $('#a-out'); if (!out) return Promise.resolve();
+  out.innerHTML = admTicket(no, k, text, now(), 'a-print', 'Te avisamos cuando te necesitemos');
+  const tk = out.firstElementChild;
+  out.scrollIntoView({block: 'nearest'});
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { tk.style.transform = 'none'; return Promise.resolve(); }
+  return tk.animate([{transform: 'translateY(-110%)'}, {transform: 'translateY(0)'}], {duration: 700, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'forwards'})
+    .finished.then(() => new Promise(ok => setTimeout(ok, 150)));
+}
+ACT.admPedir = async (_, btn) => {
+  const ta = $('#a-msg'), text = ta.value.trim();
+  if (!text && !att.length) { ta.focus(); return toast('Escribe primero qué necesitas, o pulsa una tecla para ver ideas.', true); }
+  if (btn?.getAttribute('aria-busy')) return;
+  btn?.setAttribute('aria-busy', 'true');
+  const caps = ['drive', 'gmail', 'cal'], k = admKey;
+  try {
+    const files = await packFiles();
+    const [{id}] = await Promise.all([
+      api('sessions', {method: 'POST', body: JSON.stringify({cwd: '~', model: '', agents: 2, caps, allowed_tools: capTools({caps}), permission_mode: 'default', message: text, files})}),
+      admPrint(String(sessions.length + 1).padStart(3, '0'), k, text || 'Archivo adjunto')]);
+    if (k) setCat(id, k);
+    try { localStorage.removeItem('flows.adm.draft'); } catch {}
+    location.hash = 'session/' + id;
+  } catch {
+    $('#a-out').innerHTML = ''; btn?.removeAttribute('aria-busy');
+    toast('No se ha podido hacer la petición. Revisa la conexión e inténtalo otra vez.', true);
+  }
+};
+
+/* ---- the conversation ---- */
+const ADM_ACTS = [
+  [/Gmail__(get_thread|get_message)/, 'Leyendo un correo'], [/Gmail__search/, 'Buscando en tu correo'], [/Gmail__(create_draft|update_draft)/, 'Preparando un borrador'],
+  [/Gmail__(send_message|reply|forward)/, 'Enviando un correo'], [/Gmail__(list_drafts|get_draft)/, 'Mirando tus borradores'], [/Gmail__list_labels/, 'Mirando tus carpetas de correo'], [/Gmail__/, 'Ordenando tu correo'],
+  [/Drive__(search_files|list_recent_files)/, 'Buscando en tus documentos'], [/Drive__(read_file_content|download_file_content|get_file_metadata|get_file_permissions)/, 'Leyendo un documento'],
+  [/Drive__(create_file|update_file|copy_file)/, 'Guardando un documento'], [/Drive__share_file/, 'Compartiendo un documento'], [/Drive__trash_file/, 'Llevando un documento a la papelera'], [/Drive__/, 'Trabajando con tus documentos'],
+  [/Calendar__find_free_time/, 'Buscando un hueco libre'], [/Calendar__(create_event|update_event)/, 'Apuntando en tu agenda'], [/Calendar__delete/, 'Quitando algo de tu agenda'], [/Calendar__/, 'Mirando tu agenda'],
+];
+const admActText = n => ADM_ACTS.find(([re]) => re.test(n))?.[1] || 'Trabajando…';
+const HIDDEN_TOOLS = ['ToolSearch', 'TodoWrite', 'AskUserQuestion'];
+function admMd(s) {  // the little markdown assistants write: paragraphs, headings, numbered lists with sub-bullets, bold, links
+  const inl = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  let out = '', top = null, li = false, sub = false, n = 0, m;  // top: open top-level list; li: its item is still open
+  const endSub = () => { if (sub) out += '</ul>'; sub = false; };
+  const endLi = () => { endSub(); if (li) out += '</li>'; li = false; };
+  const endTop = () => { endLi(); if (top) out += `</${top}>`; top = null; };
+  for (const line of s.split('\n')) {
+    if (!line.trim()) continue;  // blank lines never split a list; a plain paragraph does
+    const ind = line.match(/^\s*/)[0].length;
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) endTop();
+    else if ((m = line.match(/^\s*(\d+)[.)]\s+(.*)/))) {
+      const k = +m[1];
+      if (top != 'ol' || k <= n) { endTop(); out += k == 1 ? '<ol>' : `<ol start="${k}">`; top = 'ol'; } else endLi();
+      n = k; out += `<li>${inl(m[2])}`; li = true;
+    } else if ((m = line.match(/^\s*[-*•]\s+(.*)/))) {
+      if (li && (top == 'ol' || ind >= 2)) { if (!sub) out += '<ul>'; sub = true; out += `<li>${inl(m[1])}</li>`; }
+      else { if (top != 'ul') { endTop(); out += '<ul>'; top = 'ul'; } else endLi(); out += `<li>${inl(m[1])}`; li = true; }
+    } else if (li && ind >= 2) { endSub(); out += `<p>${inl(line.trim())}</p>`; }
+    else {
+      endTop();
+      if ((m = line.match(/^#{1,6}\s+(.*)/))) out += `<h3>${inl(m[1])}</h3>`; else out += `<p>${inl(line)}</p>`;
+    }
+  }
+  endTop(); return out;
+}
+function admItem(e, T, first) {
+  if (e.type == 'input') return e == first || e.text.trim() == '/compact' ? '' : `<div class="a-you"><span class="a-who">Tú</span>${esc(e.text)}${e.files ? `<div class="atts">${e.files.map(f => {
+    const src = `/uploads/${encodeURIComponent(sess?.id)}/${encodeURIComponent(f.name)}`;
+    return `<a class="att" href="${src}" ${f.image ? 'target="_blank" rel="noopener"' : 'download'}>${f.image ? `<img src="${src}" alt="" loading="lazy">` : icon('file')}<span>${esc(f.name)}</span></a>`;
+  }).join('')}</div>` : ''}</div>`;
+  const note = (ic, h) => `<div class="a-note">${icon(ic)}<span>${h}</span></div>`;
+  if (e.type == 'ask') return note('bell', e.tool == 'AskUserQuestion' ? `Te preguntó: <b>${esc(e.input.questions?.map(q => q.question).join(' / '))}</b>` : `Te pidió permiso: <b>${esc(admPerm(e).t)}</b>`);
+  if (e.type == 'answer') return note(e.allow ? 'check' : 'x', e.tool == 'AskUserQuestion'
+    ? (e.allow ? `Respondiste: <b>${esc(Object.values(e.answers || {}).join(' / '))}</b>` : 'Le dejaste decidir a él')
+    : e.allow ? 'Le diste permiso' + (e.always || e.all ? ' para toda esta petición' : '') : 'Le dijiste que no' + (e.message && !/^The user/.test(e.message) ? ': ' + esc(e.message) : ''));
+  const c = Array.isArray(e.message?.content) ? e.message.content : [];
+  if (e.type == 'assistant') return c.map(x => {
+    if (x.type == 'text' && x.text.trim()) return `<div class="a-say">${admMd(x.text)}</div>`;
+    if (x.type != 'tool_use' || HIDDEN_TOOLS.includes(x.name)) return '';
+    if (T[x.id]) return `<div class="a-act"><span class="a-ci k-other">${icon('team')}</span><span>Un ayudante se encarga de: ${esc(T[x.id].desc)}</span></div>`;
+    const k = toolCat(x.name), d = x.input?.subject || x.input?.summary || x.input?.title;
+    return `<div class="a-act"><span class="a-ci k-${k || 'none'}">${icon(KEYS[k]?.i || 'dot')}</span><span>${admActText(x.name)}${d ? ': «' + esc(String(d).slice(0, 90)) + '»' : ''}</span></div>`;
+  }).join('');
+  if (e.type == 'system' && e.subtype == 'task_notification' && T[e.tool_use_id]) return note(e.status == 'completed' ? 'check' : 'x', `${e.status == 'completed' ? 'Un ayudante ha terminado' : 'Un ayudante no pudo terminar'}: ${esc(T[e.tool_use_id].desc)}`);
+  if (e.type == 'system' && e.subtype == 'api_retry') return note('clock', 'Reconectando con Claude…');
+  if (e.type == 'result' && e.is_error) return `<div class="a-err">Algo ha fallado y esta parte no se ha podido terminar. Puedes escribir abajo para intentarlo otra vez.</div>`;
+  return '';  // tool results, costs, raw output: never shown here
+}
+const LIVE_LINE = {working: 'Atendiendo tu petición…', asking: 'Te necesita: contesta la pregunta para seguir.', idle: 'Listo. Lee la respuesta y, si quieres, pide algo más.',
+  stopped: 'Pausado. Si escribes algo abajo, seguimos donde lo dejamos.', failed: 'No se pudo terminar. Escribe abajo para intentarlo otra vez.',
+  done: 'Listo. Lee la respuesta y, si quieres, pide algo más.',
+  waiting: 'En espera: has llegado al límite de uso por ahora. Seguirá sola en cuanto se pueda.'};
+function admDrawSession() {
+  const r = sess.r, T = tasksOf(sess.events), st = admSt(r);
+  const first = sess.events.find(e => e.type == 'input'), no = NO[r.id] || '···';
+  if (!$('#a-log')) {
+    main.innerHTML = `<div class="a-conv"><header class="a-where" id="a-where"></header><div id="s-ask"></div><div id="a-tk"></div>
+      <section class="logbox a-log" id="a-log" aria-label="Conversación"></section><p class="a-live" id="a-live" role="status"></p></div>
+      <div class="a-comp" id="composer">
+        <label for="msg">Responder o pedir algo más</label>
+        <textarea id="msg" rows="2" placeholder="Escribe aquí tu respuesta"></textarea>
+        <div class="atts" id="atts" aria-label="Archivos adjuntos"></div>
+        <div class="a-bar">
+          <button type="button" class="a-btn a-sec" data-act="attach" aria-label="Adjuntar archivo">${icon('clip')}<span class="lbl">Adjuntar</span></button>
+          ${micBtn('#msg', 'a-btn a-sec')}<span class="grow"></span>
+          <button type="button" class="a-btn a-pri" data-act="sendMsg">${icon('send')}Enviar</button>
+        </div>
+      </div>`;
+    $('#msg').addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.sendMsg(); });
+  }
+  setHTML('#a-where', `<h1><span>Turno ${no}</span><span class="a-sep" aria-hidden="true">·</span><span>${esc(catName(r.id))}</span><span class="a-sep" aria-hidden="true">·</span>${astate(st)}</h1>
+    ${['working', 'asking'].includes(r.status) ? `<button type="button" class="a-btn a-q a-stop" data-act="admStop">${icon('stop')}Parar</button>` : ''}`);
+  setHTML('#a-tk', admTicket(no, catKey(r.id), first?.text || r.name, r.started));
+  const l = $('#a-live'); l.className = 'a-live ' + st;
+  withLogScroll(() => {
+    setHTML('#a-live', LIVE_LINE[st] ? `${icon(ASTATE[st]?.[1] || 'dot')}<span>${LIVE_LINE[st]}</span>` : '');
+    setHTML('#a-log', capLog(sess.events.filter(e => !e.parent_tool_use_id), e => admItem(e, T, first)));
+  });
+  $('#composer').classList.toggle('yours', st == 'idle' || st == 'done');
+}
+ACT.admStop = async () => {
+  if (!confirm('¿Parar esta petición? Podrás seguir con ella más tarde escribiendo un mensaje.')) return;
+  try { await api(`sessions/${sess.id}/stop`, {method: 'POST'}); toast('Petición parada'); } catch { toast('No se ha podido parar. Inténtalo otra vez.', true); }
+};
+
+/* ---- decisions: same reply()/ACT handlers as dev, plain-language rendering ---- */
+const admAskBar = (pend, q) => `<button class="a-askbar" data-act="openAsk">${icon('bell')}<span><b>${pend.length > 1 ? `Te necesita para ${pend.length} cosas` : 'Te necesita'}</b> · ${esc(q.tool == 'AskUserQuestion' ? (q.input.questions || []).map(x => x.question).join(' · ') : admPerm(q).t)}</span><span class="go">Contestar ${icon('right')}</span></button>`;
+const admBand = () => `<div class="a-band"><h2 id="decide-h">${icon('bell')}Necesito que decidas</h2><p>Turno ${NO[sess?.id] || ''} · ${esc(catName(sess?.id))}</p></div>`;
+function admAskQ(qs) {
+  return `<form method="dialog" id="ask-form">${admBand()}<div class="a-dbody">
+    ${qs.map((x, i) => `<fieldset><legend>${esc(x.question)}</legend>${x.multiSelect ? '<p class="a-hint">Puedes elegir varias.</p>' : ''}
+      ${(x.options || []).map((o, j) => `<label class="opt"><input type="${x.multiSelect ? 'checkbox' : 'radio'}" name="q${i}" value="${esc(o.label)}" ${!x.multiSelect && j == 0 ? 'required' : ''}>
+        <span class="box">${icon('check')}</span><span><b>${esc(o.label)}</b>${o.description ? `<small>${esc(o.description)}</small>` : ''}</span></label>`).join('')}
+      <label class="opt other"><input type="${x.multiSelect ? 'checkbox' : 'radio'}" name="q${i}" value="__other"><span class="box">${icon('check')}</span>
+        <span style="flex:1"><b>Otra cosa</b><input type="text" name="o${i}" placeholder="Escríbelo aquí" aria-label="Otra respuesta"></span></label></fieldset>`).join('')}
+    </div><div class="dfoot">
+      <button type="button" class="a-btn a-q" data-act="skipAsk">Decide tú</button><span class="grow"></span>
+      <button type="button" class="a-btn a-sec" data-act="closeAsk">Más tarde</button>
+      <button type="submit" class="a-btn a-pri">${icon('send')}Enviar respuesta</button>
+    </div></form>`;
+}
+function admPerm(q) {  // what the agent wants to do, as a plain question plus the facts that matter
+  const n = q.tool || '', i = q.input || {}, all = v => [].concat(v || []).join(', ');
+  const text = v => String(v || '').replace(/<br\s*\/?>|<\/p>/gi, '\n').replace(/<[^>]+>/g, '').trim();
+  const when = v => { if (!v) return ''; const d = new Date(v.dateTime || v.date || v); return isNaN(d) ? String(v.dateTime || v.date || v) : d.toLocaleString('es-ES', {weekday: 'long', day: 'numeric', month: 'long', ...(v.date && !v.dateTime ? {} : {hour: '2-digit', minute: '2-digit'})}); };
+  if (/Gmail__(send_message|reply|forward)/.test(n)) return {t: i.draftId && !i.body ? '¿Puedo enviar este borrador?' : '¿Puedo enviar este correo?', rows: [['Para', all(i.to)], ['Copia', all(i.cc)], ['Asunto', i.subject]], body: i.body || text(i.htmlBody)};
+  if (/Gmail__(create_draft|update_draft)/.test(n)) return {t: '¿Puedo guardar este borrador?', rows: [['Para', all(i.to)], ['Asunto', i.subject]], body: i.body || text(i.htmlBody), hint: 'Se guarda en tus borradores. No se envía.'};
+  if (/Drive__(create_file|update_file|copy_file)/.test(n)) return {t: '¿Puedo guardar este documento?', rows: [['Nombre', i.title || i.name]], body: String(i.textContent || '').slice(0, 1500)};
+  if (/Drive__share_file/.test(n)) return {t: '¿Puedo compartir este documento?', rows: [['Con', all(i.emailAddress || i.email || i.emails)]]};
+  if (/Calendar__(create_event|update_event)/.test(n)) return {t: '¿Puedo apuntar esto en tu agenda?', rows: [['Qué', i.summary || i.title], ['Cuándo', when(i.start || i.startTime)], ['Hasta', when(i.end || i.endTime)], ['Dónde', i.location], ['Con', all((i.attendees || []).map(a => a.email || a))]], body: i.description};
+  return {t: '¿Puedo hacer esto?', rows: [['Qué', admActText(n).replace('…', '')]]};
+}
+function admAskPerm(q) {
+  const p = admPerm(q), rows = p.rows.filter(([, v]) => v);
+  return `<form method="dialog" id="ask-form">${admBand()}<div class="a-dbody">
+    <h3>${esc(p.t)}</h3>
+    <div class="a-letter">${rows.length ? `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+      ${p.body ? `<div class="a-body">${esc(p.body)}</div>` : ''}${p.hint ? `<p class="a-hint">${p.hint}</p>` : ''}</div>
+    <div class="a-why"><label for="deny-msg">Si dices que no, ¿por qué? (opcional)</label><input type="text" id="deny-msg" placeholder="Por ejemplo: todavía no, primero quiero revisarlo"></div>
+    </div><div class="dfoot">
+      <button type="button" class="a-btn a-sec" data-act="denyAsk">${icon('x')}No</button><span class="grow"></span>
+      <button type="button" class="a-btn a-q a-always" data-act="allowAsk" data-arg="${q.suggestions?.length ? 'always' : 'all'}">Sí, y no vuelvas a preguntar en esta petición</button>
+      <button type="button" class="a-btn a-pri" data-act="allowAsk">${icon('check')}Sí, adelante</button>
+    </div></form>`;
+}
+
+/* ---- help ---- */
+function admGuide() {
+  const step = (n, t, p) => `<li class="a-tkw"><div class="a-ticket"><div class="a-tt"><span class="a-tno">Paso<b>${n}</b></span></div><h2>${t}</h2><p>${p}</p></div></li>`;
+  main.innerHTML = `<div class="a-page">
+    <header><h1>Cómo funciona</h1><p>Es como pedir número en una ventanilla: dices qué necesitas, te atienden y, si hace falta, te preguntan.</p></header>
+    <ol class="a-steps">
+      ${step(1, 'Pide lo que necesitas', 'Escríbelo con tus palabras, o pulsa Correo, Documentos o Agenda para ver ideas. Pulsa <b>Pedir</b> y te damos un número.')}
+      ${step(2, 'Te atendemos y te avisamos', 'Tu número sale en la pantalla de turnos. Mientras pone <b>Atendiendo</b>, está trabajando. Cuando pone <b>Listo</b>, ya puedes leer la respuesta.')}
+      ${step(3, 'Decide cuando te lo pidan', 'Si pone <b>Te necesita</b>, te hará una pregunta sencilla. Antes de enviar un correo o guardar algo, siempre te pide permiso.')}
+    </ol>
+    <div class="a-can">
+      <section class="ok"><h2>${icon('check')}Qué puede hacer</h2><ul><li>Leer y buscar en tu correo, tus documentos y tu agenda.</li><li>Preparar borradores de correos y resúmenes.</li><li>Con tu permiso, enviar correos, guardar documentos o apuntar citas.</li></ul></section>
+      <section class="no"><h2>${icon('x')}Qué no puede hacer</h2><ul><li>Nada fuera de tu correo, tus documentos y tu agenda.</li><li>Nunca envía ni cambia nada sin preguntarte antes.</li></ul></section>
+    </div>
+    <a class="a-btn a-pri" href="#">${icon('ticket')}Hacer una petición</a>
+  </div>`;
 }
 
 addEventListener('hashchange', route);

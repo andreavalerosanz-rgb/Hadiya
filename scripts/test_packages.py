@@ -8,8 +8,11 @@ import server as s
 cmd = s.fence(None, ["claude", "-p", "--permission-mode", "bypassPermissions",
                      "--allowedTools", "Agent,Task,Bash,Read,mcp__plugin_figma_figma,mcp__claude_ai_Gmail__get_thread",
                      "--mcp-config", "{}", "--model", "haiku"])
+note = "--append-system-prompt=" + s.PACKAGES["admin"]["note"]
 assert cmd == ["claude", "-p", "--permission-mode=default", "--allowedTools=Agent,Task,mcp__claude_ai_Gmail__get_thread",
-               "--model", "haiku", "--tools=Agent,ToolSearch,AskUserQuestion"], cmd
+               "--model", "haiku", "--tools=Agent,ToolSearch,AskUserQuestion", note], cmd
+cmd = s.fence(None, ["claude", "--append-system-prompt", "ORCH"])
+assert cmd == ["claude", "--append-system-prompt=ORCH\n\n" + s.PACKAGES["admin"]["note"], "--tools=Agent,ToolSearch,AskUserQuestion"], cmd
 assert s.allowed(None, "mcp__claude_ai_Google_Drive__create_file") and s.allowed(None, "AskUserQuestion")
 assert not any(s.allowed(None, t) for t in ("Bash", "Edit", "mcp__claude_ai_Trello__x", "mcp__playwright__browser_click"))
 os.environ["FLOWS_PACKAGE"] = "dev"
