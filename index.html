@@ -52,6 +52,9 @@ button.item{width:100%;border:0;background:none;font:inherit;text-align:left;cur
 .item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item small{color:var(--mute);font:500 12.5px var(--cond);letter-spacing:.06em}
 .rowi{position:relative}
+.subs{margin:0 0 4px 16px;border-left:1px solid var(--spool);padding-left:4px}
+.item.sub1{min-height:26px;padding:3px 8px;font-size:13px;color:var(--mute)}
+.item.sub1 .st{width:13px;height:13px}.item.sub1 .st .i{width:12px;height:12px}
 .rowi .del{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:28px;height:28px;background:var(--panel);color:var(--mute);opacity:0}
 .rowi:hover .del,.rowi .del:focus-visible{opacity:1}
 .rowi .del:hover{color:var(--flag);border-color:var(--flag)}
@@ -716,6 +719,7 @@ const CAPS = [
   {id: 'figma', name: 'Use Figma', note: 'Pull frames, tokens, screenshots, assets', tools: 'mcp__plugin_figma_figma'},
   {id: 'drive', name: 'Read Google Drive', note: 'Search and read files. Turn on the Google Drive connector at claude.ai → Settings → Connectors first.', tools: ['search_files', 'read_file_content', 'get_file_metadata', 'list_recent_files', 'download_file_content'].map(t => 'mcp__claude_ai_Google_Drive__' + t).join(',')},
   {id: 'gmail', name: 'Read Gmail', note: 'Search and read mail; sending and drafts still ask. Needs the Gmail connector (claude.ai → Settings → Connectors).', tools: ['search_threads', 'get_thread', 'list_labels', 'list_drafts'].map(t => 'mcp__claude_ai_Gmail__' + t).join(',')},
+  {id: 'cal', name: 'Read Google Calendar', note: 'See events and free time; creating or changing events still asks. Needs the Google Calendar connector (claude.ai → Settings → Connectors).', tools: ['list_events', 'get_event', 'list_calendars', 'find_free_time'].map(t => 'mcp__claude_ai_Google_Calendar__' + t).join(',')},
   {id: 'edit', name: 'Edit files', note: 'Create and change theme files', tools: 'Edit,Write,MultiEdit'},
   {id: 'build', name: 'Run build & lint', note: 'npm scripts, sass, php -l, composer', tools: 'Bash(npm run:*),Bash(npm install),Bash(npx sass:*),Bash(sass:*),Bash(php -l:*),Bash(composer:*)'},
   {id: 'shell', name: 'Run any shell command', note: 'Any terminal command without asking (composer, curl, rm…). Use with care.', tools: 'Bash'},
@@ -725,6 +729,9 @@ const CAPS = [
   {id: 'team', name: 'Work as a team', note: 'A lead agent runs parallel subagents'},
   {id: 'full', name: 'Full auto', note: 'Skip every permission check. Only for throwaway branches.', danger: true},
 ];
+let PKG = 'dev';  // from /api/me: 'admin' = Google Workspace only
+const ADMIN_CAPS = ['drive', 'gmail', 'cal', 'team'];
+const capsFor = () => PKG == 'admin' ? CAPS.filter(c => ADMIN_CAPS.includes(c.id)) : CAPS;
 const capTools = st => [...CAPS.filter(c => st.caps?.includes(c.id) && c.tools).map(c => c.tools), st.extra_tools].filter(Boolean).join(',');
 const capMode = st => st.perm || (st.caps?.includes('full') ? 'bypassPermissions' : st.caps?.includes('edit') ? 'acceptEdits' : 'default');
 function deriveCaps(st) {  // legacy steps saved before capabilities existed
@@ -861,7 +868,7 @@ const TEMPLATES = [
   {id: 'bug', name: 'Bug fix', icon: 'bug', steps: ['bugfix', 'build-lint', 'summary'], blurb: 'Root cause, fix, verify, summary.'},
   {id: 'blank', name: 'Blank workflow', icon: 'pencil', steps: ['custom'], blurb: 'Start from one empty step.'},
 ];
-const mkStep = id => { const p = PRESETS[id]; return {preset: id, name: p.name, icon: p.icon, caps: [...p.caps], agents: p.agents || 3, model: '', prompt: p.prompt}; };
+const mkStep = id => { const p = PRESETS[id]; return {preset: id, name: p.name, icon: p.icon, caps: PKG == 'admin' ? ['drive', 'gmail', 'cal'] : [...p.caps], agents: p.agents || 3, model: '', prompt: p.prompt}; };
 const DEFAULT_PROJECTS = ['~/Desktop/matteria/web/matteria.si/wp-content/themes/matteria', '~/Desktop/PHH/web/wp-content/themes/phhtheme'];
 const DEFAULT_SITES = ['http://localhost:8080'];
 
@@ -919,7 +926,7 @@ const shown = new WeakMap();  // last HTML assigned per element; skip identical 
 const setHTML = (sel, h) => { const el = $(sel); if (el && shown.get(el) !== h) { el.innerHTML = h; shown.set(el, h); } };
 async function refresh() {
   const [all, use, q, w, me] = await Promise.all([api('runs').catch(() => []), api('usage').catch(() => ({})), api('queue').catch(() => queue), api('workflows').catch(() => ({})), api('me').catch(() => ({}))]);
-  queue = q; wfs = w;
+  queue = q; wfs = w; PKG = me.package || 'dev';
   if (isRemote == null) { const r = await fetch('/api/remote'); isRemote = r.status == 403; if (r.ok) phoneOn = (j => j.lan.on || j.tunnel.on || j.tailnet.on)(await r.json()); }
   if (isRemote) regSW();
   if (isRemote && !push) await pushLoad();
@@ -931,7 +938,7 @@ async function refresh() {
   const w5 = use?.windows?.five_hour, p5 = w5 ? (w5.resetsAt && w5.resetsAt < now() ? 0 : Math.round(w5.utilization * 100)) : null;
   const pill = p5 == null ? '' : `<span class="upill ${p5 >= 80 ? 'hot' : ''}" title="Share of your Claude plan's 5-hour limit used">5h ${p5}%</span>`;
   setHTML('#rack', `
-    <div class="rack-top"><a class="brand" href="#">${icon('reel')}<div><b>FLOWS</b><small>Claude Code workbench</small></div></a>
+    <div class="rack-top"><a class="brand" href="#">${icon('reel')}<div><b>FLOWS</b><small>Claude Code workbench${PKG == 'admin' ? ' · Admin' : ''}</small></div></a>
       ${pill}<button class="ic rack-toggle" data-act="menu" aria-expanded="${menuOpen}" aria-controls="rack-body" aria-label="${menuOpen ? 'Close menu' : 'Menu' + (nq ? ', ' + nq + ' queued' : '') + (ask ? ', decision needed' : '')}">${icon(menuOpen ? 'x' : 'menu')}${nq && !menuOpen ? `<span class="bdg">${nq}</span>` : ''}${ask && !menuOpen ? '<i class="qdot"></i>' : ''}</button></div>
     <div class="rack-body" id="rack-body">
     <a class="item" href="#" ${!kind ? 'aria-current="page"' : ''}>${icon('home')}<span>Home</span></a>
@@ -941,7 +948,8 @@ async function refresh() {
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
     <h2 class="cap">Sessions <a href="#" data-act="focusStart" aria-label="New session">${icon('plus')}New</a></h2>
-    ${sessions.slice(0, 12).map(r => delRow('run:' + r.id, 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`)).join('') || '<p class="none">No sessions yet</p>'}
+    ${sessions.slice(0, 12).map(r => delRow('run:' + r.id, 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`)
+      + (r.subs?.length ? `<div class="subs" role="list" aria-label="Subagents in ${esc(r.name)}">${r.subs.map(a => (st => `<a class="item sub1" role="listitem" href="#session/${r.id}/${esc(a.id)}" title="${esc(a.desc)}">${mark(st)}<span>${esc(a.desc)}</span></a>`)(a.status == 'running' && !LIVE.includes(r.status) ? 'stopped' : a.status)).join('')}</div>` : '')).join('') || '<p class="none">No sessions yet</p>'}
     <h2 class="cap">Workflows <a href="#templates" aria-label="New workflow">${icon('plus')}New</a></h2>
     ${wfRows(cur)}
     <h2 class="cap">Runs</h2>
@@ -1091,13 +1099,13 @@ async function route() {
   clearTimeout(timer); pollGen++; lastSig = ''; runSel = null; draft = null; dirty = false; ins = null; askOpen = null; att = [];
   $('#decide')?.close?.();
   await refresh();
-  const [kind, id] = location.hash.slice(1).split('/');
+  const [kind, id, agent] = location.hash.slice(1).split('/');
   document.body.classList.toggle('sess', kind == 'session');
   document.body.classList.remove('menu-open');
   window.scrollTo(0, 0);
   if (kind == 'wf') editor(id);
   else if (kind == 'run') showRun(id);
-  else if (kind == 'session') { sess = {id, events: []}; sessSel = 'lead'; showSession(); }
+  else if (kind == 'session') { sess = {id, events: []}; sessSel = agent || 'lead'; showSession(); }
   else if (kind == 'guide') guide();
   else if (kind == 'phone') phonePage();
   else home(kind == 'templates');
@@ -1143,7 +1151,7 @@ function trims(ids, act, list) {
 function home(toTemplates) {
   let last = {};
   try { last = JSON.parse(localStorage.getItem('flows.sess') || '{}'); } catch {}
-  const st = {caps: last.caps ? [...new Set([...last.caps, ...(last.v2 ? [] : ['browser'])])] : ['read', 'figma', 'edit', 'build', 'git', 'browser'], agents: last.agents || 3};
+  const st = {caps: PKG == 'admin' ? (last.caps || ['drive', 'gmail', 'cal']).filter(c => ADMIN_CAPS.includes(c)) : last.caps ? [...new Set([...last.caps, ...(last.v2 ? [] : ['browser'])])] : ['read', 'figma', 'edit', 'build', 'git', 'browser'], agents: last.agents || 3};
   const live = [...sessions.filter(r => LIVE.includes(r.status) || r.status == 'waiting'), ...runs.filter(r => r.status == 'running' || r.status == 'waiting')];
   const recent = [...sessions, ...runs].sort((a, b) => b.started - a.started).slice(0, 8);
   main.innerHTML = `
@@ -1155,12 +1163,12 @@ function home(toTemplates) {
       <h3 id="start-h">${icon('team')}Start a session</h3>
       <p class="hint" style="margin:-4px 0 4px">Describe the job. A lead agent plans it and hands pieces to parallel subagents. You can talk to it while it works, and it asks you when a decision is needed.</p>
       <label for="s-msg">What should the team do?</label>
-      <textarea id="s-msg" rows="4" style="font-family:var(--body);font-size:15px" placeholder="Build the header, hero, services grid and footer from https://www.figma.com/design/…?node-id=12-34 as template parts">${esc(last.draftMsg || '')}</textarea>
+      <textarea id="s-msg" rows="4" style="font-family:var(--body);font-size:15px" placeholder="${PKG == 'admin' ? 'Summarise this week’s client emails and list the Drive files they mention' : 'Build the header, hero, services grid and footer from https://www.figma.com/design/…?node-id=12-34 as template parts'}">${esc(last.draftMsg || '')}</textarea>
       <div class="atts" id="atts" aria-label="Attached files"></div>
       <div class="cols" style="margin-top:4px">
         <div>
-          <label for="s-cwd">Project folder</label><input id="s-cwd" list="projects" value="${esc(last.cwd || DEFAULT_PROJECTS[0])}" style="font-family:var(--mono);font-size:13px">
-          <label for="s-site">Local site <span class="opt-l">(for browser checks)</span></label><input id="s-site" list="sites" value="${esc(last.site ?? DEFAULT_SITES[0])}" placeholder="http://localhost:8080" style="font-family:var(--mono);font-size:13px">
+          <label for="s-cwd">Project folder</label><input id="s-cwd" list="projects" value="${esc(last.cwd || (PKG == 'admin' ? '~' : DEFAULT_PROJECTS[0]))}" style="font-family:var(--mono);font-size:13px">
+          <label for="s-site" ${PKG == 'admin' ? 'style="display:none"' : ''}>Local site <span class="opt-l">(for browser checks)</span></label><input id="s-site" ${PKG == 'admin' ? 'hidden' : ''} list="sites" value="${esc(last.site ?? DEFAULT_SITES[0])}" placeholder="http://localhost:8080" style="font-family:var(--mono);font-size:13px">
           <div class="row">
             <div><label for="s-model">Lead agent model</label><select id="s-model">${opts(MODELS, last.model)}</select></div>
             <div><label for="s-sub">Subagent models</label><select id="s-sub">${opts(SUBMODELS, last.sub || 'auto')}</select></div>
@@ -1175,14 +1183,14 @@ function home(toTemplates) {
             <span class="hint kbd-hint" style="margin:0">Ctrl + Enter starts · drop or paste files and screenshots too</span>
           </div>
         </div>
-        <div><details class="mdet" id="s-caps" ${mob.matches ? '' : 'open'}><summary class="flabel">What the agents may do without asking${capCnt(st.caps.filter(c => c != 'team' && CAPS.some(x => x.id == c)).length, CAPS.length - 1)}</summary><div class="capsel">${capChips(st, CAPS.filter(c => c.id != 'team'), 'sess')}</div>
+        <div><details class="mdet" id="s-caps" ${mob.matches ? '' : 'open'}><summary class="flabel">What the agents may do without asking${capCnt(st.caps.filter(c => c != 'team' && capsFor().some(x => x.id == c)).length, capsFor().length - 1)}</summary><div class="capsel">${capChips(st, capsFor().filter(c => c.id != 'team'), 'sess')}</div>
           <p class="hint">Anything not ticked, they ask you first in a popup.</p></details></div>
       </div>
     </section>
     <section class="bin" id="templates">
-      <div class="bin-h"><h2>Or start a reusable workflow</h2><p>A workflow is a fixed list of steps you can re-run with new input. Pick a template, then edit it.</p></div>
+      <div class="bin-h"><h2>Or start a reusable workflow</h2><p>A workflow is a fixed list of steps you can re-run with new input. ${PKG == 'admin' ? 'Start from one empty step.' : 'Pick a template, then edit it.'}</p></div>
       <div class="pinbar"></div>
-      ${trims(TEMPLATES.map(t => t.id), 'fromTemplate', Object.fromEntries(TEMPLATES.map(t => [t.id, {...t, blurb: t.steps.map(s => PRESETS[s].name).join(' → ')}])))}
+      ${PKG == 'admin' ? `<button class="btn-s" data-act="fromTemplate" data-arg="blank">${icon('plus')}New workflow</button>` : trims(TEMPLATES.map(t => t.id), 'fromTemplate', Object.fromEntries(TEMPLATES.map(t => [t.id, {...t, blurb: t.steps.map(s => PRESETS[s].name).join(' → ')}])))}
     </section>
     <section class="recent" aria-label="Recent activity"><h2>Recent</h2>
       ${recent.map(r => `<a href="#${r.kind == 'session' ? 'session' : 'run'}/${r.id}">${mark(r.status)}<span>${esc(r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name))}</span><small>${r.kind == 'session' ? 'Session' : 'Workflow run'} · ${esc(STATE[r.status]?.[0] || r.status)}</small><small>${ago(r.started)} ago</small></a>`).join('') || '<p class="none" style="padding:10px 0">Nothing yet. Your sessions and runs will collect here.</p>'}
@@ -1254,7 +1262,7 @@ function stepFrames() {
     tag: s.caps.includes('team') ? `TEAM ×${s.agents || 3}` : '', meta: capSummary(s), act: 'selStep', arg: i}));
 }
 function capSummary(s) {
-  const names = {read: 'reads', figma: 'Figma', drive: 'Drive', gmail: 'Gmail', browser: 'browser', edit: 'edits', build: 'builds', shell: 'any shell', git: 'git', wp: 'WP-CLI', full: 'FULL AUTO'};
+  const names = {read: 'reads', figma: 'Figma', drive: 'Drive', gmail: 'Gmail', cal: 'Calendar', browser: 'browser', edit: 'edits', build: 'builds', shell: 'any shell', git: 'git', wp: 'WP-CLI', full: 'FULL AUTO'};
   return s.caps.filter(c => names[c]).map(c => names[c]).join(' · ') || 'no tools';
 }
 function drawRailOnly() { const r = main.querySelector('.rail'); if (r) r.outerHTML = rail(stepFrames(), {add: true, splice: true}); }
@@ -1287,7 +1295,7 @@ function drawEditor() {
       <div class="bin-h"><h2 id="bin-h">Add a step ${esc(after)}</h2><button class="btn-q" data-act="closeBin">${icon('x')}Close</button></div>
       <p class="hint" style="color:var(--mute);margin:4px 0 0">Pick a ready-made step. You can change its instructions and permissions afterwards.</p>
       <div class="pinbar"></div>
-      ${trims(Object.keys(PRESETS), 'splice', PRESETS)}
+      ${trims(PKG == 'admin' ? ['custom'] : Object.keys(PRESETS), 'splice', PRESETS)}
     </section>` : ''}
     ${s ? stepEditor(s) : ''}
     <div class="composer runbar">
@@ -1321,8 +1329,8 @@ function stepEditor(s) {
         <p class="hint">Placeholders: <code>{{input}}</code> what you type when you run it · <code>{{prev}}</code> the previous step's final answer · <code>{{site}}</code> the local site. A step that answers <code>FAIL: reason</code> stops the run.</p>
       </div>
       <div>
-        <details class="mdet" id="capdet" ${mob.matches && !capsOpen ? '' : 'open'}><summary class="flabel">What this step may do${capCnt(s.caps.filter(c => CAPS.some(x => x.id == c)).length, CAPS.length)}</summary>
-        <div class="capsel">${capChips(s, CAPS, 'step')}</div></details>
+        <details class="mdet" id="capdet" ${mob.matches && !capsOpen ? '' : 'open'}><summary class="flabel">What this step may do${capCnt(s.caps.filter(c => capsFor().some(x => x.id == c)).length, capsFor().length)}</summary>
+        <div class="capsel">${capChips(s, capsFor(), 'step')}</div></details>
         ${team ? `<div class="teamrow"><span class="flabel">Parallel subagents</span>
           <div class="stepper"><button data-act="stepAgents" data-arg="-1" aria-label="Fewer">${icon('minus')}</button><output>${s.agents || 3}</output><button data-act="stepAgents" data-arg="1" aria-label="More">${icon('plus')}</button></div></div>
           <label for="ed-sub">Subagent models</label><select id="ed-sub" data-bind="steps.${i}.sub_models">${opts(SUBMODELS, s.sub_models || 'auto')}</select>` : ''}
@@ -1738,7 +1746,7 @@ function drawPerms() {
     <h3 id="perm-h">${icon('shield')}What the agents may do without asking</h3>
     <p class="hint" style="margin:-4px 0 12px">Applies to the lead agent and every subagent. Anything not ticked still pops up for your approval.
       ${LIVE.includes(sess.r.status) && sess.r.status != 'idle' ? '<b>The agents are busy, so changes apply as soon as the current turn ends.</b>' : 'Changes apply right away.'}</p>
-    <div class="capsel perm-grid">${capChips({caps}, CAPS.filter(x => x.id != 'team'), 'perm')}</div>
+    <div class="capsel perm-grid">${capChips({caps}, capsFor().filter(x => x.id != 'team'), 'perm')}</div>
     ${!caps.includes('browser') ? '' : '<p class="hint">Browser checks use headless Chrome through Playwright; screenshots show up in this session.</p>'}
     <div class="pfoot" style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
       <button class="btn-p" data-act="savePerms">${icon('check')}Apply permissions</button>
@@ -1888,8 +1896,8 @@ function guide() {
     ${sec('check', 'Before you start', `<ol class="steps">
       <li>Flows runs by itself: it starts when the computer boots and restarts if it crashes. Open <code>http://localhost:8787</code>. To restart it: <code>systemctl --user restart flows</code> · logs: <code>journalctl --user -u flows -f</code>.</li>
       <li>Claude must be logged in: run <code>claude</code> in a terminal once and use <code>/login</code> if asked.</li>
-      <li>For Figma steps, connect Figma once: in <code>claude</code>, type <code>/mcp</code>, pick <b>figma</b>, choose Authenticate.</li>
-      <li>For browser checks, your local site must be running (Matteria: <code>http://localhost:8080</code>). Flows drives a headless Chrome through Playwright.</li></ol>`)}
+      ${PKG == 'admin' ? '<li>Connect Google Drive, Gmail and Calendar at claude.ai → Settings → Connectors, then sign in to Claude on this machine.</li>' : `<li>For Figma steps, connect Figma once: in <code>claude</code>, type <code>/mcp</code>, pick <b>figma</b>, choose Authenticate.</li>
+      <li>For browser checks, your local site must be running (Matteria: <code>http://localhost:8080</code>). Flows drives a headless Chrome through Playwright.</li>`}</ol>`)}
     ${sec('team', 'Sessions: a live team you can talk to', `<ol class="steps">
       <li>On <a href="#">Home</a>, describe the job, e.g. <i>“Build the hero and services grid from &lt;Figma link&gt; as template parts”</i>.</li>
       <li>Pick the project folder, the local site, how many agents may run in parallel, the <b>lead agent's model</b>, and how <b>subagent models</b> are chosen. <b>Auto</b> lets the lead pick the cheapest model that does each task well: Haiku for mechanical work, Sonnet for normal building, Opus for hard problems. You can switch both from the session header at any time.</li>
@@ -1915,7 +1923,7 @@ function guide() {
       <li>Remove a phone any time under <b>Paired phones</b>.</li></ol>`)}
     ${sec('flag', 'Reading the rail', `${legend()}<p class="hint">Done frames get an orange check. A running frame has an orange band and the sprockets roll. Failed frames are hatched. “Your turn” means the lead agent finished and is waiting for you; “Needs a decision” means a popup is open for you.</p>`)}
     ${sec('check', 'Permissions in plain words', `<p style="margin:0 0 8px">Every step or session has a list of what it may do without asking:</p><ul class="steps">
-      ${CAPS.map(c => `<li><b>${esc(c.name)}</b>: ${esc(c.note)}</li>`).join('')}</ul>
+      ${capsFor().map(c => `<li><b>${esc(c.name)}</b>: ${esc(c.note)}</li>`).join('')}</ul>
       <p class="hint">Cost shown is Claude's API-equivalent estimate; on your subscription you are not charged per run.</p>`)}`;
 }
 

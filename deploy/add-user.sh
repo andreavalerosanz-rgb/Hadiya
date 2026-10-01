@@ -27,6 +27,6 @@ echo "installed $f"
 cat <<MSG
 
 Next steps:
-  sudo -u $u -i claude login
+  sudo -u $u -i claude auth login
   sudo -u flows python3 /opt/flows/server.py adduser <flowsname> $u
 MSG

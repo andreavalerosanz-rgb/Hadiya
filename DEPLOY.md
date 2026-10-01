@@ -60,3 +60,18 @@ Only ever expose Flows through TLS. Pick one:
 - **Cloudflare named tunnel**: `cloudflared tunnel create flows`, then route `flows.example.com` to `http://127.0.0.1:8787`, then `cloudflared tunnel run flows`.
 
 Don't open port 8787 in the firewall. Sign-ins are rate-limited (5 failures per name and 50 overall per 15 minutes), and sessions last 30 days.
+
+## Packages (`dev`, `admin`)
+A package decides what someone's agents can reach. The server enforces it on every `claude` it starts, whatever the UI sent.
+- `dev` (default): everything, as before.
+- `admin`: Google Workspace only (Drive, Gmail, Calendar connectors). There are no file, shell, browser or other MCP tools, and Full auto is turned off.
+
+Per person: `sudo -u flows python3 server.py adduser carla carla --package admin`. Per install: `FLOWS_PACKAGE=admin`. Check it with `python3 scripts/test_packages.py`.
+
+## Install on any Linux PC (.deb)
+`scripts/build-deb.sh dev` or `scripts/build-deb.sh admin` builds `dist/flows-<pkg>_<ver>_all.deb`. Then:
+- `sudo apt install ./dist/flows-admin_*.deb` puts the app in `/opt/flows`, adds a systemd user service, and adds an app-menu launcher that opens a Chrome app window.
+- `systemctl --user start flows` (it starts by itself at every later login), then `claude login`. Data goes in `~/.local/share/flows`.
+
+Phone, or any PC without the .deb: open Flows through Phone access (LAN, Tailscale or tunnel) or a server set up as above, and choose "Install app" or "Add to Home Screen". Flows is already a PWA.
+Versions come from git tags: `git tag v1.0 && scripts/build-deb.sh`.
