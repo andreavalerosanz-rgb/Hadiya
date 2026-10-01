@@ -121,6 +121,8 @@ def fence(owner, cmd):
 def launch(owner, cmd, cwd, extra=None):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
     cmd = fence(owner, cmd)
+    # streaming-input sessions otherwise start before the claude.ai connectors (Gmail, Drive, Calendar…) arrive
+    extra = {"CLAUDE_CODE_MCP_STARTUP_WAIT_MS": "15000", **(extra or {})}
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
