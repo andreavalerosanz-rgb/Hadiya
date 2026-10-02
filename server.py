@@ -121,8 +121,6 @@ def fence(owner, cmd):
 def launch(owner, cmd, cwd, extra=None):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
     cmd = fence(owner, cmd)
-    # streaming-input sessions otherwise start before the claude.ai connectors (Gmail, Drive, Calendar…) arrive
-    extra = {"CLAUDE_CODE_MCP_STARTUP_WAIT_MS": "15000", **(extra or {})}
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
@@ -528,6 +526,7 @@ def send(r, text, agents=None, sub_models=None, files=()):
             r["config"]["agents"] = agents
         if sub_models:  # saved for respawns; the message itself tells the running lead
             r["config"]["sub_models"] = sub_models
+        fresh = r["id"] not in procs
         p = procs.get(r["id"]) or spawn(r)
         ev = {"type": "input", "text": text, "ts": time.time()}
         if files:
@@ -539,6 +538,11 @@ def send(r, text, agents=None, sub_models=None, files=()):
     if files:
         content = [{"type": "text", "text": "\n\n".join(filter(None, [text, "Attached files: " + ", ".join(f["path"] for f in files)]))}] + [
             {"type": "image", "source": {"type": "base64", "media_type": f["media"], "data": f["b64"]}} for f in files if f["b64"]]
+    if fresh:
+        # The claude.ai connectors (Gmail, Drive, Calendar…) connect ~0.5s after start. A first turn sent
+        # earlier sees no deferred tools, so ToolSearch is switched off for it and the agent says it has no access.
+        # ponytail: fixed delay; replace with a readiness signal if the CLI ever emits one for stream-json input.
+        time.sleep(3)
     write(p, {"type": "user", "message": {"role": "user", "content": content}})
 
 
