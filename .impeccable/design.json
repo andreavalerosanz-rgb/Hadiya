@@ -1,311 +1,266 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-01T20:22:02.563202Z",
-  "title": "Design System: Flows, La ventanilla (admin package, body.adm). Dev package is documented in DESIGN.md Part 1 only.",
+  "generatedAt": "2026-10-02T00:07:54.743372Z",
+  "title": "Design System: Flows on paper (admin package, body.adm). Dev package is documented in DESIGN.md Part 1 only.",
   "extensions": {
     "colorMeta": {
-      "enamel-blue": {
+      "flag-orange": {
         "role": "primary",
-        "displayName": "Enamel Blue",
-        "canonical": "#1f4fd1",
+        "displayName": "Flag Orange",
+        "canonical": "#ff5a1f",
         "tonalRamp": [
-          "#01003e",
-          "#051b60",
-          "#052aad",
-          "#2152d4",
-          "#4177fc",
-          "#619cff",
-          "#84c2ff",
-          "#c5eeff"
+          "#4c1400",
+          "#802200",
+          "#b22f00",
+          "#e63c00",
+          "#ff6933",
+          "#ff9670",
+          "#ffc7b2",
+          "#ffece5"
         ]
       },
-      "key-red": {
-        "role": "secondary",
-        "displayName": "Key Red",
-        "canonical": "#d93d2b",
+      "flag-orange-deep": {
+        "role": "primary",
+        "displayName": "Flag Orange Deep",
+        "canonical": "#e2470f",
         "tonalRamp": [
-          "#2d0000",
-          "#500000",
-          "#8e0000",
-          "#b61000",
-          "#df4331",
-          "#ff6a55",
-          "#ff9078",
-          "#ffd1bf"
+          "#481705",
+          "#782608",
+          "#a7350b",
+          "#d7440e",
+          "#f26f40",
+          "#f69a79",
+          "#fac9b7",
+          "#fdede7"
         ]
       },
-      "key-green": {
-        "role": "secondary",
-        "displayName": "Key Green",
-        "canonical": "#0f8a5f",
-        "tonalRamp": [
-          "#001303",
-          "#002f1a",
-          "#00542d",
-          "#00754c",
-          "#28986c",
-          "#54bc8e",
-          "#7ae2b1",
-          "#c4fee0"
-        ]
-      },
-      "key-amber": {
-        "role": "secondary",
-        "displayName": "Key Amber",
-        "canonical": "#f2a900",
-        "tonalRamp": [
-          "#1f0000",
-          "#3e1b00",
-          "#6f2d00",
-          "#924f00",
-          "#b77100",
-          "#dd9500",
-          "#ffb92c",
-          "#ffe7a3"
-        ]
-      },
-      "navy-ink": {
+      "paper-ground": {
         "role": "neutral",
-        "displayName": "Navy Ink",
-        "canonical": "#111a2e",
+        "displayName": "Paper Ground",
+        "canonical": "#f4f2ee",
         "tonalRamp": [
-          "#060b16",
-          "#1f2531",
-          "#374259",
-          "#566179",
-          "#76829c",
-          "#98a5c0",
-          "#bcc9e5",
-          "#e6efff"
+          "#2e291e",
+          "#4d4432",
+          "#6c6046",
+          "#8b7b5a",
+          "#afa083",
+          "#c7bda8",
+          "#e1dbd1",
+          "#f5f3f0"
         ]
       },
-      "laminate-ground": {
+      "paper-line": {
         "role": "neutral",
-        "displayName": "Laminate Ground",
-        "canonical": "#e9edf3",
+        "displayName": "Paper Line",
+        "canonical": "#e6e3dd",
         "tonalRamp": [
-          "#0a0b0d",
-          "#232528",
-          "#3f4247",
-          "#5e6167",
-          "#7f8388",
-          "#a2a5ab",
-          "#c5c9cf",
-          "#eceff2"
+          "#2c2820",
+          "#494336",
+          "#675e4c",
+          "#847961",
+          "#a99e89",
+          "#c2bbad",
+          "#dfdbd3",
+          "#f4f3f0"
         ]
       },
-      "thermal-paper": {
+      "ink": {
         "role": "neutral",
-        "displayName": "Thermal Paper",
-        "canonical": "#fdfcf7",
+        "displayName": "Ink",
+        "canonical": "#1a1a1a",
         "tonalRamp": [
-          "#0c0b09",
-          "#252523",
-          "#43423e",
-          "#62615d",
-          "#83827e",
-          "#a6a5a0",
-          "#cac9c4",
-          "#efeeeb"
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#999999",
+          "#b8b8b8",
+          "#d9d9d9",
+          "#f2f2f2"
         ]
       },
-      "led-amber": {
-        "role": "tertiary",
-        "displayName": "LED Amber",
-        "canonical": "#ffb43a",
+      "ink-mute": {
+        "role": "neutral",
+        "displayName": "Ink Mute",
+        "canonical": "#57534d",
         "tonalRamp": [
-          "#1f0000",
-          "#3e1b00",
-          "#6f2c00",
-          "#934e00",
-          "#b77100",
-          "#dd9400",
-          "#ffb940",
-          "#ffe6a8"
+          "#292724",
+          "#44413c",
+          "#5f5a54",
+          "#7a746c",
+          "#9f9a93",
+          "#bcb8b3",
+          "#dbd9d6",
+          "#f3f2f1"
         ]
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Dispenser question and page titles, weight 800."
+        "purpose": "Page titles, Barlow 700."
       },
-      "led": {
-        "displayName": "LED",
-        "purpose": "Doto, ticket numbers on the turn board only."
+      "label": {
+        "displayName": "Label",
+        "purpose": "Barlow Condensed caps: group labels, state words, logo, primary button only."
       }
     },
     "shadows": [
       {
-        "name": "dispenser-lift",
-        "value": "0 24px 38px -24px rgba(17,26,46,.6)",
-        "purpose": "Dispenser block."
+        "name": "card",
+        "value": "0 1px 2px rgba(26,26,26,.04), 0 8px 18px -12px rgba(26,26,26,.18)",
+        "purpose": "Every white card."
       },
       {
-        "name": "board-lift",
-        "value": "0 18px 30px -20px rgba(17,26,46,.7)",
-        "purpose": "LED board."
+        "name": "dialog",
+        "value": "0 20px 50px rgba(26,26,26,.3)",
+        "purpose": "Decision dialog over rgba(26,26,26,.5) backdrop."
       },
       {
-        "name": "ticket-drop",
-        "value": "drop-shadow(0 8px 12px rgba(17,26,46,.2))",
-        "purpose": "Filter so shadow follows torn edge."
-      },
-      {
-        "name": "composer-lift",
-        "value": "0 -14px 24px -14px rgba(17,26,46,.28)",
-        "purpose": "Sticky composer."
-      },
-      {
-        "name": "key-press-edge",
-        "value": "4-6px solid bottom border in the deep shade",
-        "purpose": "Depth for pressable primary objects."
+        "name": "toast",
+        "value": "0 10px 24px -8px rgba(26,26,26,.45)",
+        "purpose": "Toast."
       }
     ],
     "motion": [
       {
-        "name": "ticket-print",
-        "value": "700ms cubic-bezier(.16,1,.3,1), 150ms hold",
-        "purpose": "Ticket slides out of the dispenser slot on Pedir."
-      },
-      {
         "name": "state-pulse",
-        "value": "1.6s ease-in-out, opacity to .35",
-        "purpose": "Atendiendo and Te necesita icons."
+        "value": "1.6s ease-in-out, opacity to .3",
+        "purpose": "Trabajando mark and live line."
       },
       {
-        "name": "key-lift",
-        "value": ".14s, -2px hover, +3px active",
-        "purpose": "Dispenser keys."
+        "name": "ui-transition",
+        "value": ".15s background/border-color",
+        "purpose": "Buttons, chips, ask card."
       }
     ],
     "breakpoints": [
       {
-        "name": "stack-board",
-        "value": "1100px"
+        "name": "desktop",
+        "value": "821px (column padding and title grow; column stays 680px)"
       },
       {
         "name": "phone",
-        "value": "820px"
-      },
-      {
-        "name": "keys-2x2",
-        "value": "760px (container width of the dispenser)"
+        "value": "820px (dialog footer stacks)"
       }
     ]
   },
   "components": [
     {
-      "name": "Dispenser key (Correo)",
-      "kind": "custom",
-      "refersTo": "key-mail",
-      "description": "Errand key with plain label strip; toggles example tray.",
-      "html": "<button class=\"ds-key\"><b>Correo</b><small>Resumir, buscar, contestar</small></button>",
-      "css": ".ds-key{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:200px;padding:14px 14px 0;border:0;border-bottom:6px solid #a32a1b;border-radius:14px;background:#d93d2b;color:#fff;cursor:pointer;text-align:left;overflow:hidden;font:800 21px/1.1 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif;transition:transform .14s}.ds-key small{display:block;align-self:stretch;margin:6px -14px 0;padding:8px 14px 10px;background:#fdfcf7;color:#111a2e;font:400 15px/1.3 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif}.ds-key:hover{transform:translateY(-2px)}.ds-key:active{transform:translateY(3px)}.ds-key:focus-visible{outline:3px solid #111a2e;outline-offset:3px}"
-    },
-    {
-      "name": "Pedir",
-      "kind": "button",
-      "refersTo": "pedir",
-      "description": "The dispenser's single action.",
-      "html": "<button class=\"ds-pedir\">Pedir</button>",
-      "css": ".ds-pedir{min-height:64px;padding:0 36px;background:#fdfcf7;color:#111a2e;border:0;border-bottom:5px solid #aab5ca;border-radius:12px;font:800 24px/1.1 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif;cursor:pointer}.ds-pedir:hover{background:#fff}.ds-pedir:focus-visible{outline:3px solid #fff;outline-offset:3px}"
-    },
-    {
       "name": "Primary button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Main action on light surfaces.",
-      "html": "<button class=\"ds-pri\">Enviar</button>",
-      "css": ".ds-pri{min-height:52px;padding:0 20px;border:2px solid transparent;border-bottom:4px solid #163a9c;border-radius:12px;background:#1f4fd1;color:#fff;font:700 18px/1.1 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif;cursor:pointer;transition:background .15s}.ds-pri:hover{background:#2a5ae0}.ds-pri:focus-visible{outline:3px solid #111a2e;outline-offset:3px}"
+      "description": "Orange action; one per view. Pedir is the same at 56px, full width.",
+      "html": "<button class=\"ds-pri\">PEDIR</button>",
+      "css": ".ds-pri{min-height:48px;padding:0 20px;border:1px solid transparent;border-radius:12px;background:#ff5a1f;color:#0d0d0d;font:700 19px/1 'Barlow Condensed','Arial Narrow',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}.ds-pri:hover{background:#ff7038}.ds-pri:focus-visible{outline:3px solid #e2470f;outline-offset:2px}"
     },
     {
-      "name": "Printed ticket",
-      "kind": "card",
-      "refersTo": "ticket",
-      "description": "Thermal slip with torn bottom edge.",
-      "html": "<div class=\"ds-tkw\"><div class=\"ds-ticket\"><div class=\"ds-tt\"><span>Turno<b>014</b></span><time>hoy, 10:42</time></div><p>Resume los correos de hoy</p></div></div>",
-      "css": ".ds-tkw{filter:drop-shadow(0 8px 12px rgba(17,26,46,.2));width:320px}.ds-ticket{--z:9px;background:#fdfcf7;color:#111a2e;padding:16px 22px calc(18px + var(--z));border-radius:6px 6px 0 0;font:19px/1.45 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif;-webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/calc(2*var(--z)) 100%;mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/calc(2*var(--z)) 100%}.ds-tt{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:10px;border-bottom:2px dashed #c4ccd9;margin-bottom:12px;font-weight:700;font-size:17px}.ds-tt b{font:800 46px/1 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif;margin-left:4px;font-variant-numeric:tabular-nums}.ds-tt time{font-size:15px;color:#4b556b;font-weight:400}.ds-ticket p{margin:10px 0 0}"
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White hairline button for non-primary choices.",
+      "html": "<button class=\"ds-sec\">Más tarde</button>",
+      "css": ".ds-sec{min-height:48px;padding:0 20px;border:1px solid #e6e3dd;border-radius:12px;background:#fff;color:#1a1a1a;font:700 17px/1.1 Barlow,system-ui,sans-serif;cursor:pointer;transition:border-color .15s}.ds-sec:hover{border-color:#57534d}.ds-sec:focus-visible{outline:3px solid #e2470f;outline-offset:2px}"
     },
     {
-      "name": "LED turn board row",
-      "kind": "custom",
-      "refersTo": "turn-board",
-      "description": "Fixed columns Nº / Asunto / Estado on navy.",
-      "html": "<div class=\"ds-board\"><div class=\"ds-row\"><span class=\"ds-led\">014</span><span><b>Presupuesto de enero</b></span><span class=\"ds-st\">Te necesita</span></div></div>",
-      "css": ".ds-board{background:#111a2e;color:#e6ebf5;border-radius:18px;padding:22px 20px 16px;width:420px;font:16px/1.3 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif}.ds-row{display:grid;grid-template-columns:64px minmax(0,1fr) 114px;gap:12px;align-items:center;min-height:66px;padding:10px 6px;background:#1a2541;border-radius:4px}.ds-row b{color:#fff;font-weight:600}.ds-led{font:800 32px/1 Doto,ui-monospace,monospace;color:#ffb43a}.ds-st{display:inline-block;justify-self:start;background:#f2a900;color:#111a2e;padding:3px 10px;border-radius:999px;font-weight:700;font-size:15px}"
+      "name": "Ask card",
+      "kind": "input",
+      "refersTo": "card",
+      "description": "White card with borderless textarea; border turns ink on focus.",
+      "html": "<div class=\"ds-box\"><textarea rows=\"4\" placeholder=\"Escríbelo con tus palabras\"></textarea></div>",
+      "css": ".ds-box{width:320px;background:#fff;border:1px solid #e6e3dd;border-radius:12px;box-shadow:0 1px 2px rgba(26,26,26,.04),0 8px 18px -12px rgba(26,26,26,.18);transition:border-color .15s}.ds-box:focus-within{border-color:#1a1a1a}.ds-box textarea{display:block;width:100%;min-height:120px;border:0;background:transparent;padding:14px 16px 6px;color:#1a1a1a;font:18px/1.5 Barlow,system-ui,sans-serif;resize:none;box-sizing:border-box}.ds-box textarea:focus-visible{outline:0}"
     },
     {
-      "name": "Stub",
-      "kind": "card",
-      "refersTo": "stub",
-      "description": "Past request cell; Listo stubs are punched.",
-      "html": "<a class=\"ds-stub\" href=\"#\"><span class=\"ds-sno\">012</span><time>ayer</time><span class=\"ds-snm\">Contrato de alquiler</span></a>",
-      "css": ".ds-stub{position:relative;display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-content:start;width:230px;min-height:188px;padding:16px 18px 18px;background:#fdfcf7;color:#111a2e;text-decoration:none;border:2px dashed #c4ccd9;font:17px/1.35 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif}.ds-stub:hover{background:#fff}.ds-sno{font:800 30px/1 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif}.ds-stub time{font-size:14px;color:#4b556b;text-align:right}.ds-snm{grid-column:1/-1;font-weight:600}.ds-stub::after{content:'';position:absolute;right:18px;bottom:16px;width:24px;height:24px;border-radius:50%;background:#e9edf3;box-shadow:inset 0 2px 4px rgba(17,26,46,.45)}"
-    },
-    {
-      "name": "State mark: Te necesita",
+      "name": "Idea chip",
       "kind": "chip",
-      "refersTo": "state-asking",
-      "description": "Amber pill; icon plus word.",
-      "html": "<span class=\"ds-asking\">Te necesita</span>",
-      "css": ".ds-asking{display:inline-flex;align-items:center;gap:6px;background:#f2a900;color:#111a2e;padding:3px 10px 3px 8px;border-radius:999px;font:700 16px/1.2 'Atkinson Hyperlegible Next','Atkinson Hyperlegible',system-ui,sans-serif;white-space:nowrap}"
+      "refersTo": "chip-idea",
+      "description": "Quick-idea tile; toggles to ink border.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">Correo</button>",
+      "css": ".ds-chip{display:flex;align-items:center;min-height:56px;padding:0 14px;border:1px solid #e6e3dd;border-radius:12px;background:#fff;color:#1a1a1a;font:600 17px/1.2 Barlow,system-ui,sans-serif;cursor:pointer;width:150px}.ds-chip:hover{border-color:#57534d}.ds-chip[aria-pressed=true]{border-color:#1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a}.ds-chip:focus-visible{outline:3px solid #e2470f;outline-offset:2px}"
+    },
+    {
+      "name": "Request row with state mark",
+      "kind": "card",
+      "refersTo": "request-row",
+      "description": "Row in Mis peticiones: text, time, state mark plus word.",
+      "html": "<div class=\"ds-rows\"><a class=\"ds-row\" href=\"#\"><span class=\"ds-rt\">Resume los correos de hoy</span><span class=\"ds-rm\">Correo · hace 5 min</span><span class=\"ds-s\"><svg class=\"ds-g\" viewBox=\"0 0 100 60\" aria-hidden=\"true\"><path d=\"M10 33 L37 52 L92 7\"/></svg>Listo</span></a></div>",
+      "css": ".ds-rows{width:340px;background:#fff;border:1px solid #e6e3dd;border-radius:12px;overflow:hidden}.ds-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;min-height:64px;padding:14px 16px;color:#1a1a1a;text-decoration:none;font:17px/1.55 Barlow,system-ui,sans-serif}.ds-row:hover{background:#faf9f7}.ds-rt{font-weight:500}.ds-rm{font-size:14px;color:#57534d;text-align:right;white-space:nowrap}.ds-s{grid-column:1/-1;display:inline-flex;align-items:center;gap:6px;font:600 14px/1.2 'Barlow Condensed','Arial Narrow',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#1a1a1a}.ds-g{width:24px;height:15px}.ds-g path{fill:none;stroke:#1a1a1a;stroke-width:10;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Te necesita flag",
+      "kind": "chip",
+      "refersTo": "state-flag",
+      "description": "Orange folded tape flag; the only coloured state.",
+      "html": "<span class=\"ds-flag\">Te necesita</span>",
+      "css": ".ds-flag{display:inline-block;padding:5px 9px 9px;background:#ff5a1f;color:#0d0d0d;font:700 13px/1 'Barlow Condensed','Arial Narrow',system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;clip-path:polygon(0 0,100% 0,100% 100%,50% 76%,0 100%)}"
+    },
+    {
+      "name": "Chat bubbles",
+      "kind": "custom",
+      "refersTo": "bubble-say",
+      "description": "Own message as ink wash; assistant reply as white card.",
+      "html": "<div class=\"ds-log\"><div class=\"ds-you\">Resume los correos de hoy</div><div class=\"ds-say\">Tienes tres correos nuevos.</div></div>",
+      "css": ".ds-log{display:flex;flex-direction:column;gap:14px;width:320px;font:17px/1.55 Barlow,system-ui,sans-serif;color:#1a1a1a}.ds-you{align-self:flex-end;max-width:85%;padding:10px 14px;border-radius:12px 12px 4px 12px;background:rgba(26,26,26,.1)}.ds-say{align-self:flex-start;padding:14px 16px;border:1px solid #e6e3dd;border-radius:12px 12px 12px 4px;background:#fff;line-height:1.6}"
+    },
+    {
+      "name": "Option card",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Decision dialog choice; selected = ink border and filled box.",
+      "html": "<label class=\"ds-opt\"><span class=\"ds-bx\"></span><b>Sí, con copia</b></label>",
+      "css": ".ds-opt{display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 14px;border:1px solid #1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a;border-radius:12px;background:#fff;width:300px;font:600 17px/1.3 Barlow,system-ui,sans-serif;color:#1a1a1a}.ds-bx{width:24px;height:24px;border:2px solid #1a1a1a;background:#1a1a1a;border-radius:4px}"
     }
   ],
   "narrative": {
-    "northStar": "The Ticket Counter",
-    "overview": "Asking is taking a number at a counter: you say what you need, get a ticket, someone attends you, and you are called when it is your turn to decide. Light laminate ground, enamel-blue dispenser, thermal-white tickets, one navy LED board; hyperlegible sans at generous sizes; plain Spanish.",
+    "northStar": "Flows on Paper",
+    "overview": "The same brand made calm and light. A warm paper ground, white cards with hairlines, ink text, and one orange that only ever says press this or this needs you. One column, one obvious action, plain Spanish. The film world survives as brand parts: reel logo, Barlow with condensed caps for small labels, the Flows state marks, and one perforated orange strip.",
     "keyCharacteristics": [
-      "Colour is job-coded: one key colour per errand.",
-      "State is always icon plus word.",
-      "Pressable primary things have a thick darker bottom edge.",
-      "Tickets carry a big tabular number.",
-      "Targets about 48px; 3px navy focus ring."
+      "One column, mobile-first; centered about 680px on desktop.",
+      "Orange only on the primary action, the Te necesita flag, focus, selection and the one perforated strip.",
+      "State is always a mark plus a word.",
+      "Flat paper: hairlines and a very soft card shadow.",
+      "Targets 44-56px; 3px deep-orange focus ring."
     ],
     "rules": [
       {
-        "name": "The Key-Colour Rule",
-        "body": "An errand has exactly one colour from the four keys; reused for its chip and log icon only.",
+        "name": "The Orange Is Action Rule",
+        "body": "Orange says press or you are needed, or marks focus. Not decoration, headings, links or secondary buttons; the perforated strip is the single film echo.",
         "section": "colors"
       },
       {
-        "name": "The Amber Means You Rule",
-        "body": "Amber on a surface means a person is needed.",
+        "name": "The Word Beside Mark Rule",
+        "body": "Every state is a mark plus its word; colour never carries state.",
         "section": "colors"
       },
       {
-        "name": "The Word Beside Colour Rule",
-        "body": "Every state is an icon plus its word.",
-        "section": "colors"
-      },
-      {
-        "name": "The One Weight Rule",
-        "body": "Emphasis is weight 800 versus 400-600 in one family.",
+        "name": "The Caps Are Small Rule",
+        "body": "Condensed caps are for labels, state words, the logo and the primary button, never headings or running text.",
         "section": "typography"
       },
       {
-        "name": "The LED Only Rule",
-        "body": "Doto appears only inside LED number displays.",
+        "name": "The One Voice Rule",
+        "body": "No third family; emphasis is weight within Barlow.",
         "section": "typography"
       },
       {
-        "name": "The Press Edge Rule",
-        "body": "Pressable primary objects get a solid deep-colour bottom edge; shadows are for objects you read.",
+        "name": "The Paper Stays Flat Rule",
+        "body": "Surfaces are white on paper with a hairline; selection is an ink border plus a 1px inset ring, not a lift.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "Do pair every state with its icon and word.",
-      "Do give primary pressable objects the solid deep-colour bottom edge.",
-      "Do keep the board's columns fixed and right-align times.",
-      "Do keep targets at least about 48px with a visible focus ring."
+      "Do pair every state with its mark and word, using the five Flows marks.",
+      "Do keep text on orange in Bench Ink and put orange only on the primary action, the Te necesita flag, focus, selection and the one strip.",
+      "Do build new surfaces from white cards with a 1px Paper Line border on Paper Ground, 12px radius, in the single 680px column.",
+      "Do keep targets at least 44px and the 3px Flag Orange Deep focus ring.",
+      "Do write new copy in plain Spanish tú and put the next step in every error.",
+      "Do keep admin rules scoped to body.adm."
     ],
     "donts": [
-      "Don't show tool names, models, paths, costs or permission jargon.",
-      "Don't convey state by colour alone.",
-      "Don't use key colours or amber outside their roles.",
-      "Don't use Doto outside LED numbers.",
-      "Don't put admin rules on :root.",
+      "Don't show tool names, model names, paths, costs or permission jargon; translate to a plain Spanish line.",
+      "Don't convey state by colour alone, or invent per-errand colours.",
+      "Don't add a second perforated strip, a sidebar, or dark panels to this world.",
+      "Don't use condensed caps for headings or running text.",
       "Don't open a modal for anything but a blocking decision."
     ]
   }
