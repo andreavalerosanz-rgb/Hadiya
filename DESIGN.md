@@ -1,143 +1,127 @@
 ---
-name: Flows - La ventanilla (admin package)
-description: Ask-and-talk assistant as a ticket counter. Tokens below cover Part 2 only (body.adm); Part 1, the dev "cutting bench", records its own tokens in its prose tables.
+name: Flows - Flows on paper (admin package)
+description: Calm, light, one-column ask-and-talk assistant in plain Spanish; paper ground, white cards, ink text, Flows orange only where action or attention lives. Tokens below cover Part 2 only (body.adm); Part 1, the dev "cutting bench", records its own tokens in its prose tables.
 colors:
-  enamel-blue: "#1f4fd1"
-  enamel-blue-deep: "#163a9c"
-  enamel-blue-lit: "#2a5ae0"
-  blue-tint: "#dce5ff"
-  key-red: "#d93d2b"
-  key-red-deep: "#a32a1b"
-  key-green: "#0f8a5f"
-  key-green-deep: "#09603f"
-  key-amber: "#f2a900"
-  key-amber-deep: "#b07b00"
-  navy-ink: "#111a2e"
-  navy-ink-2: "#26324d"
-  laminate-ground: "#e9edf3"
-  rack-white: "#f5f7fa"
-  thermal-paper: "#fdfcf7"
-  laminate-line: "#c4ccd9"
-  slate-mute: "#4b556b"
-  led-amber: "#ffb43a"
-  led-off: "#1e2945"
-  ok-green: "#0b7350"
-  bad-red: "#b32a1c"
+  paper-ground: "#f4f2ee"
+  card-white: "#ffffff"
+  paper-line: "#e6e3dd"
+  ink: "#1a1a1a"
+  ink-mute: "#57534d"
+  ink-wash: "rgba(26, 26, 26, 0.1)"
+  flag-orange: "#ff5a1f"
+  flag-orange-deep: "#e2470f"
+  flag-orange-hover: "#ff7038"
+  bench-ink: "#0d0d0d"
 typography:
   display:
-    fontFamily: "Atkinson Hyperlegible Next, Atkinson Hyperlegible, system-ui, sans-serif"
-    fontSize: "52px"
-    fontWeight: 800
-    lineHeight: 1.05
-    letterSpacing: "-0.02em"
-  headline:
-    fontFamily: "Atkinson Hyperlegible Next, Atkinson Hyperlegible, system-ui, sans-serif"
-    fontSize: "28px"
-    fontWeight: 800
-    lineHeight: 1.15
-  title:
-    fontFamily: "Atkinson Hyperlegible Next, Atkinson Hyperlegible, system-ui, sans-serif"
-    fontSize: "21px"
-    fontWeight: 800
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "44px"
+    fontWeight: 700
     lineHeight: 1.1
+    letterSpacing: "-0.01em"
+  headline:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: 1.2
+  title:
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "19px"
+    fontWeight: 700
+    lineHeight: 1.35
   body:
-    fontFamily: "Atkinson Hyperlegible Next, Atkinson Hyperlegible, system-ui, sans-serif"
-    fontSize: "18px"
+    fontFamily: "Barlow, system-ui, sans-serif"
+    fontSize: "17px"
     fontWeight: 400
     lineHeight: 1.55
   label:
-    fontFamily: "Atkinson Hyperlegible Next, Atkinson Hyperlegible, system-ui, sans-serif"
-    fontSize: "14px"
+    fontFamily: "Barlow Condensed, Arial Narrow, system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 600
+    lineHeight: 1.2
+    letterSpacing: "0.1em"
+  action:
+    fontFamily: "Barlow Condensed, Arial Narrow, system-ui, sans-serif"
+    fontSize: "19px"
     fontWeight: 700
-    lineHeight: 1.35
-  led:
-    fontFamily: "Doto, ui-monospace, monospace"
-    fontSize: "32px"
-    fontWeight: 800
     lineHeight: 1
+    letterSpacing: "0.08em"
 rounded:
-  sm: "6px"
-  md: "10px"
-  lg: "12px"
-  xl: "14px"
-  panel: "18px"
-  dispenser: "26px"
-  pill: "999px"
-spacing:
-  xs: "8px"
   sm: "10px"
-  md: "14px"
-  lg: "18px"
-  xl: "28px"
-  page: "36px"
+  md: "12px"
+  tail: "4px"
+spacing:
+  xs: "6px"
+  sm: "8px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  page: "48px"
 components:
-  dispenser:
-    backgroundColor: "{colors.enamel-blue}"
-    textColor: "#ffffff"
-    rounded: "{rounded.dispenser}"
-    padding: "30px 32px 56px"
-  key-mail:
-    backgroundColor: "{colors.key-red}"
-    textColor: "#ffffff"
-    rounded: "{rounded.xl}"
-    padding: "14px 14px 0"
-  key-docs:
-    backgroundColor: "{colors.key-green}"
-    textColor: "#ffffff"
-    rounded: "{rounded.xl}"
-  key-cal:
-    backgroundColor: "{colors.key-amber}"
-    textColor: "{colors.navy-ink}"
-    rounded: "{rounded.xl}"
-  key-other:
-    backgroundColor: "{colors.navy-ink}"
-    textColor: "#ffffff"
-    rounded: "{rounded.xl}"
-  pedir:
-    backgroundColor: "{colors.thermal-paper}"
-    textColor: "{colors.navy-ink}"
-    rounded: "{rounded.lg}"
-    height: "64px"
-    padding: "0 36px"
   button-primary:
-    backgroundColor: "{colors.enamel-blue}"
-    textColor: "#ffffff"
-    rounded: "{rounded.lg}"
-    height: "52px"
+    backgroundColor: "{colors.flag-orange}"
+    textColor: "{colors.bench-ink}"
+    typography: "{typography.action}"
+    rounded: "{rounded.md}"
+    height: "48px"
     padding: "0 20px"
   button-primary-hover:
-    backgroundColor: "{colors.enamel-blue-lit}"
+    backgroundColor: "{colors.flag-orange-hover}"
+  pedir:
+    backgroundColor: "{colors.flag-orange}"
+    textColor: "{colors.bench-ink}"
+    typography: "{typography.action}"
+    rounded: "{rounded.md}"
+    height: "56px"
   button-secondary:
-    backgroundColor: "#ffffff"
-    textColor: "{colors.navy-ink}"
-    rounded: "{rounded.lg}"
-    height: "52px"
-  ticket:
-    backgroundColor: "{colors.thermal-paper}"
-    textColor: "{colors.navy-ink}"
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+    height: "48px"
+    padding: "0 20px"
+  button-small:
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.sm}"
-    padding: "16px 22px"
-  turn-board:
-    backgroundColor: "{colors.navy-ink}"
-    textColor: "#e6ebf5"
-    rounded: "{rounded.panel}"
-    padding: "22px 20px 16px"
-  stub:
-    backgroundColor: "{colors.thermal-paper}"
-    textColor: "{colors.navy-ink}"
-    padding: "16px 18px 18px"
-    height: "188px"
+    height: "44px"
+    padding: "0 12px"
+  card:
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+  chip-idea:
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+    height: "56px"
+    padding: "0 14px"
+  request-row:
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
+    height: "64px"
+    padding: "14px 16px"
+  bubble-you:
+    backgroundColor: "{colors.ink-wash}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+    padding: "10px 14px"
+  bubble-say:
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+    padding: "14px 16px"
   composer:
-    backgroundColor: "{colors.thermal-paper}"
-    textColor: "{colors.navy-ink}"
-    padding: "14px 36px 16px"
-  state-asking:
-    backgroundColor: "{colors.key-amber}"
-    textColor: "{colors.navy-ink}"
-    rounded: "{rounded.pill}"
+    backgroundColor: "{colors.card-white}"
+    textColor: "{colors.ink}"
+    padding: "10px 16px"
+  state-flag:
+    backgroundColor: "{colors.flag-orange}"
+    textColor: "{colors.bench-ink}"
+    typography: "{typography.label}"
+    padding: "5px 9px 9px"
 ---
 
-> This file holds two worlds. Part 1 ("the cutting bench", dark, orange rail) serves the **dev** package. Part 2 ("La ventanilla", light, ticket counter) serves the **admin** package, applied when `body` has class `adm` (`/api/me` package is `admin`). The YAML frontmatter above describes Part 2 only.
+> This file holds two worlds. Part 1 ("the cutting bench", dark, orange rail) serves the **dev** package. Part 2 ("Flows on paper", light, one column) serves the **admin** package, applied when `body` has class `adm` (`/api/me` package is `admin`); it borrows the bench's brand parts (orange, Barlow, reel logo, state marks, one perforated strip) and nothing else. The YAML frontmatter above describes Part 2 only.
 
 # Part 1 - dev package
 
@@ -192,168 +176,158 @@ Rack sidebar 264px + main; rail bleeds full width; windows max 1096px. Under 820
 
 ---
 
+
 # Part 2 - admin package
 
-# Design System: Flows, "La ventanilla"
+# Design System: Flows on paper
 
-Recorded from the built `index.html` (2026-10-01): the `body.adm` CSS block and the `adm*` module at the end of the script. Scoped entirely to `body.adm`; the dev look is untouched. Frontmatter tokens are normative; the prose names them and gives roles.
+Recorded from the built `index.html` (2026-10-02): the `body.adm` CSS block and the `adm*` functions at the end of the script. Everything is scoped to `body.adm`; the dev look is untouched. Frontmatter tokens are normative; the prose names them and gives roles. Paper values are the `--p-*` custom properties on `body.adm`; orange and fonts come from the shared `:root` tokens of Part 1 (`--flag`, `--flag-deep`, `--cond`, `--body`, `--perf`, `--grain`).
 
 ## Overview
 
-**Creative North Star: "The Ticket Counter"**
+**Creative North Star: "Flows on Paper"**
 
-Asking is taking a number at a counter: you say what you need, get a ticket, someone attends you, and you are called when it is your turn to decide. Audience is office staff with no technical background, on a desk PC in daylight or a phone at 390px. The surface refuses the centered chatbot box with suggestion chips; the first thing on home is a physical dispenser with four keys and a slot, and a lit turn board beside it.
+The same brand made calm and light. A warm paper ground, white cards with hairlines, ink text, and one orange that only ever says "press this" or "this needs you". Audience is office staff with no technical background on a phone or a desk PC; the product is a single column with one obvious action. It refuses both the dark techy bench and a generic app kit: no sidebar, no dashboards, no coloured categories.
 
-The world is light and laminated: a cool laminate ground, an enamel-blue dispenser body, thermal-white tickets with a torn bottom edge, and one navy LED board with dot-matrix numbers. Type is a hyperlegible humanist sans at generous sizes (18px base). Everything is Spanish, in plain words; the product never shows tool names, models, folders, or permission jargon.
+The film world survives as a few brand parts, not as scenery: the reel logo, Barlow with Barlow Condensed caps for small labels, the Flows state marks (grease-pencil check, folded tape flag, hatch), and exactly one perforated orange strip under the top bar. Copy is Spanish, informal "tú", plain words; the product never shows tool names, models, folders, costs or permission jargon.
 
 **Key Characteristics:**
-- Colour is job-coded: each errand has one key colour (Correo red, Documentos green, Agenda amber, Otra cosa navy) that follows it from key to ticket chip to log icon.
-- State is always icon plus word, never colour alone.
-- Pressable things have a thick bottom edge (4-6px darker enamel) like a physical key; flat things do not.
-- Tickets carry a big tabular number; the number is the person's handle for a request ("Turno 014").
-- Minimum touch target about 48px; focus ring is 3px navy (white on blue surfaces).
+- One column, mobile-first; on desktop the same column centered at about 680px.
+- Orange appears only on the primary action, the "Te necesita" flag, focus, text selection and the perforated strip.
+- State is always a mark plus a word, never colour alone.
+- Flat paper: hairlines and a very soft card shadow; no hard offsets, no glow.
+- Targets 44-56px; focus ring is 3px deep orange.
 
 ## Colors
 
-A cool blue-grey counter with four saturated key colours and one amber LED; the blue is the brand, the amber is the "you are needed" signal.
+A warm paper neutral with ink, and one orange held back for action and attention.
 
 ### Primary
-- **Enamel Blue** (`enamel-blue`): dispenser body, primary buttons, the "Nueva petición" button, links on paper (deep variant), caret and accent-color, "Atendiendo" state, selected stub and selected option ring.
-- **Enamel Blue Deep** (`enamel-blue-deep`): the extruded bottom edge of blue keys and buttons, ticket numbers in the rack, link text on white.
-- **Enamel Blue Lit** (`enamel-blue-lit`): hover of blue buttons.
-- **Blue Tint** (`blue-tint`): text on blue (lede, hints) and the person's own message bubble.
-
-### Secondary (errand keys, each with a `-deep` edge)
-- **Key Red** (`key-red`): Correo. Also the active mic.
-- **Key Green** (`key-green`): Documentos.
-- **Key Amber** (`key-amber`): Agenda, and the "Te necesita" pill, alert band, ask bar and text selection. Text on amber is always Navy Ink.
-- **Navy Ink** (`navy-ink`): Otra cosa key, the turn board, toasts, default text.
+- **Flag Orange** (`flag-orange`): primary button fill (Pedir, Enviar, Enviar respuesta, Sí adelante, Hacer una petición), the "Te necesita" tape flag, the unread dot on the menu button, the perforated strip, text selection. Text on it is always Bench Ink (`bench-ink`), never white.
+- **Flag Orange Deep** (`flag-orange-deep`): focus ring (3px, 2px offset), caret, the dashed drop outline when dragging a file.
+- **Flag Orange Hover** (`flag-orange-hover`): hover of the primary button.
 
 ### Neutral
-- **Laminate Ground** (`laminate-ground`): page ground and theme-color.
-- **Rack White** (`rack-white`): the sidebar.
-- **Thermal Paper** (`thermal-paper`): tickets, stubs, composer, decision dialog body, the Pedir key, example chips; warm off-white against the cool ground.
-- **Laminate Line** (`laminate-line`) and **Slate Mute** (`slate-mute`): hairlines and dashed perforations; secondary text and times.
-- **LED Amber** / **LED Off** (`led-amber`, `led-off`): lit and unlit segments of the dot-matrix number.
-- **OK Green** / **Bad Red** (`ok-green`, `bad-red`): text-grade "Listo" and "No se pudo" (darker than the key greens/reds for AA on light grounds).
+- **Paper Ground** (`paper-ground`): page ground, top bar, sticky conversation header, theme-color.
+- **Card White** (`card-white`): every card, chip, bubble, option, the composer and the dialog.
+- **Paper Line** (`paper-line`): hairline borders and row dividers.
+- **Ink** (`ink`): all text, the check, hatch and dash marks, selected borders, toasts. **Ink Mute** (`ink-mute`): secondary text, times, icons at rest, small labels.
+- **Ink Wash** (`ink-wash`): the person's own message bubble.
+- **Bench Ink** (`bench-ink`): the shared dev ink; used only for text on orange.
 
 ### Named Rules
-**The Key-Colour Rule.** An errand has exactly one colour from the four keys; it is reused for that errand's chip and log icon and nowhere else. Do not use key colours as status colours.
-**The Amber Means You Rule.** Amber on a surface means a person is needed. Do not use it decoratively.
-**The Word Beside Colour Rule.** Every state is an icon plus its word; colour only reinforces.
+**The Orange Is Action Rule.** Orange says "press" or "you are needed", or marks focus. Do not use it for decoration, headings, links, or secondary buttons, and keep the perforated strip as the single film echo.
+**The Word Beside Mark Rule.** Every state is a mark plus its word; colour never carries state.
 
 ## Typography
 
-**Display / Body Font:** Atkinson Hyperlegible Next (fallbacks Atkinson Hyperlegible, system-ui, sans-serif), weights 400-800, loaded from Google Fonts when the admin package starts.
-**LED Font:** Doto 800 (fallback ui-monospace), for LED numbers only.
+**Body Font:** Barlow (400-600, fallback system-ui, sans-serif); headings use its 700.
+**Label/Action Font:** Barlow Condensed (500-700, fallback Arial Narrow), uppercase with tracking, for small labels, state words, the primary button and the logo only.
+Both load from Google Fonts at runtime (shared with the dev package).
 
-**Character:** Open, unambiguous letterforms at large sizes; weight 800 does all the emphasis work, so there is no second family. Doto is the one ornament, reserved for ticket numbers on the board.
+**Character:** Plain, sturdy Barlow does the reading; the condensed caps are the signage voice, kept small and rare.
 
 ### Hierarchy
-- **Display** (800, 52px, 1.05, -0.02em; 38px under 820px): the dispenser question "¿Qué necesitas?"; help page title 46px.
-- **Headline** (800, 28-30px, 1.15-1.2): conversation header line, stubs heading, dialog band title; 23px on phones.
-- **Title** (800, 21-24px): turn board heading, key names (21px), Pedir (24px), dialog legends (21px).
-- **Body** (400-600, 18px, 1.55): base; assistant text 19px / 1.6, max 68ch; ticket text 19px.
-- **Label** (700, 14-17px): times, state words, column heads (14px uppercase, +0.06em, board only), ticket "Turno" (17px). Tabular numerals on every number.
-- **LED** (Doto 800, 32px; 72px in the empty board; 28 / 60px on phones): a ghost "888" in LED Off sits behind the lit digits.
+- **Display** (700, 34px phone / 44px from 821px, 1.1, -0.01em, balanced wrap): page titles "¿Qué necesitas?" and "Cómo funciona".
+- **Headline** (700, 24px, 1.2): "Mis peticiones", dialog band title; conversation header title 28px phone / 32px desktop; help subheads 20px.
+- **Title** (700, 19-22px, 1.25-1.35): dialog legends (19px), permission question (22px), steps (18px).
+- **Body** (400-500, 17px, 1.55): base; textareas 17-18px; assistant prose 1.6 line height; lede max 60ch in Ink Mute; row text weight 500, 700 when the row needs you.
+- **Label** (Barlow Condensed 600, 13px, +0.1em, uppercase): group labels above chips and example lists ("Ideas rápidas"). State words are 600 14px +0.08em (15px in the conversation header); the Pedir/primary button is 700 19px +0.08em; the logo is 700 26px +0.06em; the tape flag is 700 13px +0.1em.
 
 ### Named Rules
-**The One Weight Rule.** Emphasis is weight 800 versus 400-600 in the same family; do not add a display face.
-**The LED Only Rule.** Doto appears only inside `.a-led` number displays.
+**The Caps Are Small Rule.** Condensed caps are for labels, state words, the logo and the primary button, never for headings or running text.
+**The One Voice Rule.** No third family; emphasis is weight within Barlow.
 
 ## Layout
 
-Rack sidebar 280px plus main. Home is a two-column grid (`1.7fr` dispenser, `minmax(360px, 1fr)` turn board, 28px gap, 36px page padding, max 1500px) with the stubs grid spanning the full width below. Between 821px and 1100px the board drops under the dispenser; at 820px and below (or short landscape) the rack becomes a top bar with a menu toggle, padding drops to 14px, and everything is one column.
+One centered column: `.a-col` max 680px, padding 24px 16px 48px on phones and 56px 24px 80px from 821px. The top bar and the alert banners share the 680px measure. Spacing rhythm: 6, 8, 10, 12, 14, 16, 20, 24px; sections separate by 22-44px.
 
-The dispenser is a container (`container-type: inline-size`): the four keys are a row of four, and at 760px container width or less they become a 2x2 grid, the Pedir button takes a full row, and the Adjuntar label shortens. This follows the block, not the viewport.
+Home, top to bottom: title "¿Qué necesitas?", a lede, a white card holding the textarea (min 120px) with Adjuntar and the mic below it, the label "Ideas rápidas", four idea chips in a 2x2 grid (all widths), the example list that opens under a pressed chip, a full-width 56px PEDIR, then "Mis peticiones" (44px gap above) as one white card of rows. Rows sort Te necesita, then Trabajando/En espera, then newest first; each row is text (two-line clamp) at left, "Correo · hace 5 min" right-aligned, and the state mark on its own line.
 
-The turn board has fixed columns, 64px (Nº) / flexible (Asunto) / 114px (Estado), 112px on phones; rows change, columns never move. Stubs are a whole-cell grid, `auto-fill minmax(230px, 1fr)` (160px on phones), cells divided by 2px dashed perforation lines, min height 188px.
-
-Conversation column is max 920px centered; the header line is sticky at the top and the composer is sticky at the bottom (inner width 848px). Spacing rhythm: 8, 10, 14, 18, 28, 36px. Right-align every time stamp.
+Conversation: a sticky header (back link "Mis peticiones", errand name as title, state mark, "Parar" at right while working or asking), a log with 14px gaps (own messages right-aligned at up to 85% width, assistant replies as white cards), a live status line, and a composer sticky at the bottom (inner width 648px, 632px on desktop). Menu: a toggle in the top bar opens one white card of links (Mis peticiones, Ayuda, Salir with the user name); the sidebar does not exist. Under 820px (or short landscape) dialog footers stack their buttons full width and the help mark column narrows from 150px to 130px.
 
 ## Elevation & Depth
 
-Hybrid: physical objects (dispenser, board, dialog, ticket) get one soft, large, low-opacity navy shadow; pressable objects get depth from a solid darker bottom edge instead of a shadow.
+Flat paper. Depth is hairline borders plus one very soft card shadow; only the dialog, toast and composer divider read as raised. No coloured shadows, no hard offsets.
 
 ### Shadow Vocabulary
-- **Dispenser lift** (`box-shadow: 0 24px 38px -24px rgba(17,26,46,.6)`, plus a 6px deep-blue bottom border): the block on home.
-- **Board lift** (`0 18px 30px -20px rgba(17,26,46,.7)`): the LED board.
-- **Ticket drop** (`filter: drop-shadow(0 8px 12px rgba(17,26,46,.2))`): thermal tickets, applied as a filter so it follows the torn edge.
-- **Composer lift** (`0 -14px 24px -14px rgba(17,26,46,.28)`): sticky bottom composer.
-- **Dialog** (`0 30px 70px rgba(17,26,46,.45)`) over a `rgba(17,26,46,.55)` backdrop.
-- **Key press edge** (4-6px solid deep colour bottom border): keys and primary buttons; presses down 3px on `:active`.
+- **Card** (`box-shadow: 0 1px 2px rgba(26,26,26,.04), 0 8px 18px -12px rgba(26,26,26,.18)`): every `.a-card`.
+- **Dialog** (`0 20px 50px rgba(26,26,26,.3)` over a `rgba(26,26,26,.5)` backdrop).
+- **Toast** (`0 10px 24px -8px rgba(26,26,26,.45)`), Ink fill.
+- **Composer**: no shadow, a 1px top hairline.
 
 ### Named Rules
-**The Press Edge Rule.** If you can press it and it is a primary object, it has a solid bottom edge in the deep shade of its colour. Shadows are for objects you read, not objects you press.
+**The Paper Stays Flat Rule.** Surfaces are white on paper with a hairline; selection is an Ink border plus a 1px inset Ink ring, not a lift.
 
 ## Shapes
 
-Soft enamel corners: 12px buttons, 14px keys, 18px board, 26px (top) dispenser, 16-20px dialogs, 10px chips and options, pill (999px) only for the "Te necesita" state. Tickets have a 6px top radius and a torn bottom edge cut with a conic-gradient mask (9px teeth). Perforation is a recurring form: 2px dashed `laminate-line` for the ticket header rule, the stubs grid, and letter rows; a punched stub has a 24px hole (inset shadow, ground colour). The dispenser has a dark slot (14px, 72% wide, max 380px) at its bottom edge. Icons are authored inline SVG, 2-2.2 stroke.
+12px corners on cards, buttons, chips, options, bubbles and the dialog; 10px on small buttons, attachments and text inputs; chat bubbles square one corner to 4px at the speaker's side. The Flows marks are the only special silhouettes: the tape flag has a folded-tape bottom notch (`clip-path`, V cut to 76%), the hatch mark is a 16px rounded-3px square of 135-degree ink stripes, the grease check is a rounded 10-unit ink stroke. The top bar sits over a 12px orange strip with sprocket holes (`--perf`) on grain. Icons are authored inline SVG (the `icon()` map, 2-2.2 stroke); the logo is the `reel` icon plus "FLOWS" in condensed caps.
 
 ## Components
 
-### Dispenser and keys
-The blue block that owns the top of home: headline, lede, a thermal-paper textarea (20px, inset shadow), four keys, an examples tray, then the action bar. A key is a coloured tile with icon, name (21px, 800, no wrapping) and a paper-coloured strip carrying a short plain label ("Resumir, buscar, contestar"). Keys toggle (`aria-pressed`): pressed shows a blue plus white double ring and opens a tray of example sentences; choosing one fills the textarea. Hover lifts 2px (hover-capable devices only); active presses down 3px.
-
-### Pedir
-The dispenser's one action: paper-coloured, 64px tall, 24px/800, a ticket icon in blue, with a 5px grey-blue bottom edge. Disabled/busy is 60% opacity. Ctrl/Cmd+Enter also presses it. Adjuntar and the mic are ghost buttons (white outline on blue).
+### Top bar
+Paper ground, reel logo with the word in condensed caps (44px target) at left, a white "Menú" button (condensed caps, 12px radius) at right with an orange unread dot when a request needs you, and below it the single perforated orange strip. Open menu: the toggle reads "Cerrar", and a white card lists links with 52px rows and hairline dividers.
 
 ### Buttons
-- **Primary** (`button-primary`): enamel blue, white 18px/700, 52px min height, 12px radius, 4px deep bottom edge.
-- **Secondary**: white with a 2px line border, border goes navy on hover.
-- **Quiet**: text-only, underlined, 600; for "Parar" and "Decide tú".
-- **Ghost**: white outline, only on blue surfaces.
+- **Primary:** Flag Orange, Bench Ink condensed caps 19px, 48px minimum height, 12px radius, no border or edge; hover goes to Flag Orange Hover. One per view where possible. Pedir is the same at 56px, full width, with a 20px top margin.
+- **Secondary:** white, 1px Paper Line border that darkens to Ink Mute on hover.
+- **Quiet:** text-only, underlined, 600, for "Decide tú" and "Sí, y no vuelvas a preguntar en esta petición".
+- **Small:** white, 44px, 10px radius, icon plus label ("Adjuntar", mic, "Parar"); the mic turns Ink-filled when recording.
+- Disabled or busy is 60% opacity.
 
-### Printed ticket and the signature interaction
-A thermal-paper slip: "Turno" plus a 46px number at left, time at right (right-aligned), a dashed rule, the errand chip, the request text at 19px. On Pedir the ticket prints from the dispenser slot: it slides down 700ms (`cubic-bezier(.16, 1, .3, 1)`), holds 150ms, then the page navigates to the conversation. With reduced motion it appears without sliding. The same ticket (no animation) heads every conversation and renders the three help steps.
+### Ask card and idea chips
+A white card whose border turns Ink on focus-within; the textarea is borderless inside. Idea chips (Correo, Documentos, Agenda, Otra cosa) are white 56px tiles with an icon and a 600 label; they toggle (`aria-pressed`), shown as an Ink border plus inset ring, and open a list of 48px example buttons (pencil icon); choosing one fills the textarea. Chips are not coloured per errand. Ctrl/Cmd+Enter presses Pedir.
 
-### LED turn board
-Navy panel titled "Turnos": a header row (Nº / Asunto / Estado) then one row per live request, ordered Te necesita, Atendiendo, En espera, Listo, newest first within each. Each row: LED number, subject (two-line clamp) with "errand · hace N min", and the state mark. "Te necesita" rows get a lighter navy fill. On a quiet day the board shows a 72px LED with the next number and a sentence: "Tu próximo número será el 004".
+### Request rows
+Rows inside one card, 64px minimum, hairline dividers, hover `#faf9f7`. Ink 500 text, 700 when asking.
 
-### Stubs grid
-"Tus resguardos": finished or paused requests as whole cells with number (30px), right-aligned age, errand chip, two-line subject, and state at the bottom. Completed ("Listo") stubs are punched with a hole; paused and failed ones are not.
+### State marks
+Always mark plus word, small condensed caps in Ink Mute (Ink for the active states):
+- **Listo**: grease-pencil check.
+- **Te necesita**: orange folded tape flag with Bench Ink caps (the only coloured state).
+- **Trabajando**: dot, pulsing 1.6s.
+- **Pausado · escribe para seguir**: dash.
+- **No se pudo**: hatch square.
+- **En espera**: clock (usage limit reached).
+A lead that ended after finishing its turn reads Listo, not Pausado.
 
-### Conversation header guide line
-A sticky line that always names where you are: "Turno 014 · Correo · Te necesita" (30px, state at 24px), with "Parar" at right while working or asking. A status line under the log restates the state in a full sentence.
-
-### Plain-language activity lines
-Each tool action collapses to one line: an errand-coloured icon square plus a Spanish verb phrase ("Buscando en tu correo: «Presupuesto»"); subagents are "Un ayudante se encarga de: ...". Tool results, costs and raw output are never shown. The person's message is a tint bubble labelled "Tú"; the assistant's text is open prose (no bubble) with a small markdown subset.
+### Conversation
+Own messages are Ink Wash bubbles labelled "Tú" for screen readers; assistant text is a white bordered card with a small markdown subset (paragraphs, headings, nested lists, bold, links in Ink). Tool actions collapse to one Ink Mute line with an icon ("Buscando en tu correo: «Presupuesto»", "Un ayudante se encarga de: ..."); decisions appear as notes ("Respondiste: ..."). Tool results and raw output are never shown. Errors show a hatch mark and an instruction.
 
 ### Composer
-Sticky paper panel: label "Responder o pedir algo más", textarea, Adjuntar and mic (secondary) at left, Enviar (primary) at right. When the state is Listo the panel gains a 4px OK Green top rule. On phones the labels hide and the buttons become icons plus a full-width Enviar.
+Sticky white panel, hairline top: textarea (52px min), Adjuntar and mic left, orange "Enviar" at right (132px min). When the state is Listo the textarea border darkens to Ink Mute. On a phone the example chips are not involved; labels may collapse to icons.
 
-### Decision dialog (questions and permissions)
-The only modal: a native dialog, paper body under a blue band ("Necesito que decidas", turn and errand below). Questions are large option cards (radio or checkbox in a 26px box, plus "Otra cosa" with a text field); a footer offers "Decide tú", "Más tarde" and "Enviar respuesta". Permissions ask a plain question ("¿Puedo enviar este correo?") above a letter card (Para / Asunto / body, dashed rows), an optional reason field for a No, and the buttons "No", "Sí, adelante" and a quiet "Sí, y no vuelvas a preguntar en esta petición". On other pages an amber alert band or ask bar links back to the decision.
+### Alert and ask bar
+A white bar with an Ink 1px border, the orange tape flag, a one-line ellipsised request name, and "Contestar" with an arrow at right; shown on every page except the request that needs you. A softer variant (Ink wash, hairline border) states that the account is not connected to Claude.
 
-### Help tickets
-"Cómo funciona": three ticket slips (Paso 1-3) in a row, then two white cards "Qué puede hacer" (OK Green check) and "Qué no puede hacer" (Bad Red x), then a primary "Hacer una petición" button.
+### Decision dialog
+The only modal: a native dialog, white, 12px radius, width up to 560px, with a header band ("Necesito que decidas", errand and request name beneath, hairline below). Questions are 56px option cards (24px square check box with Ink border; selected = Ink border, inset ring, Ink-filled box) plus "Otra cosa" with a text field; the footer offers "Decide tú", "Más tarde" and an orange "Enviar respuesta". Permissions ask a plain question ("¿Puedo enviar este correo?") above a paper-ground letter card (Para / Asunto / body, hairline rows), an optional "¿por qué?" field for a No, then "No", an orange "Sí, adelante" and the quiet "Sí, y no vuelvas a preguntar en esta petición" on its own line.
 
-### State vocabulary
-Always icon plus word: **Atendiendo** (blue, pulsing dot), **Te necesita** (amber pill, pulsing bell), **Listo** (OK Green, check), **Pausado · escribe para seguir** (slate, pause), **No se pudo** (Bad Red, x), **En espera** (slate, clock; usage limit reached). A lead that ended after finishing its turn reads Listo, not Pausado.
+### Help page
+"Cómo funciona": lede, a white card with three numbered steps (condensed numerals in Ink Mute), "Qué puede hacer" and "Qué no puede hacer" white cards with bullet lists, "Qué significa cada marca" as a card of mark-plus-sentence rows, then an orange "Hacer una petición" button.
 
 ### Motion
-State motion only: 1.6s opacity pulse on Atendiendo and Te necesita icons, key lift/press, 0.15s colour transitions, and the ticket slide. All CSS animation and transition is disabled under `prefers-reduced-motion`; the ticket slide is skipped in script.
+State motion only: the 1.6s opacity pulse on Trabajando and the live line, 0.15s colour and border transitions. All animation and transition is off under `prefers-reduced-motion`.
 
 ### Copy
-Spanish, informal "tú", plain words. Say what is happening in the person's terms (correo, documentos, agenda), not tool, model, folder or permission names. Errors say what to do next ("Escribe abajo para intentarlo otra vez"). Spanish date and time via `es-ES`; relative ages "hace 5 min", "ayer".
+Spanish, informal "tú", plain words about correo, documentos and agenda. Say what is happening and what to do next ("Escribe abajo para intentarlo otra vez"). Buttons are verbs ("Pedir", "Enviar", "Contestar"). Ages "hace 5 min", "ayer"; dates via `es-ES`.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** pair every state with its icon and word, and put the errand key colour on the chip and the log icon for that errand.
-- **Do** give primary pressable objects the solid deep-colour bottom edge; give read-only objects the soft shadow.
-- **Do** keep the board's columns fixed and only change rows; keep times right-aligned on tickets, stubs and the sidebar.
-- **Do** keep text on amber in Navy Ink and text on thermal paper in Navy Ink or Slate Mute.
-- **Do** keep targets at least about 48px and show the focus ring (3px navy; white on blue).
-- **Do** use dashed perforation for dividers inside ticket-like objects.
+- **Do** pair every state with its mark and word, using the five Flows marks.
+- **Do** keep text on orange in Bench Ink and put orange only on the primary action, the Te necesita flag, focus, selection and the one strip.
+- **Do** build new surfaces from white cards with a 1px Paper Line border on Paper Ground, 12px radius, in the single 680px column.
+- **Do** keep targets at least 44px and the 3px Flag Orange Deep focus ring.
+- **Do** write new copy in plain Spanish "tú" and put the next step in every error.
+- **Do** keep admin rules scoped to `body.adm`.
 
 ### Don't:
-- **Don't** show tool names, model names, paths, costs or permission jargon to this audience; translate them to a plain Spanish line.
-- **Don't** convey state by colour alone.
-- **Don't** use key colours for anything but their errand, or amber for anything but "a person is needed".
-- **Don't** use Doto outside LED numbers, or add a second text face.
-- **Don't** put admin rules on `:root`; they stay scoped to `body.adm` so the dev bench is unaffected.
+- **Don't** show tool names, model names, paths, costs or permission jargon; translate to a plain Spanish line.
+- **Don't** convey state by colour alone, or invent per-errand colours.
+- **Don't** add a second perforated strip, a sidebar, or dark panels to this world.
+- **Don't** use condensed caps for headings or running text.
 - **Don't** open a modal for anything but a blocking decision.
 
 ### Observed in the build, not canonized
-Raw hex values used once or twice outside the token set (board text tints `#e6ebf5`, `#c9d3e6`, `#a9b6cf`, `#9fb0cf`, `#a9c1ff`, `#7fe0b4`; board fills `#18233d`, `#1a2541`; `#aab5ca`, `#5b6477`, `#fbe9e6`, `#f1f5ff`, `#0a1430`) are drift to fold into tokens, not new palette entries. The login page (`LOGIN_HTML`) is shared before sign-in and is still English and in the dev look. The two fonts load from Google Fonts at runtime with no local copy; offline the fallback is system-ui and ui-monospace.
+One-off literals outside the tokens (placeholder `#6f6a63`, row hover `#faf9f7`, scrollbar `#c9c4bb`, the letter card repeating `#f4f2ee`) are drift to fold into tokens, not palette entries. Fonts load from Google Fonts with no local copy; offline the fallback is system-ui. No craft-floor refusals (kickers, glyph icons, offset shadows) were found in the admin block.

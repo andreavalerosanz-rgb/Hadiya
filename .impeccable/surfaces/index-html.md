@@ -5,19 +5,17 @@ primary_target: "index.html"
 related_targets: []
 ---
 
-# Surface: Flows for the admin package ("La ventanilla")
+# Surface: Flows for the admin package ("prueba")
 
 Scope: index.html when /api/me says package "admin". Mode: Operate. The dev package UI (cutting bench) stays untouched.
-Audience: office staff with no technical knowledge, on a desk PC in office daylight or on a phone. Job: ask an assistant, in plain Spanish, to do errands in their Google mail, documents and calendar, and answer when it needs a decision. Only "ask and talk": no workflows, queue, models, parallel agents, folders or permissions jargon.
-Constraints: one index.html, no build step, vanilla JS; same server API; Spanish copy; WCAG AA; works at 390px.
+Audience: office staff with no technical knowledge, mostly on a phone. Job: ask an assistant, in plain Spanish, for errands in Gmail, Drive and Calendar, and answer when it needs a decision. Only "ask and talk".
+Constraints: one index.html, no build step; same server API; Spanish; WCAG AA; mobile-first (390px is the design width); low design intensity.
+History: "La ventanilla" (blue ticket-counter world, seed 05a5e458) was built and then rejected by the user as generic and off-brand; the black bench palette was rejected as too techy for this audience.
 
 ## Direction contract
-THESIS: Asking is taking a number at the counter: you say what you need, get your ticket, someone attends you and calls you when it's your turn to decide. Refuses the centered chatbot box with suggestion chips.
-OWN-WORLD: Enamel-blue ticket dispenser body (#1f4fd1) owning the top of home; big colored dispenser keys per errand (Correo red #d93d2b, Documentos green #0f8a5f, Agenda amber #f2a900, Otra cosa ink #111a2e); thermal-white tickets with torn edge and a big ticket number; cool laminate counter ground #e9edf3; navy LED turn board (#111a2e) with dot-matrix numbers and fixed columns; hyperlegible humanist sans at generous sizes.
-STORY: The person sees four keys and a box, presses Correo or writes, presses Pedir, a ticket prints with their number, the assistant attends; when it needs them the board and header say "Te necesita" and a plain question with big Sí/No answers appears; done tickets get punched.
-FIRST VIEWPORT: Desktop: dispenser block left two thirds (headline "¿Qué necesitas?", textarea, four keys in a row, Pedir button bottom right of the block); LED turn board right third (Nº | Asunto | Estado). Mobile: dispenser full width, board below. Signature interaction: on Pedir the ticket slides out of the dispenser slot before the conversation opens.
-FORM: La ventanilla, position 5 of my ordered list; seed key 05a5e458. Raises: right-aligned times on every ticket (cassette j-card); header always names where you are, "Turno 014 · Correo · Te necesita" (lexicon); past requests as a whole-cell grid of punched stubs (convention catalog); turn board with fixed columns, rows change, columns never move (split-flap).
+THESIS: Flows on paper: the same brand made calm and light, one column, one obvious action. Refuses both the dark techy bench and a generic app kit.
+OWN-WORLD: Paper ground #f4f2ee, white cards with hairline #e6e3dd, ink text #1a1a1a / mute #57534d; Flows flag orange #ff5a1f only on the primary action and "Te necesita"; Barlow body, Barlow Condensed caps for small labels only; Flows reel logo; Flows state marks (grease-pencil check for Listo, folded tape flag for Te necesita); one thin perforated orange strip under the top bar as the only film echo.
+STORY: Open, read "¿Qué necesitas?", type or tap Correo/Documentos/Agenda/Otra cosa for an example, press Pedir; the request appears in Mis peticiones; open it to chat; a flag says when it needs you; answer Sí/No in plain words.
+FIRST VIEWPORT: Phone: top bar (logo, menu); "¿Qué necesitas?" title; textarea card; four quick-idea chips in 2x2; full-width orange Pedir; "Mis peticiones" list beneath (state mark, name, time). Desktop: the same column centered (~680px).
+FORM: user-steered surface after re-roll (palette "Papel y naranja", structure "Pedir arriba, lista abajo"); surface seed key cbac649f (rolled 2026-10-02 with `concept-seed --scope surface --mode operate --candidate-count 7`; the user then steered to their own palette and structure, replacing direction 05a5e458 still recorded in .impeccable/build/state.json).
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
-
-## Unresolved
-Login page (server.py LOGIN_HTML) is shared by all packages before sign-in; still English and in the dev look.
