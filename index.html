@@ -450,6 +450,30 @@ details.mdet .cnt{display:none}
 .sub a{color:var(--flag)}
 .window .legend{padding:0 0 10px}
 .window .legend,.window .legend>span:first-child{color:var(--ink-mute)}
+/* second brain: a session that runs sessions */
+.item .brn,.brn{display:inline-grid;flex:none;color:var(--flag)}
+.brn .i{width:15px;height:15px}
+.recent a span>.i{width:15px;height:15px;vertical-align:-2px;margin-right:6px;color:var(--flag)}
+.recent a.rk{margin-left:26px;border-top-style:dashed}
+.capt>.i{color:var(--flag-deep);width:22px;height:22px}
+.brainopt{margin:18px 0 0!important}
+.kids{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 32px 0;max-width:1400px}
+.kids>.cap{display:inline-flex;align-items:center;gap:6px;color:var(--mute);margin-right:4px}
+.kids>.cap .i{width:16px;height:16px;color:var(--flag)}
+.kid{display:inline-flex;align-items:center;gap:8px;min-height:36px;max-width:320px;padding:5px 8px 5px 10px;border:1px solid var(--line);border-radius:3px;color:var(--edge);text-decoration:none}
+@media (hover:hover){.kid:hover{border-color:var(--flag)}}
+.kid .kn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kid small{font:600 12px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.kid.asking{border-color:var(--flag)}.kid.asking small,.kid.failed small{color:var(--flag)}
+.kid>.i{width:14px;height:14px;color:var(--mute)}
+.kids .none{padding:0}
+.log>.relay{margin:6px 0;padding:8px 12px;border:0;border-left:3px solid var(--flag-deep);border-radius:0 3px 3px 0;background:var(--punch-2)}
+.relay a{display:inline-flex;align-items:center;gap:6px;font:600 13px/1.2 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--flag-deep);text-decoration:none}
+.relay a:hover{text-decoration:underline}
+.relay a .i{width:15px;height:15px}
+.relay p{margin:4px 0 0;font-size:14px;color:var(--ink-mute)}
+.bhint{display:flex;align-items:center;gap:8px;margin:0 0 14px;padding:8px 10px;border-radius:3px;background:var(--punch-2);color:var(--ink-mute);font-size:14px}
+.bhint .i{color:var(--flag-deep)}
 
 @media (max-width:820px),(max-height:500px) and (orientation:landscape){
   .rack-toggle{display:inline-grid;margin-left:8px}
@@ -601,10 +625,21 @@ details.mdet .cnt{display:none}
   #start .startbar .btn-p{flex:1;justify-content:center}
   #start .startbar .btn-q .lbl{display:none}
   #start .startbar .btn-q{color:var(--edge);border-color:var(--line);width:44px;padding:0;justify-content:center}
+  #start:has(#s-brain:checked) .startbar .btn-s .lbl{display:none}  /* "Start Second Brain" needs the room */
+  #start:has(#s-brain:checked) .startbar .btn-s{width:44px;padding:0;justify-content:center}
+  #start .startbar .btn-p{padding-inline:18px;letter-spacing:.06em;white-space:nowrap}
+  #start:has(#s-brain:checked) .startbar .btn-p .i{display:none}
   /* inline links: 44px hit area without moving the text */
   .sub a,.steps a,.hint a{display:inline-block;padding:11px 3px;margin:-11px -3px}
   .recent a{min-height:44px}
   .rack-top .brand{min-width:0}
+  /* second brain: its sessions as one scrolling row */
+  .kids{flex-wrap:nowrap;overflow-x:auto;margin:10px 0 0;padding:0 16px 2px;scrollbar-width:none}
+  .kids::-webkit-scrollbar{display:none}
+  .kids>*{flex:none}
+  .kids .none{flex:1 0 220px;white-space:normal}
+  .kid{min-height:44px;max-width:240px}
+  .recent a.rk{margin-left:16px}
 }
 @media (max-height:500px) and (orientation:landscape){
   .runbar .flabel{display:none}
@@ -929,6 +964,7 @@ const P = {
   talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
+  brain: '<path d="M12 5.5a3 3 0 0 0-5.6-1.4 3 3 0 0 0-2.3 4.6 3.3 3.3 0 0 0 .7 5.6 3.4 3.4 0 0 0 3.8 4.8A3 3 0 0 0 12 19.5zM12 5.5a3 3 0 0 1 5.6-1.4 3 3 0 0 1 2.3 4.6 3.3 3.3 0 0 1-.7 5.6 3.4 3.4 0 0 1-3.8 4.8 3 3 0 0 1-3.4.4zM12 5.5v14M8.3 9.5a2.2 2.2 0 0 1 2 2.3M15.7 9.5a2.2 2.2 0 0 0-2 2.3M8 14.8h2M14 14.8h2"/>',
 };
 const icon = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${P[n] || P.bricks}</svg>`;
 const STATE = {  // normalized frame state -> [label, mark icon]
@@ -1104,6 +1140,11 @@ let runSel = null, lastSig = '';
 let sess = null, sessSel = 'lead', askOpen = null;
 let lastHash = location.hash, skipRoute = false, isRemote = null, phoneOn = false;
 const LIVE = ['working', 'idle', 'asking'];
+// second brain: brain runs carry `brain`, the sessions it starts carry `parent`
+const runOf = id => sessions.find(x => x.id == id);
+const topSessions = () => sessions.filter(r => !runOf(r.parent));  // a child sits under its brain, or on its own once the brain is gone
+const kidsOf = id => sessions.filter(r => r.parent == id);
+const brainIcon = r => r.brain ? `<span class="brn" title="Second Brain">${icon('brain')}<span class="sr">Second Brain</span></span>` : '';
 let queue = {items: [], limited_until: 0};
 const ACT = {};
 document.addEventListener('click', e => {
@@ -1174,14 +1215,15 @@ async function refresh() {
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
     <h2 class="cap">Sessions <a href="#" data-act="focusStart" aria-label="New session">${icon('plus')}New</a></h2>
-    ${sessions.slice(0, 12).map(r => delRow('run:' + r.id, 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`)
+    ${topSessions().slice(0, 12).map(r => delRow('run:' + r.id, r.brain ? 'Second Brain' : 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}${brainIcon(r)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`)
+      + (r.brain && kidsOf(r.id).length ? `<div class="subs" role="list" aria-label="Sessions run by ${esc(r.name)}">${kidsOf(r.id).map(k => `<a class="item sub1" role="listitem" href="#session/${k.id}" ${cur('session', k.id)}>${mark(k.status)}<span>${esc(k.name)}</span>${k.status == 'asking' ? '<small>ASK</small>' : ''}</a>`).join('')}</div>` : '')
       + (r.subs?.length ? `<div class="subs" role="list" aria-label="Subagents in ${esc(r.name)}">${r.subs.map(a => (st => `<a class="item sub1" role="listitem" href="#session/${r.id}/${esc(a.id)}" title="${esc(a.desc)}">${mark(st)}<span>${esc(a.desc)}</span></a>`)(a.status == 'running' && !LIVE.includes(r.status) ? 'stopped' : a.status)).join('')}</div>` : '')).join('') || '<p class="none">No sessions yet</p>'}
     <h2 class="cap">Workflows <a href="#templates" aria-label="New workflow">${icon('plus')}New</a></h2>
     ${wfRows(cur)}
     <h2 class="cap">Runs</h2>
     ${runs.slice(0, 12).map(r => delRow('run:' + r.id, 'run', wfs[r.workflow_id]?.name || r.name, `<a class="item" href="#run/${r.id}" ${cur('run', r.id)}>${mark(r.status)}<span>${esc(wfs[r.workflow_id]?.name || r.name)}</span><small>${ago(r.started)}</small></a>`)).join('') || '<p class="none">No runs yet</p>'}
     ${pushPanel()}${usagePanel(use)}</div>`);
-  drawSessQueue();
+  drawSessQueue(); drawKids();
   const projects = new Set([...DEFAULT_PROJECTS, ...Object.values(wfs).map(w => w.cwd).filter(Boolean)]);
   const sites = new Set([...DEFAULT_SITES, ...Object.values(wfs).map(w => w.site).filter(Boolean)]);
   setHTML('#projects', [...projects].map(p => `<option value="${esc(p)}">`).join(''));
@@ -1381,17 +1423,18 @@ function home(toTemplates) {
   try { last = JSON.parse(localStorage.getItem('flows.sess') || '{}'); } catch {}
   const st = {caps: PKG == 'admin' ? (last.caps || ['drive', 'gmail', 'cal']).filter(c => ADMIN_CAPS.includes(c)) : last.caps ? [...new Set([...last.caps, ...(last.v2 ? [] : ['browser'])])] : ['read', 'figma', 'edit', 'build', 'git', 'browser'], agents: last.agents || 3};
   const live = [...sessions.filter(r => LIVE.includes(r.status) || r.status == 'waiting'), ...runs.filter(r => r.status == 'running' || r.status == 'waiting')];
-  const recent = [...sessions, ...runs].sort((a, b) => b.started - a.started).slice(0, 8);
+  const recent = [...topSessions(), ...runs].sort((a, b) => b.started - a.started).slice(0, 8);
+  const recRow = (r, kid) => `<a ${kid ? 'class="rk"' : ''} href="#${r.kind == 'session' ? 'session' : 'run'}/${r.id}">${mark(r.status)}<span>${r.brain ? icon('brain') : ''}${esc(r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name))}</span><small>${r.brain ? 'Second Brain' : r.kind == 'session' ? 'Session' : 'Workflow run'} · ${esc(STATE[r.status]?.[0] || r.status)}</small><small>${ago(r.started)} ago</small></a>`;
   main.innerHTML = `
     <header class="head"><div><h1>What are we building?</h1><div class="sub">${live.length ? `${live.length} job${live.length == 1 ? '' : 's'} running now` : 'Nothing running'} · everything runs on your Claude subscription · <a href="#guide">How to use Flows</a></div></div></header>
-    ${rail(live.map(r => ({title: r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name), icon: r.kind == 'session' ? 'team' : 'list', state: r.status,
-        tag: r.kind == 'session' ? 'SESSION' : 'RUN', meta: r.kind == 'session' ? 'Lead agent + subagents' : 'Workflow run', time: ago(r.started), act: 'go', arg: (r.kind == 'session' ? 'session/' : 'run/') + r.id})),
+    ${rail(live.map(r => ({title: r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name), icon: r.brain ? 'brain' : r.kind == 'session' ? 'team' : 'list', state: r.status,
+        tag: r.brain ? 'SECOND BRAIN' : r.kind == 'session' ? 'SESSION' : 'RUN', meta: r.brain ? 'Coordinates sessions' : runOf(r.parent) ? 'Run by ' + runOf(r.parent).name : r.kind == 'session' ? 'Lead agent + subagents' : 'Workflow run', time: ago(r.started), act: 'go', arg: (r.kind == 'session' ? 'session/' : 'run/') + r.id})),
       {live: live.some(r => r.status != 'idle'), label: 'Running now', empty: 'Nothing running. Start a session below or run a workflow and it shows up here.'})}
     <section class="window" id="start" aria-labelledby="start-h">
       <h3 id="start-h">${icon('team')}Start a session</h3>
-      <p class="hint" style="margin:-4px 0 4px">Describe the job. A lead agent plans it and hands pieces to parallel subagents. You can talk to it while it works, and it asks you when a decision is needed.</p>
-      <label for="s-msg">What should the team do?</label>
-      <textarea id="s-msg" rows="4" style="font-family:var(--body);font-size:15px" placeholder="${PKG == 'admin' ? 'Summarise this week’s client emails and list the Drive files they mention' : 'Build the header, hero, services grid and footer from https://www.figma.com/design/…?node-id=12-34 as template parts'}">${esc(last.draftMsg || '')}</textarea>
+      <p class="hint" id="s-intro" style="margin:-4px 0 4px">Describe the job. A lead agent plans it and hands pieces to parallel subagents. You can talk to it while it works, and it asks you when a decision is needed.</p>
+      <label for="s-msg" id="s-msg-l">What should the team do?</label>
+      <textarea id="s-msg" rows="4" style="font-family:var(--body);font-size:15px" placeholder="${PKG == 'admin' ? 'Summarise this week’s client emails and list the Drive files they mention' : SESS_PH}">${esc(last.draftMsg || '')}</textarea>
       <div class="atts" id="atts" aria-label="Attached files"></div>
       <div class="cols" style="margin-top:4px">
         <div>
@@ -1400,12 +1443,13 @@ function home(toTemplates) {
           <div class="row">
             <div><label for="s-model">Lead agent model</label><select id="s-model">${opts(MODELS, last.model)}</select></div>
             <div><label for="s-sub">Subagent models</label><select id="s-sub">${opts(SUBMODELS, last.sub || 'auto')}</select></div>
-            <div class="fit"><span class="flabel">Parallel agents</span>
-              <div class="stepper"><button type="button" data-act="homeAgents" data-arg="-1" aria-label="Fewer agents">${icon('minus')}</button><output id="s-agents">${st.agents}</output><button type="button" data-act="homeAgents" data-arg="1" aria-label="More agents">${icon('plus')}</button></div></div>
+            <div class="fit"><span class="flabel" id="s-agents-l">Parallel agents</span>
+              <div class="stepper" role="group" aria-labelledby="s-agents-l"><button type="button" data-act="homeAgents" data-arg="-1" aria-label="Fewer">${icon('minus')}</button><output id="s-agents">${st.agents}</output><button type="button" data-act="homeAgents" data-arg="1" aria-label="More">${icon('plus')}</button></div></div>
           </div>
+          ${PKG == 'admin' ? '' : `<label class="capt brainopt"><input type="checkbox" id="s-brain" ${last.brain ? 'checked' : ''}><span class="box">${icon('check')}</span>${icon('brain')}<span><b>Second Brain</b><small>Coordinates several sessions from start to finish, and asks you only for decisions that are yours. The permissions you tick apply to it and to every session it starts.</small></span></label>`}
           <div class="startbar" style="display:flex;gap:10px;margin-top:18px;align-items:center;flex-wrap:wrap">
-            <button class="btn-p" data-act="startSession">${icon('play')}Start session</button>
-            <button class="btn-s" data-act="queueSession" title="Run it later, once the queue reaches it">${icon('list')}Queue</button>
+            <button class="btn-p" data-act="startSession" id="s-start">${icon('play')}Start session</button>
+            <button class="btn-s" data-act="queueSession" title="Run it later, once the queue reaches it" aria-label="Queue">${icon('list')}<span class="lbl">Queue</span></button>
             <button class="btn-q" data-act="attach" title="Attach files or images" aria-label="Attach files">${icon('clip')}<span class="lbl">Attach files</span></button>
             ${micBtn('#s-msg', 'btn-q')}
             <span class="hint kbd-hint" style="margin:0">Ctrl + Enter starts · drop or paste files and screenshots too</span>
@@ -1421,11 +1465,25 @@ function home(toTemplates) {
       ${PKG == 'admin' ? `<button class="btn-s" data-act="fromTemplate" data-arg="blank">${icon('plus')}New workflow</button>` : trims(TEMPLATES.map(t => t.id), 'fromTemplate', Object.fromEntries(TEMPLATES.map(t => [t.id, {...t, blurb: t.steps.map(s => PRESETS[s].name).join(' → ')}])))}
     </section>
     <section class="recent" aria-label="Recent activity"><h2>Recent</h2>
-      ${recent.map(r => `<a href="#${r.kind == 'session' ? 'session' : 'run'}/${r.id}">${mark(r.status)}<span>${esc(r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name))}</span><small>${r.kind == 'session' ? 'Session' : 'Workflow run'} · ${esc(STATE[r.status]?.[0] || r.status)}</small><small>${ago(r.started)} ago</small></a>`).join('') || '<p class="none" style="padding:10px 0">Nothing yet. Your sessions and runs will collect here.</p>'}
+      ${recent.map(r => recRow(r) + (r.brain ? kidsOf(r.id).map(k => recRow(k, true)).join('') : '')).join('') || '<p class="none" style="padding:10px 0">Nothing yet. Your sessions and runs will collect here.</p>'}
     </section>`;
   $('#s-msg').addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.startSession(); });
   $('#s-msg').addEventListener('input', e => saveHome({draftMsg: e.target.value}));
+  $('#s-brain')?.addEventListener('change', e => { saveHome({brain: e.target.checked}); brainMode(); });
+  brainMode();
   if (toTemplates) $('#templates').scrollIntoView({block: 'start'});
+}
+const SESS_PH = 'Build the header, hero, services grid and footer from https://www.figma.com/design/…?node-id=12-34 as template parts';
+function brainMode() {  // the start form, worded for a session or for a Second Brain
+  const on = !!$('#s-brain')?.checked;
+  if (!$('#s-brain')) return;
+  $('#start-h').innerHTML = icon(on ? 'brain' : 'team') + (on ? 'Start a Second Brain' : 'Start a session');
+  $('#s-intro').textContent = on ? 'Describe the whole project. The Second Brain plans it, starts a session for each part, briefs them, answers their questions and relays what one learns to the others. It asks you only for decisions that are yours.'
+    : 'Describe the job. A lead agent plans it and hands pieces to parallel subagents. You can talk to it while it works, and it asks you when a decision is needed.';
+  $('#s-msg-l').textContent = on ? 'What should the project deliver?' : 'What should the team do?';
+  $('#s-msg').placeholder = on ? 'Build the whole site for … from the Figma file https://www.figma.com/design/…: every page as templates, checked in the browser at 3 widths' : SESS_PH;
+  $('#s-agents-l').textContent = on ? 'Parallel sessions' : 'Parallel agents';
+  $('#s-start').innerHTML = icon('play') + (on ? 'Start Second Brain' : 'Start session');
 }
 function saveHome(patch) {
   try { localStorage.setItem('flows.sess', JSON.stringify({...JSON.parse(localStorage.getItem('flows.sess') || '{}'), ...patch})); } catch {}
@@ -1452,10 +1510,10 @@ ACT.startSession = async (_, btn, q) => {
   if (!text && !att.length) { $('#s-msg').focus(); return toast('Describe the task first', true); }
   const st = {caps: [...document.querySelectorAll('[data-scap]:checked')].map(i => i.dataset.scap).concat('team'), agents: +$('#s-agents').textContent};
   if (st.caps.includes('full') && !confirm('Full auto lets agents run any command without asking. Continue?')) return;
-  const site = $('#s-site').value.trim();
-  const cfg = {cwd: $('#s-cwd').value.trim() || '~', model: $('#s-model').value, sub_models: $('#s-sub').value, agents: st.agents, allowed_tools: capTools(st), permission_mode: capMode(st)};
+  const site = $('#s-site').value.trim(), brain = !!$('#s-brain')?.checked;
+  const cfg = {cwd: $('#s-cwd').value.trim() || '~', model: $('#s-model').value, sub_models: $('#s-sub').value, agents: st.agents, allowed_tools: capTools(st), permission_mode: capMode(st), ...(brain && {brain: true})};
   cfg.caps = st.caps;
-  saveHome({cwd: cfg.cwd, site, model: cfg.model, sub: cfg.sub_models, agents: st.agents, caps: st.caps, v2: 1, draftMsg: ''});
+  saveHome({cwd: cfg.cwd, site, model: cfg.model, sub: cfg.sub_models, agents: st.agents, caps: st.caps, v2: 1, draftMsg: '', brain});
   btn?.setAttribute('aria-busy', 'true');
   try {
     const {id} = await api(q ? 'queue' : 'sessions', {method: 'POST', body: JSON.stringify({...(q && {kind: 'session'}), ...cfg, message: text + (site ? `\n\nLocal site: ${site}` : ''), files: await packFiles()})});
@@ -1617,6 +1675,7 @@ const TOOLNAME = n => n?.startsWith('mcp__plugin_figma_figma__') ? ['figma', 'Fi
 const toolArg = i => i ? (i.command || i.file_path || i.path || i.pattern || i.url || i.query || i.description || i.filename?.split('/').pop() || i.nodeId || (i.todos ? i.todos.length + ' items' : '') || (i.width ? i.width + '×' + i.height : '') || '') : '';
 function logItem(e, T = {}) {
   if (e.type == 'input' && e.text.trim() == '/compact') return `<div class="launch">${icon('compress')}You compacted the conversation</div>`;
+  if (e.type == 'input' && e.from) return `<div class="relay"><a href="#session/${esc(e.from)}">${icon('team')}From ${esc(runOf(e.from)?.name || 'a session')}${icon('right')}</a><p>${esc(e.text.replace(/^\[Flows\]\s*/, ''))}</p></div>`;  // Flows relaying a session's question or report to its Second Brain
   if (e.type == 'input') return `<div><div class="you">${esc(e.text)}${e.files ? `<div class="atts">${e.files.map(f => {
     const src = `/uploads/${encodeURIComponent(sess?.id)}/${encodeURIComponent(f.name)}`;
     return `<a class="att" href="${src}" ${f.image ? 'target="_blank" rel="noopener"' : 'download'}>${f.image ? `<img src="${src}" alt="" loading="lazy">` : icon('file')}<span>${esc(f.name)}</span></a>`;
@@ -1628,6 +1687,7 @@ function logItem(e, T = {}) {
     : `<div class="launch">${icon('help')}Asked permission: <b>${esc(TOOLNAME(e.tool)[1])}</b><code>${esc(toolArg(e.input))}</code></div>`;
   if (e.type == 'model') return `<div class="launch">${icon('reel')}You switched the lead agent to <b>${esc(prettyModel(e.model) || 'the default model')}</b></div>`;
   if (e.type == 'perms') return `<div class="launch">${icon('shield')}You changed permissions: <b>${esc((e.caps || []).map(c => CAPS.find(x => x.id == c)?.name).filter(Boolean).join(', ') || 'none')}</b></div>`;
+  if (e.type == 'answer' && e.by == 'brain') return `<div class="launch">${icon('brain')}Second Brain ${e.allow ? 'answered: <b>' + esc(Object.values(e.answers || {}).join(' / ')) + '</b>' : 'let Claude decide'}${e.message ? ' · ' + esc(e.message) : ''}</div>`;
   if (e.type == 'answer') return `<div class="launch">${icon(e.allow ? 'check' : 'x')}You ${e.tool == 'AskUserQuestion' ? (e.allow ? 'answered: <b>' + esc(Object.values(e.answers || {}).join(' / ')) + '</b>' : 'let Claude decide') : e.allow ? (e.all ? 'allowed every ' + esc(TOOLNAME(e.tool)[1].split(' · ')[0]) + ' action from now on' : e.always ? 'allowed it for this session' : 'allowed it once') : 'denied it'}${e.message ? ' · ' + esc(e.message) : ''}</div>`;
   const c = Array.isArray(e.message?.content) ? e.message.content : [];
   if (e.type == 'assistant') return c.map(x => {
@@ -1812,9 +1872,9 @@ async function showSession() {
 function drawSession() {
   const r = sess.r, T = tasksOf(sess.events), list = Object.values(T), live = LIVE.includes(r.status), cx = ctxOf(sess.events);
   if (!live) list.forEach(t => t.status == 'running' && (t.status = 'stopped'));
-  const n = r.config.agents || 3, active = list.filter(t => t.status == 'running').length;
+  const n = r.config.agents || 3, active = list.filter(t => t.status == 'running').length, brain = isBrain(), boss = runOf(parentId());
   if (!$('#s-body')) {
-    main.innerHTML = `<div id="s-head"></div><div id="s-perms"></div><div id="s-rail"></div><div id="s-ask"></div><section class="window" id="s-body" aria-live="polite"></section>
+    main.innerHTML = `<div id="s-head"></div><div id="s-perms"></div><div id="s-rail"></div><div id="s-kids"></div><div id="s-ask"></div><section class="window" id="s-body" aria-live="polite"></section>
       <div class="composer" id="composer">
         <div id="s-queue"></div>
         <label class="flabel" for="msg" id="msg-l" style="color:var(--mute);margin:0 0 6px">Message the lead agent</label>
@@ -1844,7 +1904,8 @@ function drawSession() {
   $('#s-head').innerHTML = `<header class="head">
     <div style="min-width:0;flex:1"><h1 class="${sess.title ? 'open' : ''}" data-act="toggleTitle" style="font-size:30px;overflow-wrap:anywhere">${esc(r.name)}</h1>
       <div class="sub"><span class="label ${r.waiting ? 'waiting' : r.status}">${esc(STATE[r.waiting ? 'waiting' : r.status]?.[0] || r.status)}</span>
-        <span class="cwd">${icon('folder')} ${esc(r.config.cwd)}</span><span>${active} of ${list.length} subagents running</span>
+        ${brain ? `<span>${icon('brain')} Second Brain</span>` : ''}${boss ? `<span>${icon('brain')} Coordinated by <a href="#session/${boss.id}">${esc(boss.name)}</a></span>` : ''}
+        <span class="cwd">${icon('folder')} ${esc(r.config.cwd)}</span>${brain && !list.length ? '' : `<span>${active} of ${list.length} subagents running</span>`}
         ${list.length ? `<span class="mix" title="Models used by subagents">${Object.entries(list.reduce((a, t) => { const m = prettyModel(t.real) || prettyModel(t.model) || 'Same as lead'; a[m] = (a[m] || 0) + 1; return a; }, {})).map(([m, n]) => `<span class="mb">${n} × ${esc(m)}</span>`).join('')}</span>` : ''}
         <span>${money(r.cost) || '$0.00'} API-equivalent</span></div></div>
     <div class="acts ${sess.set ? 'setopen' : ''}">
@@ -1853,8 +1914,8 @@ function drawSession() {
       ${(c => `<div class="ctx ${c.pct >= .7 ? 'hot' : ''}" title="How full the lead agent's conversation is. Compact to free space and save usage."><span class="cap" style="color:var(--mute)">Context</span><div class="track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(c.pct * 100)}" aria-label="Context used"><i style="--v:${c.pct.toFixed(3)}"></i></div><b>${kTok(c.used)} / ${kTok(c.win)}</b></div>`)(cx)}
       <label class="dsel"><span class="cap">Lead model</span><select data-sess="model">${opts(MODELS, r.config.model)}</select></label>
       <label class="dsel"><span class="cap">Subagents</span><select data-sess="sub">${opts(SUBMODELS, r.config.sub_models || 'auto')}</select></label>
-      <span class="cap" style="color:var(--mute)" id="par-l">Parallel agents</span>
-      <div class="dark-stepper" role="group" aria-labelledby="par-l"><button data-act="setAgents" data-arg="-1" aria-label="Fewer parallel agents">${icon('minus')}</button><output>${n}</output><button data-act="setAgents" data-arg="1" aria-label="More parallel agents">${icon('plus')}</button></div>
+      <span class="cap" style="color:var(--mute)" id="par-l">Parallel ${brain ? 'sessions' : 'agents'}</span>
+      <div class="dark-stepper" role="group" aria-labelledby="par-l"><button data-act="setAgents" data-arg="-1" aria-label="Fewer">${icon('minus')}</button><output>${n}</output><button data-act="setAgents" data-arg="1" aria-label="More">${icon('plus')}</button></div>
       <button class="btn-q" data-act="togglePerms" aria-expanded="${!!sess.perms}" aria-controls="s-perms">${icon('shield')}Permissions</button>
       <button class="btn-q m-only" data-act="del" data-arg="run:${r.id}">${icon('trash')}Delete</button>
       </div>
@@ -1863,19 +1924,20 @@ function drawSession() {
     </div></header>`;
   const hint = {idle: 'The lead agent is waiting for you. Reply, or give it the next task.', asking: 'Waiting for your decision.', stopped: 'Stopped. Sending a message resumes it.', failed: 'Ended with an error. Sending a message resumes it.'}[r.status] || '';
   $('#resume-hint').textContent = r.status == 'idle' ? '' : hint;
-  $('#msg-l').textContent = r.status == 'idle' ? 'Your turn: ' + hint : 'Message the lead agent';
+  $('#msg-l').textContent = r.status == 'idle' ? 'Your turn: ' + hint : brain ? 'Message the Second Brain' : 'Message the lead agent';
   $('#composer').classList.toggle('yours', r.status == 'idle');
   $('#compact-chip').classList.toggle('suggest', cx.pct >= .7);
   $('#compact-chip').title = cx.pct >= .7 ? `Context is ${Math.round(cx.pct * 100)}% full: compact now to keep answers sharp and save usage` : 'Summarize the conversation so far to free up context and save usage';
   const leadModel = [...sess.events].reverse().find(e => e.type == 'assistant' && !e.parent_tool_use_id)?.message?.model;
   const agentModel = t => prettyModel(t.real) || prettyModel(t.model) || '';
-  const frames = [{title: 'Lead agent', icon: 'reel', no: '00', state: r.status, model: prettyModel(leadModel) || prettyModel(r.config.model) || 'Default model', meta: 'Plans, delegates, integrates', sel: sessSel == 'lead', act: 'selAgent', arg: 'lead'},
+  const frames = [{title: brain ? 'Second Brain' : 'Lead agent', icon: brain ? 'brain' : 'reel', no: '00', state: r.status, model: prettyModel(leadModel) || prettyModel(r.config.model) || 'Default model', meta: brain ? 'Plans, starts and briefs sessions' : 'Plans, delegates, integrates', sel: sessSel == 'lead', act: 'selAgent', arg: 'lead'},
     ...list.map(t => ({title: t.desc, icon: 'team', state: t.status, model: agentModel(t) || 'Same as lead', inherit: !agentModel(t), meta: `${t.tools} tool${t.tools == 1 ? '' : 's'}${t.tokens ? ' · ' + kTok(t.tokens) + ' tokens' : ''}`, time: dur(t.t0, t.t1 || (t.status == 'running' ? now() : 0)), sel: sessSel == t.id, act: 'selAgent', arg: t.id}))];
   const railEl = $('#s-rail'), scroll = railEl.querySelector('.strip')?.scrollLeft || 0;
   const need = Object.keys(r.pending || {}).length;
   railEl.innerHTML = `<div class="stripbar" aria-live="polite">${list.length + 1} agents · ${active} running${need ? ` · <b>${need} need${need == 1 ? 's' : ''} a decision</b>` : r.status == 'idle' ? ' · <b>your turn</b>' : ''}</div>`
     + rail(frames, {live: r.status == 'working', label: 'Lead agent and subagents'}) + legend('Click an agent to see what it is doing');
   railEl.querySelector('.strip').scrollLeft = scroll;
+  drawKids();
   const t = T[sessSel];
   withLogScroll(() => $('#s-body').innerHTML = t
     ? `<h3>${icon('team')}${esc(t.desc)} <span class="mb">${icon('chip')}${esc(prettyModel(t.real) || prettyModel(t.model) || 'Same as lead')}</span>${t.tokens ? `<span class="meta">${kTok(t.tokens)} tokens</span>` : ''}<span class="label ${t.status}" style="margin-left:auto">${esc(STATE[t.status]?.[0])}</span></h3>
@@ -1883,7 +1945,19 @@ function drawSession() {
        ${shots(t.evs, r.id)}
        <div style="margin-top:8px">${logBox(capLog(t.evs, e => logItem(e)) || '<div class="skel"></div>')}</div>
        ${t.summary ? `<span class="flabel">Report</span><pre>${esc(t.summary)}</pre>` : ''}`
-    : `<h3>${icon('reel')}Lead agent</h3>${shots(sess.events, r.id)}${logBox(leadLog(sess.events, T) || '<div class="skel"></div><div class="skel" style="width:70%"></div>')}`);
+    : `<h3>${icon(brain ? 'brain' : 'reel')}${brain ? 'Second Brain' : 'Lead agent'}</h3>${shots(sess.events, r.id)}${logBox(leadLog(sess.events, T) || '<div class="skel"></div><div class="skel" style="width:70%"></div>')}`);
+}
+
+/* ---- second brain: its sessions, and the link back from each of them ---- */
+const isBrain = () => !!(sess?.r?.brain || runOf(sess?.id)?.brain);
+const parentId = () => sess?.r?.parent || runOf(sess?.id)?.parent;
+const KIDST = {working: 'Working', asking: 'Asking', idle: 'Idle', stopped: 'Stopped', cancelled: 'Stopped', interrupted: 'Stopped', failed: 'Failed', waiting: 'Waiting', done: 'Done'};
+function drawKids() {  // called on every redraw and every 5s refresh: a child's status comes from the runs list, not the brain's events
+  if (!$('#s-kids') || !sess?.r) return;
+  const kids = isBrain() ? kidsOf(sess.id) : null;
+  setHTML('#s-kids', kids ? `<nav class="kids" aria-label="Sessions run by this Second Brain"><span class="cap">${icon('brain')}Sessions${kids.length ? ' · ' + kids.length : ''}</span>
+    ${kids.map(k => `<a class="kid ${k.status}" href="#session/${k.id}">${mark(k.status)}<span class="kn">${esc(k.name)}</span><small>${KIDST[k.status] || esc(k.status)}</small>${icon('right')}</a>`).join('')
+      || '<p class="none">No sessions yet: the Second Brain starts them as it plans.</p>'}</nav>` : '');
 }
 
 /* ---- decisions: questions and permission checks from the agents ---- */
@@ -1903,8 +1977,9 @@ function drawAsk(q) {
   if (q.tool == 'AskUserQuestion') {
     const qs = q.input.questions || [];
     dlg.innerHTML = PKG == 'admin' ? admAskQ(qs) : `<form method="dialog" id="ask-form">
-      <div class="band"><div class="perf"></div><h2>${icon('help')}The agents need a decision</h2><div class="perf"></div></div>
+      <div class="band"><div class="perf"></div><h2 id="decide-h">${icon('help')}The agents need a decision</h2><div class="perf"></div></div>
       <div class="dbody">
+        ${parentId() ? `<p class="bhint">${icon('brain')}The Second Brain is answering this; you can answer it yourself instead.</p>` : ''}
         ${qs.map((x, i) => `<fieldset>
           <legend>${x.header ? `<span class="hdr">${esc(x.header)}</span>` : ''}${esc(x.question)}</legend>
           ${x.multiSelect ? '<p class="hint" style="margin:0 0 6px">Pick all that apply.</p>' : ''}
@@ -2030,10 +2105,11 @@ ACT.compact = () => {
 ACT.setAgents = d => {
   const cur = sess.r.config.agents || 3, n = Math.max(1, Math.min(12, cur + +d));
   if (n == cur) return;
+  const b = isBrain(), u = b ? 'sessions' : 'subagents';
   send(n > cur
-    ? `Go faster: you may now run up to ${n} subagents in parallel. Split the remaining work further and launch additional subagents right away; only wait where there is a real dependency.`
-    : `Slow down: run at most ${n} subagents at once from now on. Let current ones finish; do not launch new ones until you are under the limit.`, n)
-    .then(ok => ok && toast(`Parallel agents: ${n}`));
+    ? `Go faster: you may now run up to ${n} ${u} in parallel. Split the remaining work further and ${b ? 'start' : 'launch'} additional ${u} right away; only wait where there is a real dependency.`
+    : `Slow down: run at most ${n} ${u} at once from now on. Let current ones finish; do not ${b ? 'start' : 'launch'} new ones until you are under the limit.`, n)
+    .then(ok => ok && toast(`Parallel ${b ? 'sessions' : 'agents'}: ${n}`));
 };
 ACT.quick = k => send({status: 'Give me a short status update: what is done, what each running subagent is doing, what is left, and anything you need from me.',
   wrap: 'Wrap up: do not start new work. Let running subagents finish, integrate their work, run the build and php -l, then give me a final report.'}[k]);
@@ -2137,6 +2213,12 @@ function guide() {
       <li>The <b>Context</b> meter shows how full the lead agent's conversation is. <b>Compact</b> summarizes it to free space and save usage; the button turns orange at 70%.</li>
       <li><b>Plan usage</b> at the bottom of the sidebar shows your 5-hour and weekly Claude limits.</li>
       <li><b>Stop</b> ends the session; sending a new message later resumes it where it left off.</li></ol>`)}
+    ${sec('brain', 'Second Brain: one lead for a whole project', `<ol class="steps">
+      <li>On Home, tick <b>Second Brain</b> and describe the whole project, e.g. <i>“Build the whole site for … from the Figma file …”</i>. <b>Parallel sessions</b> sets how many sessions it runs at the same time.</li>
+      <li>It plans the project, starts a normal session (a lead plus subagents) for each part, briefs it, relays what one session learns to the others, and checks the result.</li>
+      <li>Questions from its sessions go to the Second Brain, which answers them and asks you only for decisions that are really yours. Their popups still show up, so you can answer first.</li>
+      <li>Permission popups for commands and tools still come to you. The permissions you tick when you start apply to the Second Brain and every session it starts.</li>
+      <li>Its sessions sit under it in the sidebar and on its page, and each one says <b>Coordinated by</b> with a link back. Open any of them and message it directly when you want.</li></ol>`)}
     ${sec('list', 'Workflows: repeatable step-by-step jobs', `<ol class="steps">
       <li>On Home, pick a template (for example <b>Figma → WP section</b>) or a blank workflow.</li>
       <li>Each frame on the rail is a step, and steps run left to right. Click a step to edit its instructions, model and permissions.</li>

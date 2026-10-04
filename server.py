@@ -4,12 +4,80 @@
 Each step runs `claude -p` using your logged-in CLI (subscription auth).
 Run: python3 server.py  ->  http://localhost:8787
 """
-import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shutil, socket, subprocess, threading, time, uuid
+import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shutil, socket, subprocess, sys, threading, time, uuid
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import unquote, urlsplit
 from urllib.request import Request, urlopen
+
+ID = {"type": "string", "description": "The session id"}
+BRAIN_TOOLS = [
+    {"name": "start_session", "description": "Start a Flows session (a lead agent with its own subagents) for one workstream. "
+     "It gets your permissions and folder; the message is its whole brief, so make it self-contained.",
+     "inputSchema": {"type": "object", "required": ["message"], "properties": {
+         "message": {"type": "string", "description": "The brief: goal, exact paths, constraints, contracts with other workstreams, how to verify, what to report"},
+         "name": {"type": "string", "description": "Short name shown to the user"},
+         "cwd": {"type": "string", "description": "Project folder (default: yours)"},
+         "model": {"type": "string", "description": "Lead model, e.g. sonnet or opus (default: yours)"}}}},
+    {"name": "list_sessions", "description": "Your sessions: status, pending questions and their last message.",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "read_session", "description": "A session's recent transcript: messages, tool calls, errors, questions and answers. "
+     "Returns the `since` to pass next time to read only what is new.",
+     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": ID, "since": {"type": "integer", "description": "Event index to start from (default: the last 40 events)"}}}},
+    {"name": "send_message", "description": "Send a message to a session: next instructions, information from other sessions, corrections.",
+     "inputSchema": {"type": "object", "required": ["id", "text"], "properties": {"id": ID, "text": {"type": "string"}}}},
+    {"name": "answer_question", "description": "Answer a session's pending question (AskUserQuestion). Permission checks stay with the user.",
+     "inputSchema": {"type": "object", "required": ["id", "question_id"], "properties": {
+         "id": ID, "question_id": {"type": "string"},
+         "answers": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Question text -> chosen option label or free answer"},
+         "allow": {"type": "boolean", "description": "false declines the question (default true)"},
+         "message": {"type": "string", "description": "Why, when declining"}}}},
+    {"name": "stop_session", "description": "Stop a session's process. A later message resumes it.",
+     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": ID}}},
+]
+
+
+def brain_mcp():
+    """`server.py brain-mcp`: the Second Brain's tools as an MCP server on stdio (newline JSON-RPC). Each call goes to
+    /api/brain/<tool> on Flows with the brain's token. It runs as the owner's Linux user: no Flows data access here."""
+    def call(name, args):
+        req = Request(f"http://127.0.0.1:{os.environ['FLOWS_PORT']}/api/brain/{name}", data=json.dumps(args).encode(), method="POST",
+                      headers={"Content-Type": "application/json", "X-Flow": "1", "X-Brain": os.environ["FLOWS_BRAIN_TOKEN"]})
+        try:
+            with urlopen(req, timeout=120) as f:
+                return json.loads(f.read())["text"], False
+        except HTTPError as e:
+            return json.loads(e.read() or b"{}").get("error") or str(e), True
+        except Exception as e:
+            return f"Flows is unreachable: {e}", True
+    for line in sys.stdin:
+        try:
+            msg = json.loads(line)
+        except ValueError:
+            continue
+        m, prm = msg.get("method"), msg.get("params") or {}
+        if "id" not in msg:  # notifications (initialized, cancelled)
+            continue
+        if m == "initialize":
+            res = {"protocolVersion": prm.get("protocolVersion") or "2024-11-05", "capabilities": {"tools": {}},
+                   "serverInfo": {"name": "flows", "version": "1"}}
+        elif m == "tools/list":
+            res = {"tools": BRAIN_TOOLS}
+        elif m == "tools/call":
+            text, err = call(prm.get("name"), prm.get("arguments") or {})
+            res = {"content": [{"type": "text", "text": text}], "isError": err}
+        elif m == "ping":
+            res = {}
+        else:
+            print(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "error": {"code": -32601, "message": f"Unknown method {m}"}}), flush=True)
+            continue
+        print(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": res}), flush=True)
+
+
+if __name__ == "__main__" and sys.argv[1:2] == ["brain-mcp"]:  # before anything below touches the data dir
+    raise SystemExit(brain_mcp())
 
 ROOT = Path(__file__).parent
 DATA = Path(os.environ.get("FLOWS_DATA") or ROOT / "data")  # the .deb sets ~/.local/share/flows
@@ -124,9 +192,10 @@ def launch(owner, cmd, cwd, extra=None):
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
-        # VAR=value must come before "--": after it, sudo takes it for the command (and finds no rule)
+        # the extra vars go by name (SETENV in sudoers), not VAR=value: sudo's command line is visible in ps
+        # to every user, and FLOWS_BRAIN_TOKEN is a secret
         cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd,
-               *[f"{k}={v}" for k, v in (extra or {}).items()], "--", *cmd]
+               *(["--preserve-env=" + ",".join(extra)] if extra else []), "--", *cmd]
         cwd = None  # the server user can't enter their home; sudo -D does it as them
     return subprocess.Popen(cmd, cwd=cwd, env={**ENV, **(extra or {})}, text=True, stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -217,6 +286,17 @@ ORCH = """You are the lead orchestrator of a team of subagents.
 - When subagents finish, integrate and verify their work (build, lint) before reporting.
 - The user may message you at any time to change the parallelism limit or redirect you. Always follow the latest instruction; if asked to go faster, split remaining work further and launch more subagents right away.
 {models}"""
+
+BRAIN = """You are the Second Brain of this project: you run it end to end by coordinating Flows sessions, each a lead agent with its own subagents. Your tools for that are the `flows` MCP tools: load them with ToolSearch ("flows") before the first use.
+- Plan first. Split the project into workstreams that don't edit the same files, and start one session per workstream with start_session and a self-contained brief: goal, exact paths, constraints, contracts with other workstreams, how to verify, what to report.
+- Run at most {n} sessions at once.
+- You'll receive [Flows] messages when a session asks something or finishes a turn. Answer questions by your own judgment with answer_question, review results (read_session), relay what other sessions need with send_message, and give next instructions.
+- Ask the user (AskUserQuestion) only for decisions that are really theirs: taste, scope, money, credentials, anything irreversible or outward-facing.
+- Don't do the implementation yourself; you may read files to check work.
+- At the end verify the whole thing works and report to the user briefly. Answer in the user's language. Keep it tight."""
+CHILD = ("This session is part of a project coordinated by the Second Brain: your AskUserQuestion questions go to it. "
+         "Ask it about decisions, contracts with other sessions or anything unclear. When you finish, end with a concise "
+         "report of what you did, how you verified it and open issues.")
 
 SUB_MODELS = {
     "auto": """- Pick each subagent's model with the Agent tool's `model` parameter, for the best quality per cost:
@@ -430,21 +510,36 @@ def start_run(wf_id, inp, owner):
 
 # ---------- orchestrator sessions: one long-lived `claude` process fed via stdin ----------
 
+brains = {}  # secret token -> Second Brain run id. In memory: every spawn mints a new one
+
+
 def spawn(r):
     c = r["config"]
     # stdio prompt tool: questions (AskUserQuestion) and permission checks come back to us as control_requests
     cmd = ["claude", "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
            "--permission-prompt-tool", "stdio", "--permission-mode", c.get("permission_mode") or "default",
-           "--allowedTools", ",".join(filter(None, ["Agent,Task", c.get("allowed_tools")])),
+           "--allowedTools", ",".join(filter(None, ["Agent,Task", c.get("allowed_tools"), r.get("brain") and "mcp__flows"])),
            "--add-dir", str(udir(r.get("owner"), "uploads", make=True))]  # so attached files are readable from any project folder
     if c.get("model"):
         cmd += ["--model", c["model"]]
     note = browser(cmd, c.get("allowed_tools") or "", r)
-    cmd += ["--append-system-prompt", "\n\n".join(filter(None, [ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))), note]))]
+    extra = {"CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL": "true"}
+    if r.get("brain"):  # its tools: brain_mcp, run by claude, calling back into this server with the token (env only, never argv)
+        tok = secrets.token_urlsafe(32)
+        for k in [k for k, v in brains.items() if v == r["id"]]:
+            del brains[k]
+        brains[tok] = r["id"]
+        extra.update(FLOWS_BRAIN_TOKEN=tok, FLOWS_PORT=str(PORT))
+        cmd += ["--mcp-config", json.dumps({"mcpServers": {"flows": {  # a second --mcp-config (Playwright) adds up
+            "command": sys.executable or "python3", "args": [str((ROOT / "server.py").resolve()), "brain-mcp"]}}})]
+        lead = BRAIN.format(n=c.get("agents") or 3)
+    else:
+        lead = ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))) + ("\n\n" + CHILD if r.get("parent") else "")
+    cmd += ["--append-system-prompt", "\n\n".join(filter(None, [lead, note]))]
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
         r["cost_base"] = r["cost"]  # new process reports cost from zero
-    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), {"CLAUDE_CODE_ENABLE_ASK_USER_QUESTION_TOOL": "true"})
+    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), extra)
     procs[r["id"]] = p
     threading.Thread(target=pump, args=(r, p), daemon=True).start()
     return p
@@ -482,10 +577,16 @@ def pump(r, p):
                     r["status"] = "asking"
                 save_run(r)
             q = r["pending"][ev["request_id"]]
+            if q["tool"] == "AskUserQuestion" and tell_brain(r, f"asks you (question_id {q['id']}):\n"
+                    f"{json.dumps(q['input'].get('questions'), ensure_ascii=False)}\nAnswer it with answer_question. "
+                    "If it is genuinely the user's decision, ask the user with AskUserQuestion first."):
+                continue
             notify(r, "; ".join(x.get("question", "") for x in q["input"].get("questions") or []) if q["tool"] == "AskUserQuestion"
                    else f"Allow {q['tool']}?")
             continue
+        done = None
         with lock:
+            was = r["status"]
             r["events"].append(ev)
             if t == "system" and sub == "background_tasks_changed":
                 r["bg"] = len(ev.get("tasks") or [])
@@ -506,6 +607,10 @@ def pump(r, p):
                 restart(r, p)
             if t == "result":
                 save_run(r)
+            if r.get("parent") and was in ("working", "asking") and r["status"] == "idle":
+                done = last_text(r, 3000)
+        if done is not None:
+            tell_brain(r, "finished its turn:\n" + done)
     p.wait()
     with lock:
         if procs.get(r["id"]) is p:
@@ -517,10 +622,34 @@ def pump(r, p):
         r["pending"] = {}
         r["ended"] = time.time()
         save_run(r)
+        failed = r["status"] == "failed" and last_text(r, 3000)
+    if failed is not False:
+        tell_brain(r, "failed: its process ended with an error. Last message:\n" + failed)
 
 
-def send(r, text, agents=None, sub_models=None, files=()):
-    """files: saved uploads from save_files. Images go as image blocks, and every file's path is listed."""
+def tell_brain(r, text):
+    """Pass a child session's question or turn end to its Second Brain, if it still exists. In a thread: send() may
+    spawn the brain and wait, and must never block the child's pump or run under `lock`."""
+    b = r.get("parent") and runs.get(r["parent"])
+    if b:
+        threading.Thread(target=send, args=(b, f"[Flows] Session \"{r['name']}\" ({r['id']}) {text}"), kwargs={"src": r["id"]}, daemon=True).start()
+    return b
+
+
+def last_text(r, n):
+    """The lead's last text message, cut to n characters."""
+    for e in reversed(r["events"]):
+        m = e.get("message")
+        if e.get("type") == "assistant" and not e.get("parent_tool_use_id") and isinstance(m, dict) and isinstance(m.get("content"), list):
+            t = "\n".join(x.get("text") or "" for x in m["content"] if isinstance(x, dict) and x.get("type") == "text").strip()
+            if t:
+                return t[:n] + ("…" if len(t) > n else "")
+    return ""
+
+
+def send(r, text, agents=None, sub_models=None, files=(), src=None):
+    """files: saved uploads from save_files. Images go as image blocks, and every file's path is listed.
+    src: the child session a [Flows] message to a Second Brain is about."""
     with lock:
         if agents:
             r["config"]["agents"] = agents
@@ -531,6 +660,8 @@ def send(r, text, agents=None, sub_models=None, files=()):
         ev = {"type": "input", "text": text, "ts": time.time()}
         if files:
             ev["files"] = [{"name": f["name"], "image": bool(f["media"])} for f in files]
+        if src:
+            ev["from"] = src
         r["events"].append(ev)
         r.pop("waiting", None)
         r["status"], r["turn_done"], r["ended"] = ("asking" if r.get("pending") else "working"), False, None
@@ -552,10 +683,13 @@ def write(p, obj):
         p.stdin.flush()
 
 
-def answer(r, body):
-    """Reply to a pending question or permission check. body: {id, allow, answers?, always?, message?}"""
+def answer(r, body, by=None):
+    """Reply to a pending question or permission check. body: {id, allow, answers?, always?, message?}
+    by: "brain" when the Second Brain answers its child's question."""
     with lock:
-        q = r.get("pending", {}).pop(body["id"])
+        q = r.get("pending", {}).pop(body["id"], None)
+        if not q:  # e.g. the user and the Second Brain both answered
+            raise ValueError("That question was already answered")
         p = procs[r["id"]]
         if q["tool"] == "AskUserQuestion" and body.get("allow"):
             resp = {"behavior": "allow", "updatedInput": {**q["input"], "answers": body.get("answers") or {}}}
@@ -576,7 +710,7 @@ def answer(r, body):
             resp = {"behavior": "deny", "message": body.get("message") or "The user declined."}
         r["events"].append({"type": "answer", "id": body["id"], "tool": q["tool"], "allow": bool(body.get("allow")),
                             "answers": body.get("answers"), "always": bool(body.get("always")), "all": bool(body.get("all")),
-                            "message": body.get("message"), "ts": time.time()})
+                            "message": body.get("message"), "ts": time.time(), **({"by": by} if by else {})})
         if r["status"] == "asking" and not r["pending"]:
             r["status"] = "working"
     write(p, {"type": "control_response", "response": {"subtype": "success", "request_id": body["id"], "response": resp}})
@@ -616,18 +750,110 @@ def configure(r, body):
         return "after-turn"
 
 
-def start_session(body, owner):
+def start_session(body, owner, brain=None):
+    """brain: the Second Brain run starting this session as its child. The child gets the brain's permissions;
+    only the folder (still inside the owner's home) and the model can differ."""
     text = body.get("message", "").strip()
+    if body.get("brain") and package(owner) != "dev":
+        raise ValueError("The Second Brain is only in the dev package")
     workdir(owner, body.get("cwd"))  # refuse a folder outside their home before the session exists
+    c = {k: body.get(k) for k in ("cwd", "model", "permission_mode", "allowed_tools", "agents", "caps", "sub_models")}
+    if brain:
+        c = {**{k: brain["config"].get(k) for k in ("permission_mode", "allowed_tools", "caps", "sub_models")}, "agents": 3,
+             "cwd": body.get("cwd") or brain["config"].get("cwd"), "model": body.get("model") or brain["config"].get("model")}
     r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "kind": "session", "owner": owner,
-         "name": text.splitlines()[0][:60] if text else "Session", "status": "working",
-         "started": time.time(), "ended": None, "cost": 0, "events": [], "session_id": None,
-         "config": {k: body.get(k) for k in ("cwd", "model", "permission_mode", "allowed_tools", "agents", "caps", "sub_models")}}
+         "name": str(body.get("name") or "")[:60] or (text.splitlines()[0][:60] if text else "Session"), "status": "working",
+         "started": time.time(), "ended": None, "cost": 0, "events": [], "session_id": None, "config": c}
+    if body.get("brain") and not brain:
+        r["brain"] = True
+    if brain:
+        r["parent"] = brain["id"]
     files = save_files(r, body.get("files"))
     with lock:
         runs[r["id"]] = r
     send(r, text, files=files)
     return r["id"]
+
+
+def stop_session(r):
+    with lock:
+        r["status"] = "stopped"
+        r.pop("waiting", None)
+        if r["id"] in procs:
+            procs[r["id"]].terminate()
+
+
+def transcript(r, since, cap=12000):
+    """Compact text of a session's events from index `since` (lead only, subagents' inner work skipped)."""
+    out, n, evs = [], since, r["events"]
+    short = lambda x, k: (x if isinstance(x, str) else json.dumps(x, ensure_ascii=False))[:k]
+    for n in range(since, len(evs)):
+        e, line = evs[n], []
+        m = e.get("message")
+        c = [x for x in (m.get("content") if isinstance(m, dict) and isinstance(m.get("content"), list) else []) if isinstance(x, dict)]
+        t = e.get("type")
+        if e.get("parent_tool_use_id"):
+            pass
+        elif t == "assistant":
+            line = [f"assistant: {short(x['text'], 3000)}" if x.get("type") == "text" else
+                    f"tool {x.get('name')}: {short(x.get('input'), 200)}" for x in c if x.get("type") in ("text", "tool_use")]
+        elif t == "user":
+            line = [f"tool error: {short(x.get('content'), 300)}" for x in c if x.get("type") == "tool_result" and x.get("is_error")]
+        elif t == "input":
+            line = [f"message{' about ' + e['from'] if e.get('from') else ''}: {short(e.get('text'), 3000)}"]
+        elif t == "ask":
+            line = [f"question {e.get('id')} ({e.get('tool')}): {short(e.get('input'), 1500)}"]
+        elif t == "answer":
+            line = [f"answer {e.get('id')} by {e.get('by') or 'user'}: {'allowed' if e.get('allow') else 'declined'} {short(e.get('answers') or e.get('message') or '', 1000)}"]
+        elif t == "result":
+            line = ["turn finished" + (" with an error: " + short(e.get("result"), 500) if e.get("is_error") else "")]
+        if out and sum(map(len, out + line)) > cap:
+            return "\n".join(out + [f"(more: read again with since={n})"]), n
+        out += line
+    return "\n".join(out) or "(nothing new)", len(evs)
+
+
+def brain_api(b, tool, a):
+    """The Second Brain's tools (brain_mcp calls them as /api/brain/<tool>): only ever on its own child sessions.
+    Returns the text the brain reads. KeyError: not one of its sessions; ValueError: refused."""
+    if tool == "start_session":
+        n = b["config"].get("agents") or 3
+        with lock:
+            live = sum(1 for r in runs.values() if r.get("parent") == b["id"] and r["status"] in ("working", "asking"))
+        if live >= n:
+            raise ValueError(f"{live} of your sessions are already working (your limit is {n}). Wait for one to finish its turn.")
+        if not str(a.get("message") or "").strip():
+            raise ValueError("start_session needs a `message`: the session's whole brief.")
+        rid = start_session({k: a.get(k) for k in ("message", "name", "cwd", "model")}, b.get("owner"), b)
+        return f"Started session {rid}."
+    if tool == "list_sessions":
+        with lock:
+            kids = [{"id": r["id"], "name": r["name"], "status": r["status"],
+                     "questions": [{"question_id": q["id"], "tool": q["tool"], "input": q["input"]} for q in (r.get("pending") or {}).values()],
+                     "last_message": last_text(r, 1500)} for r in runs.values() if r.get("parent") == b["id"]]
+        return json.dumps(kids, ensure_ascii=False, indent=1) if kids else "No sessions yet."
+    r = runs.get(str(a.get("id")))
+    if not r or r.get("parent") != b["id"]:
+        raise KeyError(a.get("id"))
+    if tool == "read_session":
+        with lock:
+            since = a.get("since")
+            text, nxt = transcript(r, max(0, int(since) if since is not None else len(r["events"]) - 40))
+        return f"Status: {r['status']}\n{text}\n(next since={nxt})"
+    if tool == "send_message":
+        send(r, str(a.get("text") or ""))
+        return "Sent."
+    if tool == "answer_question":
+        q = (r.get("pending") or {}).get(a.get("question_id"))
+        if q and q["tool"] != "AskUserQuestion":
+            raise ValueError("That is a permission check: only the user can answer it.")
+        answer(r, {"id": a.get("question_id"), "allow": a.get("allow", True) is not False, "answers": a.get("answers") or {},
+                   "message": a.get("message")}, by="brain")
+        return "Answered."
+    if tool == "stop_session":
+        stop_session(r)
+        return "Stopped."
+    raise KeyError(tool)
 
 
 # ---------- notifications: native on this desktop, Web Push to subscribed phones ----------
@@ -1153,6 +1379,22 @@ class H(BaseHTTPRequestHandler):
         p = self.path.split("?")[0].strip("/").split("/")
         m = self.command
         u = self.user = None
+        tok = self.headers.get("X-Brain")
+        if tok is not None or p[:2] == ["api", "brain"]:
+            # A Second Brain's MCP server (brain_mcp): its token signs it in as the brain, for its own /api/brain only.
+            # Laptop listener only, and the same Host / X-Flow checks as the browser.
+            b = runs.get(brains.get(tok or ""))
+            if (not b or self.remote or p[:2] != ["api", "brain"] or len(p) != 3 or m != "POST" or self.headers.get("X-Flow") != "1"
+                    or self.headers.get("Host", "").split(":")[0] not in ("localhost", "127.0.0.1")):
+                return self.send(403, {"error": "forbidden"})
+            try:
+                return self.send(200, {"text": brain_api(b, p[2], body)})
+            except KeyError:
+                return self.send(404, {"error": "No such session among yours"})
+            except (ValueError, TypeError) as e:
+                return self.send(400, {"error": str(e)})
+            except Exception as e:
+                return self.send(500, {"error": str(e)})
         if MULTI:  # signed-in users on every listener; the phone pairing below is single-user only
             if not self.remote and self.headers.get("Host", "").split(":")[0] not in HOSTS:
                 return self.send(403, {"error": "bad host"})
@@ -1337,11 +1579,7 @@ class H(BaseHTTPRequestHandler):
                     answer(r, body)
                     return self.send(200, {"ok": True})
                 if p[3:] == ["stop"]:
-                    with lock:
-                        r["status"] = "stopped"
-                        r.pop("waiting", None)
-                        if p[2] in procs:
-                            procs[p[2]].terminate()
+                    stop_session(r)
                     return self.send(200, {"ok": True})
             self.send(404, {"error": "not found"})
         except KeyError:
@@ -1384,7 +1622,6 @@ def admin_cli(cmd, name, *rest):
 
 
 if __name__ == "__main__":
-    import sys
     if sys.argv[1:2] and sys.argv[1] in ("adduser", "passwd", "deluser"):
         try:
             admin_cli(*sys.argv[1:])
