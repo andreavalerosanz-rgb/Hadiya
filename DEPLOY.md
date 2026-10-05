@@ -104,3 +104,56 @@ They work with the local model too, which is the point: when the provider is "Mo
 - Example, filesystem server: name `fs`, command `npx -y @modelcontextprotocol/server-filesystem /home/andrea/Documents` (needs Node/npx).
 - Each enabled connector is pre-allowed as `mcp__<name>`. Secret values (env/headers) go to `claude` as environment variables, never in the command line.
 - Stdio commands run as the Linux user of the person who started the session. Only an admin can change connectors; they apply to everyone.
+
+## Flows Link (archivos del dispositivo)
+
+Flows runs on the server, but you may be sitting at a laptop. **Flows Link** is a small program for that laptop. It shares folders you choose with the server's agents, live: they read, search and edit your files where they are. The laptop opens no port. It keeps one outbound HTTPS long-poll to Flows (`/api/link/poll`), runs each file operation itself, and posts the result back (`/api/link/reply`). That works through Tailscale, the Cloudflare tunnel or a proxy, and from behind any NAT.
+
+It is one file, `link/flows_link.py`: Python 3.9+, standard library only, for Linux, macOS and Windows. Flows serves it at `https://<your flows>/link/flows_link.py`. That download is public and holds no secrets.
+
+**1. Pair, once.** In Flows, home → *Mis dispositivos* → *Vincular dispositivo* → *Crear código*. The code works once and expires in 10 minutes. On the laptop:
+```sh
+python3 flows_link.py pair https://flows.example.com ABCD-EFGH      # Windows: py flows_link.py …
+python3 flows_link.py share ~/proyectos/web                         # [--name web] [--read-only] [--allow-exec]
+python3 flows_link.py folders                                       # what is shared;  unshare <name> to stop
+python3 flows_link.py run                                           # stays connected, logs every operation
+```
+The device token is stored in `~/.config/flows-link/config.json` (Linux), `~/Library/Application Support/flows-link/config.json` (macOS) or `%APPDATA%\flows-link\config.json` (Windows), with mode 0600. Set `FLOWS_LINK_CONFIG` to use another file. While `run` is running it picks up `share`/`unshare` within one poll. It reconnects with backoff, and it exits if the device is revoked.
+
+**Start at login**
+- Linux (systemd user unit `~/.config/systemd/user/flows-link.service`, then `systemctl --user enable --now flows-link`):
+  ```ini
+  [Unit]
+  Description=Flows Link
+  [Service]
+  ExecStart=/usr/bin/python3 %h/flows_link.py run
+  Restart=always
+  RestartSec=10
+  [Install]
+  WantedBy=default.target
+  ```
+- macOS: Python from python.org, or `xcode-select --install`. Create `~/Library/LaunchAgents/si.matteria.flows-link.plist`, then run `launchctl load ~/Library/LaunchAgents/si.matteria.flows-link.plist`:
+  ```xml
+  <?xml version="1.0" encoding="UTF-8"?>
+  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+  <plist version="1.0"><dict>
+    <key>Label</key><string>si.matteria.flows-link</string>
+    <key>ProgramArguments</key><array><string>/usr/local/bin/python3</string><string>/Users/YOU/flows_link.py</string><string>run</string></array>
+    <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+    <key>StandardOutPath</key><string>/tmp/flows-link.log</string><key>StandardErrorPath</key><string>/tmp/flows-link.log</string>
+  </dict></plist>
+  ```
+  macOS asks before a program reads Documents, Desktop or Downloads. Run `run` once by hand and allow it, or share folders outside those three.
+- Windows: install Python from python.org (tick "Add python.exe to PATH"; it also installs the `py`/`pyw` launcher). Then in `cmd`:
+  `schtasks /Create /SC ONLOGON /TN "Flows Link" /TR "pyw.exe \"%USERPROFILE%\flows_link.py\" run"`
+  If that needs admin rights, put a shortcut to `pyw.exe "%USERPROFILE%\flows_link.py" run` in `shell:startup` instead.
+
+**What the agents get.** If you have paired a device, every `claude` that Flows starts gets an MCP server named `device` (`python3 server.py link-mcp`), pre-allowed as `mcp__device`. Its tools are `device_list_folders`, `device_list`, `device_stat`, `device_read` (images come back as images), `device_write`, `device_edit` (an exact, unique string replace), `device_mkdir`, `device_move`, `device_delete` (moves to `<folder>/.flows-trash/`), `device_glob`, `device_grep`, `device_exec`, plus `device_pull`/`device_push` to copy a file (up to 20 MB) between the device and the server. The lead agent's prompt says these paths are not on the server. If the device is offline, a call fails within 60 s with "el dispositivo no está conectado". The `admin` package never gets these tools.
+
+**Security model**
+- The device token is the only key to the laptop. The server stores only its SHA-256 (`data/link.json`, mode 0600) and compares it in constant time. *Revocar* in the card deletes it, and the device's open poll and pending calls fail immediately.
+- Pairing codes have 8 characters (~39 bits), work once and expire in 10 minutes. They are kept in memory only. After 20 wrong codes in 15 minutes, across all clients, pairing is refused until the window passes.
+- The client accepts `https://` only, with certificates verified and redirects refused. Plain `http://` is allowed only to localhost or a Tailscale address (100.64.0.0/10), where WireGuard encrypts the traffic.
+- The server queues each operation for one device only and accepts a reply only from that device. It forwards only operations on folders that device reported, and it refuses writes to read-only folders and commands where they're off. Each `claude` process gets its own MCP secret, which stops working when the process ends. Multi-user: each person sees and uses only their own devices.
+- **The client checks every request again, whatever the server sends.** Folders must be shared, paths must be relative, and after resolving every symlink the path must still be inside the shared folder (`..`, absolute paths, drive letters and symlinks pointing out are refused, and such symlinks are never listed or searched). Read-only folders refuse every write. `.git`, `node_modules` and `.flows-trash` are skipped when walking.
+- **`--allow-exec` caveat.** Commands are off unless you share a folder with `--allow-exec`, and they can't be combined with `--read-only`. Once on, a command runs as **your user on the laptop**. It starts in that folder but can read or change anything you can, so the folder boundary doesn't hold for it. Only turn it on if you trust everything that can start an agent on that Flows server.
