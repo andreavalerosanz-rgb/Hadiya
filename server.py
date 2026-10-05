@@ -186,17 +186,21 @@ def fence(owner, cmd):
     return out + ["--tools=" + pk["tools"]] + (["--append-system-prompt=" + pk["note"]] if pk["note"] else [])  # built-ins: Read, Bash, Edit, WebFetch… all gone
 
 
+# local model (Ollama) is parked for now; FLOWS_LOCAL_MODEL=1 turns it back on
+LOCAL_MODEL = os.environ.get("FLOWS_LOCAL_MODEL") == "1"
 PROV_FILE = DATA / "provider.json"
 prov = {"provider": "claude", "base_url": "http://127.0.0.1:11434", "model": "", "context": 65536}  # install-wide; "local" = Ollama & co.
 if PROV_FILE.exists():
     prov.update(json.loads(PROV_FILE.read_text()))
+if not LOCAL_MODEL and prov["provider"] == "local":
+    prov["provider"] = "claude"  # in memory only: the file keeps its base_url/model for later
 
 
 def with_provider(cmd, extra, provider):
     """The ONE place the provider is applied: every `claude` we start goes through launch(), which calls this.
     "claude" = untouched. "local" = an Anthropic-compatible endpoint (Ollama) and its model tag, for --model and for
     the subagents' haiku/sonnet/opus aliases. A running process keeps what it was started with."""
-    if provider != "local":
+    if provider != "local" or not LOCAL_MODEL:
         return cmd, extra
     if not prov["model"]:
         raise ValueError("Falta el modelo local: indícalo en los ajustes del modelo local")
@@ -227,6 +231,8 @@ def local_health():
 
 
 def set_provider(body):
+    if not LOCAL_MODEL and body.get("provider") == "local":
+        raise ValueError("El modelo local está desactivado por ahora")
     new = {**prov, **{k: str(body[k]).strip() for k in ("provider", "base_url", "model") if k in body}}
     new["base_url"] = new["base_url"].rstrip("/")
     if new["provider"] not in ("claude", "local"):
@@ -976,7 +982,7 @@ def stop_session(r):
 
 def continue_local(r):
     """Continuar con el modelo local: switch the provider, end the lead's process and resume the same session on it."""
-    set_provider({"provider": "local"})
+    set_provider({"provider": "local"})  # refuses while LOCAL_MODEL is off
     with lock:
         p = procs.pop(r["id"], None)
         if p:
@@ -1752,7 +1758,7 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"connectors": conns})
             if p[:2] == ["api", "provider"]:
                 if m == "GET":
-                    return self.send(200, {**prov, **(local_health() if p[2:] == ["health"] else {})})
+                    return self.send(200, {**prov, "local_enabled": LOCAL_MODEL, **(local_health() if p[2:] == ["health"] else {})})
                 if m == "POST" and len(p) == 2:
                     if u and not load_users()[u].get("admin"):
                         return self.send(403, {"error": "Solo un administrador cambia el proveedor"})

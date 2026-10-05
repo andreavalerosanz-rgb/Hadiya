@@ -78,6 +78,8 @@ Versions come from git tags: `git tag v1.0 && scripts/build-deb.sh`.
 
 ## Local model (a second provider, for when Claude runs out of tokens)
 
+The local model is turned off for now; set `FLOWS_LOCAL_MODEL=1` in the service environment to turn it back on.
+
 Flows can start `claude` against a local Anthropic-compatible endpoint instead of your Claude subscription.
 Pick **Claude / Modelo local** on the home screen; new sessions and runs use the choice, a running session keeps its own.
 When Claude hits its usage limit, the session shows **Continuar con el modelo local**, which switches and resumes it.

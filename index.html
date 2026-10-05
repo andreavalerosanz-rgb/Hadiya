@@ -1173,7 +1173,7 @@ const kidsOf = id => sessions.filter(r => r.parent == id);
 const pinned = () => sessions.filter(r => r.pinned).sort((a, b) => a.pinned - b.pinned);
 const brainIcon = r => r.brain ? `<span class="brn" title="Second Brain">${icon('brain')}<span class="sr">Second Brain</span></span>` : '';
 let queue = {items: [], limited_until: 0};
-let provState = {provider: 'claude', base_url: '', model: '', reachable: null, model_present: false};
+let provState = {local_enabled: false, provider: 'claude', base_url: '', model: '', reachable: null, model_present: false};
 const ACT = {};
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -1405,7 +1405,9 @@ function provCard() {
 }
 async function provLoad() {
   provState = await api('provider/health').catch(() => provState);
-  setHTML('#prov', provCard());
+  const el = $('#prov');
+  if (el) el.style.display = provState.local_enabled ? '' : 'none';  // local model parked unless the server says FLOWS_LOCAL_MODEL=1
+  setHTML('#prov', provState.local_enabled ? provCard() : '');
 }
 ACT.provPick = async v => {
   try { await api('provider', {method: 'POST', body: JSON.stringify({provider: v})}); toast(v == 'local' ? 'Las próximas sesiones usarán el modelo local' : 'Las próximas sesiones usarán Claude'); }
@@ -1480,7 +1482,7 @@ ACT.connAdd = async () => {
   connList.push(connForm()); await connSave();
   if (connList.some(c => c.name == connForm().name)) for (const id of ['cn-name', 'cn-cmd', 'cn-url', 'cn-env']) $('#' + id).value = '';
 };
-const limitAlerts = adm => sessions.filter(r => r.status == 'waiting' && r.provider != 'local').map(r =>
+const limitAlerts = adm => sessions.filter(r => provState.local_enabled && r.status == 'waiting' && r.provider != 'local').map(r =>
   `<div class="${adm ? 'a-alert' : 'alert'} limit" role="status">${icon('clock')}<span><b>Claude ha llegado a su límite de uso</b> en «${esc(r.name)}». Puede seguir con el modelo local.</span>
    <button type="button" class="${adm ? 'a-small' : 'btn-s'}" data-act="kimi" data-arg="${r.id}">Continuar con el modelo local</button></div>`).join('');
 
