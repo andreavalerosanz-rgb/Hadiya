@@ -186,9 +186,62 @@ def fence(owner, cmd):
     return out + ["--tools=" + pk["tools"]] + (["--append-system-prompt=" + pk["note"]] if pk["note"] else [])  # built-ins: Read, Bash, Edit, WebFetch… all gone
 
 
-def launch(owner, cmd, cwd, extra=None):
+PROV_FILE = DATA / "provider.json"
+prov = {"provider": "claude", "base_url": "http://127.0.0.1:11434", "model": ""}  # install-wide; "local" = Ollama & co.
+if PROV_FILE.exists():
+    prov.update(json.loads(PROV_FILE.read_text()))
+
+
+def with_provider(cmd, extra, provider):
+    """The ONE place the provider is applied: every `claude` we start goes through launch(), which calls this.
+    "claude" = untouched. "local" = an Anthropic-compatible endpoint (Ollama) and its model tag, for --model and for
+    the subagents' haiku/sonnet/opus aliases. A running process keeps what it was started with."""
+    if provider != "local":
+        return cmd, extra
+    if not prov["model"]:
+        raise ValueError("Falta el modelo local: indícalo en los ajustes de Kimi local")
+    out, it = [], iter(cmd)
+    for a in it:
+        if a == "--model":
+            next(it)
+        elif not a.startswith("--model="):
+            out.append(a)
+    m = prov["model"]
+    env = {"ANTHROPIC_BASE_URL": prov["base_url"], "ANTHROPIC_AUTH_TOKEN": "ollama", "ANTHROPIC_API_KEY": "", "ANTHROPIC_MODEL": m,
+           "ANTHROPIC_DEFAULT_OPUS_MODEL": m, "ANTHROPIC_DEFAULT_SONNET_MODEL": m, "ANTHROPIC_DEFAULT_HAIKU_MODEL": m,
+           "ANTHROPIC_SMALL_FAST_MODEL": m, "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
+    return out + ["--model", m], {**(extra or {}), **env}
+
+
+def local_health():
+    """Is the local endpoint up, and does it have the model? (Ollama: GET /api/tags.)"""
+    try:
+        with urlopen(prov["base_url"] + "/api/tags", timeout=1.5) as f:
+            names = [m.get("name") or m.get("model") or "" for m in json.loads(f.read()).get("models") or []]
+    except Exception:
+        return {"reachable": False, "model_present": False, "models": []}
+    m = prov["model"]
+    return {"reachable": True, "models": names, "model_present": bool(m) and (m in names or m + ":latest" in names)}
+
+
+def set_provider(body):
+    new = {**prov, **{k: str(body[k]).strip() for k in ("provider", "base_url", "model") if k in body}}
+    new["base_url"] = new["base_url"].rstrip("/")
+    if new["provider"] not in ("claude", "local"):
+        raise ValueError("Proveedor desconocido")
+    if not re.match(r"https?://[^\s/]+", new["base_url"]):
+        raise ValueError("La dirección debe empezar por http:// o https://")
+    if new["provider"] == "local" and not new["model"]:
+        raise ValueError("Indica primero el modelo local")
+    prov.update(new)
+    PROV_FILE.write_text(json.dumps(prov, indent=1))
+
+
+def launch(owner, cmd, cwd, extra=None, provider="claude"):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
-    cmd = fence(owner, cmd)
+    # Long sessions grew to 400k tokens and every turn re-read all of it. Compact at ~200k instead of near 1M.
+    extra = {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": os.environ.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "200000"), **(extra or {})}
+    cmd, extra = with_provider(fence(owner, cmd), extra, provider)
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
@@ -279,8 +332,9 @@ def hit_limit(res, owner):
 
 
 ORCH = """You are the lead orchestrator of a team of subagents.
-- Split the work into independent sub-tasks and delegate them with the Agent tool.
+- When the work splits into independent sub-tasks, delegate them with the Agent tool. Each subagent starts from a fresh ~30k-token context, so answer questions and do small or single-file tasks yourself.
 - Run up to {n} subagents in parallel: launch them in a single message.
+- Don't re-read or re-check what a subagent already verified; trust its report unless something looks off.
 - Give each subagent a self-contained prompt: exact file paths, what to do, how to verify, what to report back.
 - Never let two subagents edit the same file at the same time. Do tiny or strictly sequential work yourself.
 - When subagents finish, integrate and verify their work (build, lint) before reporting.
@@ -371,6 +425,19 @@ def keep_shots_out(ev, cwd, r, seen):
                 pass
 
 
+def outbox(r):
+    """Files the agent wrote into data/uploads/<run>/ that no event lists yet become its chat attachments."""
+    known = {f["name"] for e in r["events"] for f in e.get("files") or []}
+    try:
+        new = sorted((f for f in udir(r.get("owner"), "uploads", r["id"]).iterdir() if f.is_file() and f.name not in known),
+                     key=lambda f: f.stat().st_mtime)
+        files = [{"name": f.name, "image": bool(image_type(f.open("rb").read(12)))} for f in new]
+    except OSError:
+        return
+    if files:
+        r["events"].append({"type": "attach", "files": files, "ts": time.time()})
+
+
 def image_type(raw):
     """Media type from the file's magic bytes (a wrong media_type makes the API reject the whole message)."""
     for magic, t in ((b"\x89PNG", "image/png"), (b"\xff\xd8\xff", "image/jpeg"), (b"GIF8", "image/gif")):
@@ -447,7 +514,7 @@ def execute(r):
                     return
                 r["steps"].append(s)
             cwd = workdir(r.get("owner"), step.get("cwd") or r["workflow"].get("cwd"))
-            p = launch(r.get("owner"), cmd, cwd)
+            p = launch(r.get("owner"), cmd, cwd, provider=r.get("provider", "claude"))
             procs[r["id"]] = p
             # stdin avoids the ~128KB argv limit when {{prev}} is large
             p.stdin.write(render(step["prompt"], r["input"], prev, r["workflow"].get("site") or ""))
@@ -501,7 +568,7 @@ def start_run(wf_id, inp, owner):
     wf = load_wfs(owner)[wf_id]
     r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "workflow_id": wf_id, "owner": owner,
          "name": wf["name"], "input": inp, "status": "running", "started": time.time(),
-         "ended": None, "cost": 0, "steps": [], "workflow": wf}
+         "ended": None, "cost": 0, "steps": [], "workflow": wf, "provider": prov["provider"]}
     with lock:
         runs[r["id"]] = r
     threading.Thread(target=execute, args=(r,), daemon=True).start()
@@ -535,11 +602,15 @@ def spawn(r):
         lead = BRAIN.format(n=c.get("agents") or 3)
     else:
         lead = ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))) + ("\n\n" + CHILD if r.get("parent") else "")
+    out = udir(r.get("owner"), "uploads", r["id"], make=True)
+    note += (f"\n\nTo send the user a file in the chat, write it into {out}/ (plain filename, no subfolders). "
+             "It appears as a downloadable attachment under your message when your turn ends.")
     cmd += ["--append-system-prompt", "\n\n".join(filter(None, [lead, note]))]
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
         r["cost_base"] = r["cost"]  # new process reports cost from zero
-    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), extra)
+    r["provider"] = prov["provider"]  # fixed for this process; a respawn picks up the current choice
+    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), extra, r["provider"])
     procs[r["id"]] = p
     threading.Thread(target=pump, args=(r, p), daemon=True).start()
     return p
@@ -593,6 +664,7 @@ def pump(r, p):
             if t == "system" and sub == "init":
                 r["session_id"] = ev.get("session_id")
             if t == "result":
+                outbox(r)
                 note_auth(ev, r.get("owner"))
                 if hit_limit(ev, r.get("owner")):
                     r["waiting"] = True  # the queue worker sends "continue" once the limit resets
@@ -781,6 +853,16 @@ def stop_session(r):
         r.pop("waiting", None)
         if r["id"] in procs:
             procs[r["id"]].terminate()
+
+
+def continue_local(r):
+    """Continuar con Kimi local: switch the provider, end the lead's process and resume the same session on it."""
+    set_provider({"provider": "local"})
+    with lock:
+        p = procs.pop(r["id"], None)
+        if p:
+            restart(r, p)
+    send(r, "Continúa donde lo dejaste. (El límite de Claude se agotó; sigues con el modelo local.)")
 
 
 def transcript(r, since, cap=12000):
@@ -1036,9 +1118,24 @@ def tick():
     runs[rid]["queued"] = True
 
 
+GREETED = DATA / "greeted.txt"
+
+
+def good_morning():
+    """At 6am local, once a day (the date is kept on disk, so a restart doesn't repeat it), each user gets a session saying buenos días."""
+    now = time.localtime()
+    today = time.strftime("%Y-%m-%d", now)
+    if now.tm_hour != 6 or (GREETED.exists() and GREETED.read_text() == today):
+        return
+    GREETED.write_text(today)
+    for o in (load_users() if MULTI else [None]):
+        enqueue({"kind": "session", "name": "Buenos días", "message": "¡Buenos días, Claude!"}, o)
+
+
 def worker():
     while True:
         try:
+            good_morning()
             tick()
         except Exception as e:
             print("queue:", e)
@@ -1523,6 +1620,14 @@ class H(BaseHTTPRequestHandler):
                         push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40], "owner": u}
                     PUSH_FILE.write_text(json.dumps(push))
                     return self.send(200, {"ok": True})
+            if p[:2] == ["api", "provider"]:
+                if m == "GET":
+                    return self.send(200, {**prov, **(local_health() if p[2:] == ["health"] else {})})
+                if m == "POST" and len(p) == 2:
+                    if u and not load_users()[u].get("admin"):
+                        return self.send(403, {"error": "Solo un administrador cambia el proveedor"})
+                    set_provider(body)
+                    return self.send(200, prov)
             if m == "GET" and p == ["api", "usage"]:
                 return self.send(200, use(u))
             if p[:2] == ["api", "queue"]:
@@ -1577,6 +1682,13 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"applied": configure(r, body)})
                 if p[3:] == ["answer"]:
                     answer(r, body)
+                    return self.send(200, {"ok": True})
+                if p[3:] == ["pin"]:
+                    r["pinned"] = time.time() if body.get("on") else None
+                    save_run(r)
+                    return self.send(200, {"ok": True})
+                if p[3:] == ["local"]:
+                    continue_local(r)
                     return self.send(200, {"ok": True})
                 if p[3:] == ["stop"]:
                     stop_session(r)
