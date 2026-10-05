@@ -1234,6 +1234,7 @@ async function refresh() {
       ${pill}<button class="ic rack-toggle" data-act="menu" aria-expanded="${menuOpen}" aria-controls="rack-body" aria-label="${menuOpen ? 'Close menu' : 'Menu' + (nq ? ', ' + nq + ' queued' : '') + (ask ? ', decision needed' : '')}">${icon(menuOpen ? 'x' : 'menu')}${nq && !menuOpen ? `<span class="bdg">${nq}</span>` : ''}${ask && !menuOpen ? '<i class="qdot"></i>' : ''}</button></div>
     <div class="rack-body" id="rack-body">
     <a class="item" href="#" ${!kind ? 'aria-current="page"' : ''}>${icon('home')}<span>Home</span></a>
+    <a class="item" href="#plan" ${kind == 'plan' ? 'aria-current="page"' : ''}>${icon('cal')}<span>Plan de hoy</span></a>
     <a class="item" href="#guide" ${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}<span>How to use Flows</span></a>
     ${me.user ? `<button class="item" data-act="logout">${icon('x')}<span>Sign out</span><small>${esc(me.user)}</small></button>` : ''}
     ${isRemote ? '' : `<a class="item" href="#phone" ${kind == 'phone' ? 'aria-current="page"' : ''}>${icon('phone')}<span>Phone access</span>${phoneOn ? '<small>ON</small>' : ''}</a>`}
@@ -1454,6 +1455,7 @@ async function route() {
   else if (kind == 'session') { sess = {id, events: []}; sessSel = agent || 'lead'; showSession(); }
   else if (kind == 'guide') guide();
   else if (kind == 'phone') phonePage();
+  else if (kind == 'plan') planPage();
   else home(kind == 'templates');
 }
 
@@ -2229,6 +2231,24 @@ ACT.setAgents = d => {
 ACT.quick = k => send({status: 'Give me a short status update: what is done, what each running subagent is doing, what is left, and anything you need from me.',
   wrap: 'Wrap up: do not start new work. Let running subagents finish, integrate their work, run the build and php -l, then give me a final report.'}[k]);
 ACT.stopSess = async () => { if (!confirm('Stop this session? Running subagents are interrupted. You can resume it later by sending a message.')) return; await api(`sessions/${sess.id}/stop`, {method: 'POST'}); toast('Session stopped'); };
+
+/* ============ plan de hoy (Trello) ============ */
+// The server draws up the plan at 6am and re-reads Trello every minute; this page just re-polls it.
+async function planPage() {
+  const g = pollGen, pl = await api('plan').catch(e => ({error: e.message}));
+  if (g != pollGen) return;
+  const hm = t => new Date(t * 1000).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
+  const when = d => new Date(d).toLocaleDateString('es', {weekday: 'short', day: 'numeric', month: 'short'});
+  const groups = [['overdue', 'Vencidas'], ['today', 'Para hoy'], ['doing', 'En curso'], ['week', 'Próximos 7 días']];
+  const tasks = pl.tasks || [], nNew = tasks.filter(t => t.new).length;
+  const row = t => `<a href="${esc(t.url)}" target="_blank" rel="noopener">${(([c, i]) => `<span class="st ${c}">${icon(i)}</span>`)(t.group == 'overdue' ? ['failed', 'x'] : t.group == 'doing' ? ['running', 'dot'] : ['idle', 'flag'])}<span>${t.new ? '<b class="mb">Nueva</b> ' : ''}${esc(t.name)}</span><small>${esc(t.board)} · ${esc(t.list)}</small><small>${t.due ? when(t.due) : ''}</small></a>`;
+  main.innerHTML = `
+    <header class="head"><div><h1>Plan de hoy</h1><div class="sub">${pl.day ? `Tareas activas de todos tus tableros de Trello · planificado ${new Date(pl.planned_at * 1000).toLocaleDateString('es', {weekday: 'long', day: 'numeric', month: 'long'})} a las ${hm(pl.planned_at)} · revisado ${hm(pl.checked)}${nNew ? ` · ${nNew} nueva${nNew == 1 ? '' : 's'} desde entonces` : ''}` : 'Aún no se ha leído Trello.'}</div></div></header>
+    ${pl.error ? `<p class="alert" role="status">${icon('help')}<span><b>No se pudo leer Trello:</b> ${esc(pl.error)}</span></p>` : ''}
+    ${groups.map(([k, label]) => (ts => ts.length ? `<section class="recent" aria-label="${label}"><h2>${label} · ${ts.length}</h2>${ts.map(row).join('')}</section>` : '')(tasks.filter(t => t.group == k))).join('')
+      || (pl.day ? '<section class="recent"><p class="none">Nada pendiente para hoy.</p></section>' : '')}`;
+  timer = setTimeout(planPage, 30000);
+}
 
 /* ============ phone access (laptop only) ============ */
 let qrLib;
