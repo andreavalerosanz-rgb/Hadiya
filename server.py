@@ -239,9 +239,129 @@ def set_provider(body):
     PROV_FILE.write_text(json.dumps(prov, indent=1))
 
 
+CONN_FILE = DATA / "connectors.json"
+conns = json.loads(CONN_FILE.read_text()) if CONN_FILE.exists() else []  # install-wide local MCP servers
+
+
+def clean_conn(c):
+    n, t = str(c.get("name") or "").strip(), c.get("type") or "stdio"
+    if not re.match(r"^[a-z0-9_-]{1,32}$", n) or n in ("flows", "playwright"):
+        raise ValueError(f"Nombre no válido: «{n}» (minúsculas, cifras, - y _; máx. 32; no «flows» ni «playwright»)")
+    if t not in ("stdio", "http"):
+        raise ValueError("Tipo desconocido")
+    o = {"name": n, "type": t, "command": str(c.get("command") or "").strip(), "args": [str(a) for a in c.get("args") or []],
+         "env": {str(k).strip(): str(v) for k, v in (c.get("env") or {}).items()}, "url": str(c.get("url") or "").strip(),
+         "headers": {str(k).strip(): str(v) for k, v in (c.get("headers") or {}).items()}, "enabled": c.get("enabled") is not False}
+    if t == "stdio" and not o["command"]:
+        raise ValueError(f"«{n}»: falta el comando")
+    if t == "http" and not re.match(r"https?://[^\s/]+", o["url"]):
+        raise ValueError(f"«{n}»: la URL debe empezar por http:// o https://")
+    if any(not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", k) for k in o["env"]) or any(not re.match(r"^[A-Za-z0-9-]+$", k) for k in o["headers"]):
+        raise ValueError(f"«{n}»: nombre de variable o cabecera no válido")
+    return o
+
+
+def set_connectors(lst):
+    new = [clean_conn(c) for c in lst or []]
+    keys = [re.sub(r"\W", "_", c["name"]) for c in new]
+    if len(set(keys)) != len(keys):
+        raise ValueError("Hay nombres de conector repetidos")
+    conns[:] = new
+    CONN_FILE.write_text(json.dumps(conns, indent=1))
+    CONN_FILE.chmod(0o600)  # may hold tokens
+
+
+def with_connectors(cmd, extra):
+    """Add the enabled local MCP servers to a `claude` command line, whatever the provider or package (called after
+    fence). Claude Code expands ${VAR} in inline --mcp-config (command, args, env, url, headers), so secret values
+    travel in `extra` (by name, never in argv) and the JSON only names them."""
+    on = [c for c in conns if c.get("enabled")]
+    if not on:
+        return cmd, extra
+    srv, env = {}, {}
+    for c in on:
+        def sec(k, v):  # a secret value -> env var of ours, referenced as ${...}
+            nm = "FLOWS_CONN_%s_%s" % (re.sub(r"\W", "_", c["name"]).upper(), re.sub(r"\W", "_", k).upper())
+            env[nm] = v
+            return "${%s}" % nm
+        if c["type"] == "http":
+            srv[c["name"]] = {"type": "http", "url": c["url"], **({"headers": {k: sec(k, v) for k, v in c["headers"].items()}} if c["headers"] else {})}
+        else:
+            srv[c["name"]] = {"command": c["command"], "args": c["args"], **({"env": {k: sec(k, v) for k, v in c["env"].items()}} if c["env"] else {})}
+    tools, out, it, seen = ",".join("mcp__" + c["name"] for c in on), [], iter(cmd), False
+    for a in it:
+        if a == "--allowedTools":
+            a, seen = "--allowedTools=" + next(it) + "," + tools, True
+        elif a.startswith("--allowedTools="):
+            a, seen = a + "," + tools, True
+        out.append(a)
+    return out + ([] if seen else ["--allowedTools=" + tools]) + ["--mcp-config=" + json.dumps({"mcpServers": srv})], {**(extra or {}), **env}
+
+
+def test_connector(c):
+    """Start/contact one connector and list its tools: {"ok": true, "tools": [...]} or {"ok": false, "error": "..."}."""
+    c = clean_conn({**c, "enabled": True})
+    init = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                                                                            "clientInfo": {"name": "flows", "version": "1"}}}
+    done, lst = {"jsonrpc": "2.0", "method": "notifications/initialized"}, {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
+    try:
+        if c["type"] == "http":
+            hd = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", **c["headers"]}
+
+            def post(msg, want):
+                with urlopen(Request(c["url"], data=json.dumps(msg).encode(), headers=hd, method="POST"), timeout=20) as f:
+                    sid, raw = f.headers.get("Mcp-Session-Id"), f.read().decode("utf-8", "replace")
+                if sid:
+                    hd["Mcp-Session-Id"] = sid
+                if want is None:
+                    return None
+                for ln in (raw.splitlines() if "data:" in raw else [raw]):  # SSE reply or plain JSON
+                    ln = ln.removeprefix("data:").strip()
+                    if ln.startswith("{") and json.loads(ln).get("id") == want:
+                        return json.loads(ln)
+                raise ValueError("Respuesta MCP no válida")
+            r = post(init, 1)
+            if "error" not in r:
+                hd["MCP-Protocol-Version"] = "2025-06-18"
+                post(done, None)
+                r = post(lst, 2)
+        else:
+            import select
+            p = subprocess.Popen([c["command"], *c["args"]], env={**ENV, **c["env"]}, text=True, stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            try:
+                end = time.time() + 20
+
+                def ask(msg, want):
+                    p.stdin.write(json.dumps(msg) + "\n")
+                    p.stdin.flush()
+                    while want:
+                        if not select.select([p.stdout], [], [], max(0, end - time.time()))[0]:
+                            raise TimeoutError("sin respuesta en 20 s")
+                        ln = p.stdout.readline()
+                        if not ln:
+                            raise ValueError("el proceso terminó sin responder")
+                        if ln.startswith("{") and json.loads(ln).get("id") == want:
+                            return json.loads(ln)
+                r = ask(init, 1)
+                if "error" not in r:
+                    ask(done, None)
+                    r = ask(lst, 2)
+            finally:
+                p.kill()
+                p.wait()
+        if "error" in r:
+            return {"ok": False, "error": str(r["error"].get("message") or r["error"])}
+        return {"ok": True, "tools": [t.get("name") for t in r["result"].get("tools") or []]}
+    except FileNotFoundError:
+        return {"ok": False, "error": f"No se encuentra el comando «{c['command']}»"}
+    except Exception as e:
+        return {"ok": False, "error": str(e) or type(e).__name__}
+
+
 def launch(owner, cmd, cwd, extra=None, provider="claude"):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
-    cmd, extra = with_provider(fence(owner, cmd), extra, provider)
+    cmd, extra = with_connectors(*with_provider(fence(owner, cmd), extra, provider))
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
@@ -1619,6 +1739,17 @@ class H(BaseHTTPRequestHandler):
                         push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40], "owner": u}
                     PUSH_FILE.write_text(json.dumps(push))
                     return self.send(200, {"ok": True})
+            if p[:2] == ["api", "connectors"]:
+                adm = not u or load_users()[u].get("admin")
+                if m == "GET" and len(p) == 2:  # secrets only for admins
+                    return self.send(200, {"connectors": conns if adm else [{**c, "env": dict.fromkeys(c["env"], ""), "headers": dict.fromkeys(c["headers"], "")} for c in conns]})
+                if m == "POST" and (len(p) == 2 or p[2:] == ["test"]):
+                    if not adm:
+                        return self.send(403, {"error": "Solo un administrador cambia los conectores"})
+                    if len(p) == 3:
+                        return self.send(200, test_connector(body))
+                    set_connectors(body.get("connectors"))
+                    return self.send(200, {"connectors": conns})
             if p[:2] == ["api", "provider"]:
                 if m == "GET":
                     return self.send(200, {**prov, **(local_health() if p[2:] == ["health"] else {})})

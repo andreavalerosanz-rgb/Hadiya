@@ -92,3 +92,13 @@ Caveats:
 - Every subagent, whatever model it asks for (haiku/sonnet/opus), runs on that one tag.
 - Local models are weaker at tool use than Claude; resuming a Claude session on one carries its history over but may behave worse.
 - Multi-user: only an admin can change the provider; it applies to everyone.
+
+## Conectores locales (servidores MCP de este PC)
+
+The home screen has a **Conectores locales** card: MCP servers that run on this PC (stdio command or http URL) and are added to every `claude` Flows starts, for every package.
+They work with the local model too, which is the point: when the provider is "Modelo local" the claude.ai connectors (Gmail, Drive, Calendar) are off, but local MCP servers still work.
+
+- *Añadir conector*: name, type, command + arguments (or URL), and optional `CLAVE=valor` lines (env vars for stdio, headers for http). *Probar* starts it and lists its tools; *Guardar* stores it in `data/connectors.json` (mode 0600).
+- Example, filesystem server: name `fs`, command `npx -y @modelcontextprotocol/server-filesystem /home/andrea/Documents` (needs Node/npx).
+- Each enabled connector is pre-allowed as `mcp__<name>`. Secret values (env/headers) go to `claude` as environment variables, never in the command line.
+- Stdio commands run as the Linux user of the person who started the session. Only an admin can change connectors; they apply to everyone.

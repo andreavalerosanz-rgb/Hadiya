@@ -372,6 +372,9 @@ textarea{field-sizing:content}
 .prov .pst i{flex:none;width:9px;height:9px;margin-top:5px;border-radius:50%;background:var(--mute)}.prov .pst.ok i{background:#2f7d4f}.prov .pst.bad i{background:var(--flag)}
 .prov details{margin-top:10px}.prov summary{cursor:pointer;font-weight:600;font-size:14px}.prov details label{display:block;margin:10px 0 4px;font-size:13px}
 .prov details input{width:100%;min-height:40px;padding:0 10px;border:1px solid var(--edge);border-radius:8px;font:13px var(--mono);background:#fff;color:var(--ink);box-sizing:border-box}.prov details .btn-s{margin-top:10px}
+.prov+.prov{margin-top:12px}.prov .cn-row{padding:10px 0;border-top:1px solid var(--edge)}.prov .cn-i{display:flex;flex-direction:column;min-width:0}.prov .cn-i small{font:12px var(--mono);color:var(--ink-mute);overflow-wrap:anywhere}
+.prov .cn-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.prov .cn-t[aria-pressed=true]{border-color:var(--flag);box-shadow:inset 0 0 0 1px var(--flag)}.prov .pst[hidden]{display:none}
+.prov details select,.prov details textarea{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--edge);border-radius:8px;font:13px var(--mono);background:#fff;color:var(--ink);box-sizing:border-box}
 .alert.limit,.a-alert.limit{flex-wrap:wrap}.alert.limit .btn-s{background:#fff}
 body.adm .prov{padding:14px 16px;margin:0 0 14px;--ink:var(--p-ink);--ink-mute:var(--p-mute);--edge:var(--p-line);--flag:#e2470f}
 .usage{position:sticky;bottom:-24px;margin:22px -12px -24px;padding:12px 20px 18px;background:var(--char);border-top:1px solid var(--spool)}
@@ -1419,6 +1422,64 @@ ACT.kimi = async id => {  // the Claude limit ran out: switch and resume this se
   catch (e) { toast(e.message, true); }
   provLoad(); refresh();
 };
+/* ---- conectores locales: servidores MCP de este PC (stdio o http), con Claude y con el modelo local ---- */
+let connList = [], connRes = {};
+const connWords = s => [...s.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(m => m[1] ?? m[2] ?? m[3]);  // split on spaces, simple quotes
+const connKV = s => Object.fromEntries(s.split('\n').map(l => l.trim()).filter(l => l.includes('=')).map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
+function connCard() {
+  const b = PKG == 'admin' ? 'a-small' : 'btn-s';
+  return `<div class="pv-h"><b id="cn-l">Conectores locales</b><small>Servidores MCP que corren en este PC. Funcionan con Claude y con el modelo local.</small></div>
+    <div id="cn-list" aria-live="polite"></div>
+    <details><summary>Añadir conector</summary>
+      <label for="cn-name">Nombre (minúsculas, cifras, - y _)</label><input id="cn-name" placeholder="fs" autocomplete="off" spellcheck="false">
+      <label for="cn-type">Tipo</label><select id="cn-type"><option value="stdio">stdio (un programa de este PC)</option><option value="http">http (una URL)</option></select>
+      <label for="cn-cmd">Comando y argumentos (solo stdio)</label><input id="cn-cmd" placeholder="npx -y @modelcontextprotocol/server-filesystem /home/tu/Documentos" autocomplete="off" spellcheck="false">
+      <label for="cn-url">URL (solo http)</label><input id="cn-url" placeholder="http://localhost:3000/mcp" autocomplete="off" spellcheck="false">
+      <label for="cn-env">Variables / cabeceras (CLAVE=valor, una por línea)</label><textarea id="cn-env" rows="3" autocomplete="off" spellcheck="false" placeholder="API_KEY=…"></textarea>
+      <div class="cn-btns"><button type="button" class="${b}" data-act="connTestNew">Probar</button><button type="button" class="${b}" data-act="connAdd">Guardar</button></div>
+      <p class="pst" id="cn-res" role="status" hidden></p></details>`;
+}
+function connRows() {
+  const b = PKG == 'admin' ? 'a-small' : 'btn-s';
+  if (!connList.length) return '<p class="pst"><i></i><span>Aún no hay conectores.</span></p>';
+  return connList.map((c, i) => { const r = connRes[c.name];
+    return `<div class="cn-row"><div class="cn-i"><b>${esc(c.name)}</b><small>${esc(c.type == 'http' ? c.url : [c.command, ...c.args].join(' '))}</small></div>
+      <div class="cn-btns"><button type="button" class="${b} cn-t" data-act="connToggle" data-arg="${i}" aria-pressed="${c.enabled}" aria-label="${esc(c.name)}: ${c.enabled ? 'activado' : 'desactivado'}">${c.enabled ? 'Activado' : 'Desactivado'}</button>
+      <button type="button" class="${b}" data-act="connTest" data-arg="${i}">Probar</button>
+      <button type="button" class="${b}" data-act="connDel" data-arg="${i}">Quitar</button></div>
+      ${r ? `<p class="pst ${r.ok ? 'ok' : 'bad'}" role="status"><i></i><span>${esc(r.msg)}</span></p>` : ''}</div>`; }).join('');
+}
+const connMsg = r => r.ok ? `Funciona · ${r.tools.length} herramienta${r.tools.length == 1 ? '' : 's'}${r.tools.length ? ': ' + r.tools.slice(0, 6).join(', ') + (r.tools.length > 6 ? '…' : '') : ''}` : r.error;
+async function connLoad() {
+  setHTML('#conn', connCard());
+  connList = await api('connectors').then(j => j.connectors).catch(() => connList);
+  setHTML('#cn-list', connRows());
+}
+const connSave = async () => {
+  try { connList = (await api('connectors', {method: 'POST', body: JSON.stringify({connectors: connList})})).connectors; }
+  catch (e) { toast(e.message, true); connList = await api('connectors').then(j => j.connectors).catch(() => connList); }
+  setHTML('#cn-list', connRows());
+};
+function connForm() {
+  const t = $('#cn-type').value, kv = connKV($('#cn-env').value), w = connWords($('#cn-cmd').value);
+  return {name: $('#cn-name').value.trim(), type: t, command: w[0] || '', args: w.slice(1), url: $('#cn-url').value.trim(), enabled: true,
+          env: t == 'stdio' ? kv : {}, headers: t == 'http' ? kv : {}};
+}
+const connRun = async c => api('connectors/test', {method: 'POST', body: JSON.stringify(c)}).catch(e => ({ok: false, error: e.message}));
+ACT.connToggle = async i => { connList[+i].enabled = !connList[+i].enabled; await connSave(); };
+ACT.connDel = async i => { connList.splice(+i, 1); await connSave(); };
+ACT.connTest = async i => {
+  const c = connList[+i]; connRes[c.name] = {ok: true, msg: 'Probando…'}; setHTML('#cn-list', connRows());
+  const r = await connRun(c); connRes[c.name] = {ok: r.ok, msg: connMsg(r)}; setHTML('#cn-list', connRows());
+};
+ACT.connTestNew = async () => {
+  const el = $('#cn-res'); el.hidden = false; el.className = 'pst'; el.innerHTML = '<i></i><span>Probando…</span>';
+  const r = await connRun(connForm()); el.className = 'pst ' + (r.ok ? 'ok' : 'bad'); el.innerHTML = `<i></i><span>${esc(connMsg(r))}</span>`;
+};
+ACT.connAdd = async () => {
+  connList.push(connForm()); await connSave();
+  if (connList.some(c => c.name == connForm().name)) for (const id of ['cn-name', 'cn-cmd', 'cn-url', 'cn-env']) $('#' + id).value = '';
+};
 const limitAlerts = adm => sessions.filter(r => r.status == 'waiting' && r.provider != 'local').map(r =>
   `<div class="${adm ? 'a-alert' : 'alert'} limit" role="status">${icon('clock')}<span><b>Claude ha llegado a su límite de uso</b> en «${esc(r.name)}». Puede seguir con el modelo local.</span>
    <button type="button" class="${adm ? 'a-small' : 'btn-s'}" data-act="kimi" data-arg="${r.id}">Continuar con el modelo local</button></div>`).join('');
@@ -1510,6 +1571,7 @@ function home(toTemplates) {
       <h3 id="start-h">${icon('team')}Start a session</h3>
       <p class="hint" id="s-intro" style="margin:-4px 0 4px">Describe the job. A lead agent plans it and hands pieces to parallel subagents. You can talk to it while it works, and it asks you when a decision is needed.</p>
       <div class="prov" id="prov"></div>
+      <div class="prov" id="conn"></div>
       <label for="s-msg" id="s-msg-l">What should the team do?</label>
       <textarea id="s-msg" rows="4" style="font-family:var(--body);font-size:15px" placeholder="${PKG == 'admin' ? 'Summarise this week’s client emails and list the Drive files they mention' : SESS_PH}">${esc(last.draftMsg || '')}</textarea>
       <div class="atts" id="atts" aria-label="Attached files"></div>
@@ -1554,7 +1616,7 @@ function home(toTemplates) {
       <button class="btn-q" data-act="homeEdit" aria-pressed="${homeEdit}">${icon(homeEdit ? 'check' : 'gear')}${homeEdit ? 'Done' : 'Customize Home'}</button></header>
     ${homeEdit && hid.length ? `<div class="hsec-tools hsec-hidden"><b>Hidden</b>${hid.map(k => `<button class="btn-q" data-act="homeHide" data-arg="${k}">${icon('plus')}${HOME_SECS[k]}</button>`).join('')}</div>` : ''}
     ${shownSecs.map((k, i) => `<div class="hsec ${homeEdit ? 'editing' : ''}">${tools(k, i)}${S[k]}</div>`).join('')}`;
-  provLoad();
+  provLoad(); connLoad();
   if ($('#s-msg')) {  // the start form can be hidden
     $('#s-msg').addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.startSession(); });
     $('#s-msg').addEventListener('input', e => saveHome({draftMsg: e.target.value}));
@@ -2418,6 +2480,7 @@ function admHome() {
       <h1 id="a-h">¿Qué necesitas?</h1>
       <p class="a-lede">Te avisamos aquí cuando esté listo, o si necesitamos que decidas algo.</p>
       <div class="a-card prov" id="prov"></div>
+      <div class="a-card prov" id="conn"></div>
       <div class="a-card a-box">
         <label class="sr" for="a-msg">Tu petición</label>
         <textarea id="a-msg" rows="4" placeholder="Escríbelo con tus palabras, como se lo dirías a un compañero">${esc(localStorage.getItem('flows.adm.draft') || '')}</textarea>
@@ -2431,7 +2494,7 @@ function admHome() {
     </section>
     <section class="a-mine" id="a-mine" aria-labelledby="a-mh"><h2 id="a-mh">Mis peticiones</h2><div id="a-list" aria-live="polite">${admList()}</div></section>
   </div>`;
-  provLoad();
+  provLoad(); connLoad();
   const ta = $('#a-msg');
   ta.addEventListener('input', () => { try { localStorage.setItem('flows.adm.draft', ta.value); } catch {} });
   ta.addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.admPedir(null, $('.a-pedir')); });
