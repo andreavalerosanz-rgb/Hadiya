@@ -58,6 +58,18 @@ button.item{width:100%;border:0;background:none;font:inherit;text-align:left;cur
 .rowi .del{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:28px;height:28px;background:var(--panel);color:var(--mute);opacity:0}
 .rowi:hover .del,.rowi .del:focus-visible{opacity:1}
 .rowi .del:hover{color:var(--flag);border-color:var(--flag)}
+.rowi .pin{position:absolute;right:36px;top:50%;transform:translateY(-50%);width:28px;height:28px;background:var(--panel);color:var(--mute);opacity:0}
+.rowi:hover .pin,.rowi .pin:focus-visible{opacity:1}
+.rowi .pin:hover,.rowi .pin[aria-pressed=true]{color:var(--flag)}
+.pinr .item{padding-right:68px}
+.hsec-h{display:flex;align-items:center;gap:8px;font:700 20px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase;margin:22px 32px 8px}
+.hsec-h .i{width:18px;height:18px;color:var(--flag)}
+.hsec.editing{outline:1px dashed var(--spool);outline-offset:-1px;padding-bottom:14px;margin-top:10px}
+.hsec-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 32px 4px;max-width:1096px}
+.hsec-tools b{font:700 15px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase;margin-right:auto}
+.hsec-tools .ic{width:32px;height:32px}
+.hsec-tools .sr+.ic{margin-left:auto}
+.hsec-hidden b{margin-right:4px;color:var(--mute)}
 @media (hover:hover) and (min-width:821px){.rowi:hover small,.rowi:has(.del:focus-visible) small{visibility:hidden}}
 .none{color:var(--mute);font-size:13px;padding:2px 8px;margin:0}
 .st{width:16px;height:16px;flex:none;display:grid;place-items:center}
@@ -353,6 +365,15 @@ textarea{field-sizing:content}
 .track{height:8px;background:var(--spool);border-radius:2px;overflow:hidden}
 .track i{display:block;height:100%;width:100%;background:var(--flag);border-radius:2px;transform-origin:left;transform:scaleX(var(--v,0));transition:transform .4s var(--ease)}
 .hot .track i{background:repeating-linear-gradient(135deg,var(--flag) 0 6px,#ffb08f 6px 9px)}
+.prov .pv-h{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}.prov .pv-h small{font-size:13px;color:var(--ink-mute)}
+.prov .seg{display:flex;gap:8px}.prov .seg button{flex:1;min-height:44px;padding:0 14px;border:1px solid var(--edge);border-radius:10px;background:#fff;color:var(--ink);font:600 15px/1 var(--body);cursor:pointer}
+.prov .seg button[aria-pressed=true]{border-color:var(--flag);box-shadow:inset 0 0 0 1px var(--flag)}
+.prov .pst{display:flex;gap:8px;align-items:flex-start;margin:8px 0 0;font-size:13.5px;line-height:1.35;color:var(--ink-mute)}
+.prov .pst i{flex:none;width:9px;height:9px;margin-top:5px;border-radius:50%;background:var(--mute)}.prov .pst.ok i{background:#2f7d4f}.prov .pst.bad i{background:var(--flag)}
+.prov details{margin-top:10px}.prov summary{cursor:pointer;font-weight:600;font-size:14px}.prov details label{display:block;margin:10px 0 4px;font-size:13px}
+.prov details input{width:100%;min-height:40px;padding:0 10px;border:1px solid var(--edge);border-radius:8px;font:13px var(--mono);background:#fff;color:var(--ink);box-sizing:border-box}.prov details .btn-s{margin-top:10px}
+.alert.limit,.a-alert.limit{flex-wrap:wrap}.alert.limit .btn-s{background:#fff}
+body.adm .prov{padding:14px 16px;margin:0 0 14px;--ink:var(--p-ink);--ink-mute:var(--p-mute);--edge:var(--p-line);--flag:#e2470f}
 .usage{position:sticky;bottom:-24px;margin:22px -12px -24px;padding:12px 20px 18px;background:var(--char);border-top:1px solid var(--spool)}
 .usage h2{margin:0 0 8px!important}
 .meter{margin:0 0 10px}
@@ -654,9 +675,10 @@ details.mdet .cnt{display:none}
 @media (max-width:820px),(max-height:500px) and (orientation:landscape),(hover:none){
   .rowi{display:flex;align-items:center}
   .rowi .item{flex:1;min-width:0}
-  .rowi .del{position:static;transform:none;opacity:1;background:transparent;border-color:transparent}
+  .rowi .del,.rowi .pin{position:static;transform:none;opacity:1;background:transparent;border-color:transparent}
+  .pinr .item{padding-right:8px}
 }
-@media (max-width:820px),(max-height:500px) and (orientation:landscape){.rowi .del{width:44px;height:44px}}
+@media (max-width:820px),(max-height:500px) and (orientation:landscape){.rowi .del,.rowi .pin{width:44px;height:44px}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
@@ -962,6 +984,7 @@ const P = {
   doc: '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"/>',
   cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M14 14h2M8 17.5h2"/>',
   talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
+  pin: '<path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v8"/>', up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
   brain: '<path d="M12 5.5a3 3 0 0 0-5.6-1.4 3 3 0 0 0-2.3 4.6 3.3 3.3 0 0 0 .7 5.6 3.4 3.4 0 0 0 3.8 4.8A3 3 0 0 0 12 19.5zM12 5.5a3 3 0 0 1 5.6-1.4 3 3 0 0 1 2.3 4.6 3.3 3.3 0 0 1-.7 5.6 3.4 3.4 0 0 1-3.8 4.8 3 3 0 0 1-3.4.4zM12 5.5v14M8.3 9.5a2.2 2.2 0 0 1 2 2.3M15.7 9.5a2.2 2.2 0 0 0-2 2.3M8 14.8h2M14 14.8h2"/>',
@@ -1144,8 +1167,10 @@ const LIVE = ['working', 'idle', 'asking'];
 const runOf = id => sessions.find(x => x.id == id);
 const topSessions = () => sessions.filter(r => !runOf(r.parent));  // a child sits under its brain, or on its own once the brain is gone
 const kidsOf = id => sessions.filter(r => r.parent == id);
+const pinned = () => sessions.filter(r => r.pinned).sort((a, b) => a.pinned - b.pinned);
 const brainIcon = r => r.brain ? `<span class="brn" title="Second Brain">${icon('brain')}<span class="sr">Second Brain</span></span>` : '';
 let queue = {items: [], limited_until: 0};
+let provState = {provider: 'claude', base_url: '', model: '', reachable: null, model_present: false};
 const ACT = {};
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -1214,8 +1239,9 @@ async function refresh() {
     ${isRemote ? '' : `<a class="item" href="#phone" ${kind == 'phone' ? 'aria-current="page"' : ''}>${icon('phone')}<span>Phone access</span>${phoneOn ? '<small>ON</small>' : ''}</a>`}
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
+    ${pinned().length ? `<h2 class="cap">Pinned</h2>${pinned().map(r => delRow('run:' + r.id, r.brain ? 'Second Brain' : 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}${brainIcon(r)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`, r)).join('')}` : ''}
     <h2 class="cap">Sessions <a href="#" data-act="focusStart" aria-label="New session">${icon('plus')}New</a></h2>
-    ${topSessions().slice(0, 12).map(r => delRow('run:' + r.id, r.brain ? 'Second Brain' : 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}${brainIcon(r)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`)
+    ${topSessions().filter(r => !r.pinned).slice(0, 12).map(r => delRow('run:' + r.id, r.brain ? 'Second Brain' : 'session', r.name, `<a class="item" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}${brainIcon(r)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`, r)
       + (r.brain && kidsOf(r.id).length ? `<div class="subs" role="list" aria-label="Sessions run by ${esc(r.name)}">${kidsOf(r.id).map(k => `<a class="item sub1" role="listitem" href="#session/${k.id}" ${cur('session', k.id)}>${mark(k.status)}<span>${esc(k.name)}</span>${k.status == 'asking' ? '<small>ASK</small>' : ''}</a>`).join('')}</div>` : '')
       + (r.subs?.length ? `<div class="subs" role="list" aria-label="Subagents in ${esc(r.name)}">${r.subs.map(a => (st => `<a class="item sub1" role="listitem" href="#session/${r.id}/${esc(a.id)}" title="${esc(a.desc)}">${mark(st)}<span>${esc(a.desc)}</span></a>`)(a.status == 'running' && !LIVE.includes(r.status) ? 'stopped' : a.status)).join('')}</div>` : '')).join('') || '<p class="none">No sessions yet</p>'}
     <h2 class="cap">Workflows <a href="#templates" aria-label="New workflow">${icon('plus')}New</a></h2>
@@ -1230,12 +1256,21 @@ async function refresh() {
   setHTML('#sites', [...sites].map(p => `<option value="${esc(p)}">`).join(''));
   // a session waiting on a decision is flagged from every other page
   const asking = sessions.filter(r => r.status == 'asking' && !(kind == 'session' && id == r.id));
-  setHTML('#alert', (me.claude_logged_in === false ? `<p class="alert" role="status">${icon('help')}<span><b>Claude isn't signed in</b> for your account. Connect over SSH and run <code>claude login</code> once, then start your session again.</span></p>` : '') + asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
+  setHTML('#alert', limitAlerts(false) + (me.claude_logged_in === false ? `<p class="alert" role="status">${icon('help')}<span><b>Claude isn't signed in</b> for your account. Connect over SSH and run <code>claude login</code> once, then start your session again.</span></p>` : '') + asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
   const n = sessions.filter(r => r.status == 'asking').length;
   document.title = n ? `(${n}) Decision needed · Flows` : 'Flows';
 }
 
-const delRow = (arg, what, name, a) => `<div class="rowi">${a}<button class="ic del" data-act="del" data-arg="${esc(arg)}" aria-label="Delete ${what} “${esc(name)}”" title="Delete ${what}">${icon('trash')}</button></div>`;
+const pinBtn = r => `<button class="ic pin" data-act="pin" data-arg="${r.id}" aria-pressed="${!!r.pinned}" aria-label="${r.pinned ? 'Unpin' : 'Pin'} “${esc(r.name)}”" title="${r.pinned ? 'Unpin' : 'Pin to the top and to Home'}">${icon('pin')}</button>`;
+ACT.pin = async id => {
+  const r = sessions.find(x => x.id == id) || (sess?.id == id && sess.r);
+  try { await api(`sessions/${id}/pin`, {method: 'POST', body: JSON.stringify({on: !r?.pinned})}); } catch (e) { return toast('Could not pin: ' + e.message, true); }
+  toast(r?.pinned ? 'Unpinned' : 'Pinned');
+  await refresh();
+  const k = location.hash.slice(1).split('/')[0];
+  if (k == 'session') showSession(); else if (!k) home();
+};
+const delRow = (arg, what, name, a, r) => `<div class="rowi ${r ? 'pinr' : ''}">${a}${r ? pinBtn(r) : ''}<button class="ic del" data-act="del" data-arg="${esc(arg)}" aria-label="Delete ${what} “${esc(name)}”" title="Delete ${what}">${icon('trash')}</button></div>`;
 ACT.del = async arg => {
   const [k, id] = arg.split(':'), wf = k == 'wf';
   if (k == 'q') return api('queue/' + id, {method: 'DELETE'}).then(() => { toast('Removed from queue'); refresh(); }, e => toast('Could not remove: ' + e.message, true));
@@ -1347,6 +1382,47 @@ ACT.pushOff = async () => {
   refresh();
 };
 
+/* ---- provider: Claude (subscription) or Kimi local (Ollama-style endpoint) ---- */
+function provCard() {
+  const p = provState, local = p.provider == 'local', admin = PKG == 'admin';
+  const [cls, msg] = p.reachable == null ? ['', 'Comprobando Kimi local…']
+    : !p.reachable ? ['bad', `Kimi local no responde en ${esc(p.base_url)}. ¿Está Ollama en marcha?`]
+    : !p.model ? ['bad', 'Ollama responde, pero falta indicar el modelo.']
+    : !p.model_present ? ['bad', `Ollama responde, pero no tiene «${esc(p.model)}». Descárgalo con <code>ollama pull ${esc(p.model)}</code>.`]
+    : ['ok', `Kimi local listo · ${esc(p.model)}`];
+  return `<div class="pv-h"><b id="pv-l">Con qué modelo trabajar</b><small>Las sesiones nuevas usan esta opción; una sesión en marcha sigue con la suya.</small></div>
+    <div class="seg" role="group" aria-labelledby="pv-l">
+      <button type="button" data-act="provPick" data-arg="claude" aria-pressed="${!local}">Claude</button>
+      <button type="button" data-act="provPick" data-arg="local" aria-pressed="${local}">Kimi local</button></div>
+    <p class="pst ${cls}" role="status"><i></i><span>${msg}</span></p>
+    ${admin ? '' : `<details ${p.reachable && p.model_present ? '' : 'open'}><summary>Ajustes de Kimi local</summary>
+      <label for="pv-url">Dirección del servidor (compatible con Anthropic, p. ej. Ollama)</label><input id="pv-url" value="${esc(p.base_url)}" autocomplete="off" spellcheck="false">
+      <label for="pv-model">Modelo (etiqueta de Ollama)</label><input id="pv-model" value="${esc(p.model)}" placeholder="la etiqueta que hayas descargado con ollama pull" autocomplete="off" spellcheck="false">
+      <button type="button" class="${admin ? 'a-small' : 'btn-s'}" data-act="provSave">Guardar y comprobar</button></details>`}`;
+}
+async function provLoad() {
+  provState = await api('provider/health').catch(() => provState);
+  setHTML('#prov', provCard());
+}
+ACT.provPick = async v => {
+  try { await api('provider', {method: 'POST', body: JSON.stringify({provider: v})}); toast(v == 'local' ? 'Las próximas sesiones usarán Kimi local' : 'Las próximas sesiones usarán Claude'); }
+  catch (e) { toast(e.message, true); }
+  provLoad();
+};
+ACT.provSave = async () => {
+  try { await api('provider', {method: 'POST', body: JSON.stringify({base_url: $('#pv-url').value, model: $('#pv-model').value})}); toast('Guardado'); }
+  catch (e) { toast(e.message, true); }
+  provLoad();
+};
+ACT.kimi = async id => {  // the Claude limit ran out: switch and resume this session on the local model
+  try { await api(`sessions/${id}/local`, {method: 'POST'}); toast('Siguiendo con Kimi local'); }
+  catch (e) { toast(e.message, true); }
+  provLoad(); refresh();
+};
+const limitAlerts = adm => sessions.filter(r => r.status == 'waiting' && r.provider != 'local').map(r =>
+  `<div class="${adm ? 'a-alert' : 'alert'} limit" role="status">${icon('clock')}<span><b>Claude ha llegado a su límite de uso</b> en «${esc(r.name)}». Puede seguir con el modelo local.</span>
+   <button type="button" class="${adm ? 'a-small' : 'btn-s'}" data-act="kimi" data-arg="${r.id}">Continuar con Kimi local</button></div>`).join('');
+
 function usagePanel(u) {
   const row = (label, w) => {
     if (!w) return '';
@@ -1425,14 +1501,15 @@ function home(toTemplates) {
   const live = [...sessions.filter(r => LIVE.includes(r.status) || r.status == 'waiting'), ...runs.filter(r => r.status == 'running' || r.status == 'waiting')];
   const recent = [...topSessions(), ...runs].sort((a, b) => b.started - a.started).slice(0, 8);
   const recRow = (r, kid) => `<a ${kid ? 'class="rk"' : ''} href="#${r.kind == 'session' ? 'session' : 'run'}/${r.id}">${mark(r.status)}<span>${r.brain ? icon('brain') : ''}${esc(r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name))}</span><small>${r.brain ? 'Second Brain' : r.kind == 'session' ? 'Session' : 'Workflow run'} · ${esc(STATE[r.status]?.[0] || r.status)}</small><small>${ago(r.started)} ago</small></a>`;
-  main.innerHTML = `
-    <header class="head"><div><h1>What are we building?</h1><div class="sub">${live.length ? `${live.length} job${live.length == 1 ? '' : 's'} running now` : 'Nothing running'} · everything runs on your Claude subscription · <a href="#guide">How to use Flows</a></div></div></header>
-    ${rail(live.map(r => ({title: r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name), icon: r.brain ? 'brain' : r.kind == 'session' ? 'team' : 'list', state: r.status,
+  const pins = pinned(), sessFrame = r => ({title: r.name, icon: r.brain ? 'brain' : 'team', state: r.status, tag: r.brain ? 'SECOND BRAIN' : 'SESSION', meta: r.config?.cwd || (r.brain ? 'Coordinates sessions' : 'Lead agent + subagents'), time: ago(r.started), act: 'go', arg: 'session/' + r.id});
+  const S = {pinned: `<h2 class="hsec-h">${icon('pin')}Pinned</h2>${rail(pins.map(sessFrame), {label: 'Pinned sessions', empty: 'Nothing pinned yet. Open a session and press <b>Pin</b>, or use the pin next to it in the sidebar.'})}`,
+    live: `<h2 class="hsec-h">${icon('reel')}Running now</h2>` + rail(live.map(r => ({title: r.kind == 'session' ? r.name : (wfs[r.workflow_id]?.name || r.name), icon: r.brain ? 'brain' : r.kind == 'session' ? 'team' : 'list', state: r.status,
         tag: r.brain ? 'SECOND BRAIN' : r.kind == 'session' ? 'SESSION' : 'RUN', meta: r.brain ? 'Coordinates sessions' : runOf(r.parent) ? 'Run by ' + runOf(r.parent).name : r.kind == 'session' ? 'Lead agent + subagents' : 'Workflow run', time: ago(r.started), act: 'go', arg: (r.kind == 'session' ? 'session/' : 'run/') + r.id})),
-      {live: live.some(r => r.status != 'idle'), label: 'Running now', empty: 'Nothing running. Start a session below or run a workflow and it shows up here.'})}
-    <section class="window" id="start" aria-labelledby="start-h">
+      {live: live.some(r => r.status != 'idle'), label: 'Running now', empty: 'Nothing running. Start a session below or run a workflow and it shows up here.'}),
+    start: `<section class="window" id="start" aria-labelledby="start-h">
       <h3 id="start-h">${icon('team')}Start a session</h3>
       <p class="hint" id="s-intro" style="margin:-4px 0 4px">Describe the job. A lead agent plans it and hands pieces to parallel subagents. You can talk to it while it works, and it asks you when a decision is needed.</p>
+      <div class="prov" id="prov"></div>
       <label for="s-msg" id="s-msg-l">What should the team do?</label>
       <textarea id="s-msg" rows="4" style="font-family:var(--body);font-size:15px" placeholder="${PKG == 'admin' ? 'Summarise this week’s client emails and list the Drive files they mention' : SESS_PH}">${esc(last.draftMsg || '')}</textarea>
       <div class="atts" id="atts" aria-label="Attached files"></div>
@@ -1458,21 +1535,53 @@ function home(toTemplates) {
         <div><details class="mdet" id="s-caps" ${mob.matches ? '' : 'open'}><summary class="flabel">What the agents may do without asking${capCnt(st.caps.filter(c => c != 'team' && capsFor().some(x => x.id == c)).length, capsFor().length - 1)}</summary><div class="capsel">${capChips(st, capsFor().filter(c => c.id != 'team'), 'sess')}</div>
           <p class="hint">Anything not ticked, they ask you first in a popup.</p></details></div>
       </div>
-    </section>
-    <section class="bin" id="templates">
+    </section>`,
+    templates: `<section class="bin" id="templates">
       <div class="bin-h"><h2>Or start a reusable workflow</h2><p>A workflow is a fixed list of steps you can re-run with new input. ${PKG == 'admin' ? 'Start from one empty step.' : 'Pick a template, then edit it.'}</p></div>
       <div class="pinbar"></div>
       ${PKG == 'admin' ? `<button class="btn-s" data-act="fromTemplate" data-arg="blank">${icon('plus')}New workflow</button>` : trims(TEMPLATES.map(t => t.id), 'fromTemplate', Object.fromEntries(TEMPLATES.map(t => [t.id, {...t, blurb: t.steps.map(s => PRESETS[s].name).join(' → ')}])))}
-    </section>
-    <section class="recent" aria-label="Recent activity"><h2>Recent</h2>
+    </section>`,
+    recent: `<section class="recent" aria-label="Recent activity"><h2>Recent</h2>
       ${recent.map(r => recRow(r) + (r.brain ? kidsOf(r.id).map(k => recRow(k, true)).join('') : '')).join('') || '<p class="none" style="padding:10px 0">Nothing yet. Your sessions and runs will collect here.</p>'}
-    </section>`;
-  $('#s-msg').addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.startSession(); });
-  $('#s-msg').addEventListener('input', e => saveHome({draftMsg: e.target.value}));
-  $('#s-brain')?.addEventListener('change', e => { saveHome({brain: e.target.checked}); brainMode(); });
-  brainMode();
-  if (toTemplates) $('#templates').scrollIntoView({block: 'start'});
+    </section>`};
+  const L = homeLayout(), shownSecs = L.order.filter(k => !L.hidden.includes(k) || (k == 'templates' && toTemplates)), hid = L.order.filter(k => L.hidden.includes(k));
+  const tools = (k, i) => homeEdit ? `<div class="hsec-tools"><b class="sr">${HOME_SECS[k]}</b>
+      <button class="ic" data-act="homeMove" data-arg="${k}:-1" ${i ? '' : 'disabled'} aria-label="Move ${HOME_SECS[k]} up" title="Move up">${icon('up')}</button>
+      <button class="ic" data-act="homeMove" data-arg="${k}:1" ${i < shownSecs.length - 1 ? '' : 'disabled'} aria-label="Move ${HOME_SECS[k]} down" title="Move down">${icon('down')}</button>
+      <button class="btn-q" data-act="homeHide" data-arg="${k}">${icon('x')}Hide</button></div>` : '';
+  main.innerHTML = `
+    <header class="head"><div><h1>What are we building?</h1><div class="sub">${live.length ? `${live.length} job${live.length == 1 ? '' : 's'} running now` : 'Nothing running'} · everything runs on your Claude subscription · <a href="#guide">How to use Flows</a></div></div>
+      <button class="btn-q" data-act="homeEdit" aria-pressed="${homeEdit}">${icon(homeEdit ? 'check' : 'gear')}${homeEdit ? 'Done' : 'Customize Home'}</button></header>
+    ${homeEdit && hid.length ? `<div class="hsec-tools hsec-hidden"><b>Hidden</b>${hid.map(k => `<button class="btn-q" data-act="homeHide" data-arg="${k}">${icon('plus')}${HOME_SECS[k]}</button>`).join('')}</div>` : ''}
+    ${shownSecs.map((k, i) => `<div class="hsec ${homeEdit ? 'editing' : ''}">${tools(k, i)}${S[k]}</div>`).join('')}`;
+  provLoad();
+  if ($('#s-msg')) {  // the start form can be hidden
+    $('#s-msg').addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.startSession(); });
+    $('#s-msg').addEventListener('input', e => saveHome({draftMsg: e.target.value}));
+    $('#s-brain')?.addEventListener('change', e => { saveHome({brain: e.target.checked}); brainMode(); });
+    brainMode();
+  }
+  if (toTemplates) $('#templates')?.scrollIntoView({block: 'start'});
 }
+/* ---- Home layout: which sections show and in what order, per device ---- */
+const HOME_SECS = {pinned: 'Pinned', live: 'Running now', start: 'Start a session', templates: 'Workflows', recent: 'Recent'};
+let homeEdit = false;
+function homeLayout() {
+  let L = {};
+  try { L = JSON.parse(localStorage.getItem('flows.home') || '{}'); } catch {}
+  const order = (L.order || []).filter(k => HOME_SECS[k]);
+  return {order: [...order, ...Object.keys(HOME_SECS).filter(k => !order.includes(k))], hidden: (L.hidden || []).filter(k => HOME_SECS[k])};
+}
+const saveLayout = L => { localStorage.setItem('flows.home', JSON.stringify(L)); home(); };
+ACT.homeEdit = () => { homeEdit = !homeEdit; home(); };
+ACT.homeHide = k => { const L = homeLayout(); L.hidden = L.hidden.includes(k) ? L.hidden.filter(x => x != k) : [...L.hidden, k]; saveLayout(L); };
+ACT.homeMove = arg => {  // swap with the next visible section in that direction
+  const [k, d] = arg.split(':'), L = homeLayout(), vis = L.order.filter(x => !L.hidden.includes(x)), o = vis[vis.indexOf(k) + +d];
+  if (!o) return;
+  const a = L.order.indexOf(k), b = L.order.indexOf(o);
+  [L.order[a], L.order[b]] = [L.order[b], L.order[a]];
+  saveLayout(L);
+};
 const SESS_PH = 'Build the header, hero, services grid and footer from https://www.figma.com/design/…?node-id=12-34 as template parts';
 function brainMode() {  // the start form, worded for a session or for a Second Brain
   const on = !!$('#s-brain')?.checked;
@@ -1501,7 +1610,10 @@ mob.addEventListener('change', () => document.querySelectorAll('details.mdet').f
 addEventListener('toggle', e => { if (e.target.id == 'capdet' && mob.matches) capsOpen = e.target.open; }, true);
 const capCnt = (n, t) => `<b class="cnt">${n} of ${t} allowed</b>`;
 document.addEventListener('change', e => { if (e.target.matches?.('[data-scap]')) { const c = $('#s-caps .cnt'); if (c) c.outerHTML = capCnt(document.querySelectorAll('[data-scap]:checked').length, document.querySelectorAll('[data-scap]').length); } });
-ACT.focusStart = () => { if (location.hash) location.hash = ''; setTimeout(() => $('#s-msg')?.focus(), 80); };
+ACT.focusStart = () => {
+  const L = homeLayout();
+  if (L.hidden.includes('start')) { L.hidden = L.hidden.filter(x => x != 'start'); localStorage.setItem('flows.home', JSON.stringify(L)); if (!location.hash) home(); }
+  if (location.hash) location.hash = ''; setTimeout(() => $('#s-msg')?.focus(), 80); };
 ACT.go = h => location.hash = h;
 ACT.homeAgents = d => { const o = $('#s-agents'); o.textContent = Math.max(1, Math.min(12, +o.textContent + +d)); };
 ACT.queueSession = (_, btn) => ACT.startSession(_, btn, true);
@@ -1673,13 +1785,15 @@ const TOOLNAME = n => n?.startsWith('mcp__plugin_figma_figma__') ? ['figma', 'Fi
   : ({Read: ['file', 'Read'], Edit: ['pencil', 'Edit'], MultiEdit: ['pencil', 'Edit'], Write: ['pencil', 'Write'], Bash: ['terminal', 'Shell'], Grep: ['search', 'Search'], Glob: ['search', 'Find files'],
       Agent: ['team', 'Subagent'], Task: ['team', 'Subagent'], WebFetch: ['globe', 'Fetch'], WebSearch: ['globe', 'Web search'], TodoWrite: ['list', 'Plan'], AskUserQuestion: ['help', 'Question']})[n] || ['bricks', n];
 const toolArg = i => i ? (i.command || i.file_path || i.path || i.pattern || i.url || i.query || i.description || i.filename?.split('/').pop() || i.nodeId || (i.todos ? i.todos.length + ' items' : '') || (i.width ? i.width + '×' + i.height : '') || '') : '';
+const atts = files => files ? `<div class="atts">${files.map(f => {
+  const src = `/uploads/${encodeURIComponent(sess?.id)}/${encodeURIComponent(f.name)}`;
+  return `<a class="att" href="${src}" ${f.image ? 'target="_blank" rel="noopener"' : 'download'}>${f.image ? `<img src="${src}" alt="" loading="lazy">` : icon('file')}<span>${esc(f.name)}</span></a>`;
+}).join('')}</div>` : '';
 function logItem(e, T = {}) {
+  if (e.type == 'attach') return `<div>${atts(e.files)}</div>`;  // files the agent sent (server.py outbox)
   if (e.type == 'input' && e.text.trim() == '/compact') return `<div class="launch">${icon('compress')}You compacted the conversation</div>`;
   if (e.type == 'input' && e.from) return `<div class="relay"><a href="#session/${esc(e.from)}">${icon('team')}From ${esc(runOf(e.from)?.name || 'a session')}${icon('right')}</a><p>${esc(e.text.replace(/^\[Flows\]\s*/, ''))}</p></div>`;  // Flows relaying a session's question or report to its Second Brain
-  if (e.type == 'input') return `<div><div class="you">${esc(e.text)}${e.files ? `<div class="atts">${e.files.map(f => {
-    const src = `/uploads/${encodeURIComponent(sess?.id)}/${encodeURIComponent(f.name)}`;
-    return `<a class="att" href="${src}" ${f.image ? 'target="_blank" rel="noopener"' : 'download'}>${f.image ? `<img src="${src}" alt="" loading="lazy">` : icon('file')}<span>${esc(f.name)}</span></a>`;
-  }).join('')}</div>` : ''}</div></div>`;
+  if (e.type == 'input') return `<div><div class="you">${esc(e.text)}${atts(e.files)}</div></div>`;
   if (e.type == 'system' && e.subtype == 'status' && e.status == 'compacting') return `<div class="meta">Compacting the conversation…</div>`;
   if (e.type == 'system' && e.subtype == 'compact_boundary') return `<div class="launch">${icon('check')}Compacted: <b>${kTok(e.compact_metadata?.pre_tokens)} → ${kTok(e.compact_metadata?.post_tokens)} tokens</b><span class="meta">${e.compact_metadata?.trigger == 'auto' ? 'automatic, context was full' : ''}</span></div>`;
   if (e.type == 'ask') return e.tool == 'AskUserQuestion'
@@ -1862,7 +1976,7 @@ async function showSession() {
   let r;
   try { r = await api(`runs/${id}?since=${sess.events.length}`); } catch { if (g == pollGen) main.innerHTML = PKG == 'admin' ? '<div class="a-page"><h1>No encontramos esta petición</h1><p><a class="a-btn a-pri" href="#">Volver al inicio</a></p></div>' : '<header class="head"><h1>Session not found</h1></header>'; return; }
   if (g != pollGen || sess.id != id) return;  // superseded by navigation or a newer poll
-  const changed = r.events.length || !sess.r || r.status != sess.r.status || r.cost != sess.r.cost;
+  const changed = r.events.length || !sess.r || r.status != sess.r.status || r.cost != sess.r.cost || r.pinned != sess.r.pinned;
   sess.events.push(...r.events); sess.r = r;
   if (changed) (PKG == 'admin' ? admDrawSession : drawSession)();
   syncAsk();
@@ -1919,6 +2033,7 @@ function drawSession() {
       <button class="btn-q" data-act="togglePerms" aria-expanded="${!!sess.perms}" aria-controls="s-perms">${icon('shield')}Permissions</button>
       <button class="btn-q m-only" data-act="del" data-arg="run:${r.id}">${icon('trash')}Delete</button>
       </div>
+      <button class="btn-q" data-act="pin" data-arg="${r.id}" aria-pressed="${!!r.pinned}" title="${r.pinned ? 'Remove from Pinned' : 'Keep it at the top of the sidebar and on Home'}">${icon('pin')}${r.pinned ? 'Unpin' : 'Pin'}</button>
       ${live ? `<button class="btn-s stop" data-act="stopSess">${icon('stop')}Stop</button>` : ''}
       <button class="btn-q d-only" data-act="del" data-arg="run:${r.id}">${icon('trash')}Delete</button>
     </div></header>`;
@@ -2282,7 +2397,7 @@ function admRefresh(me) {
       <a class="a-link" href="#guide" ${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}Ayuda</a>
       ${me.user ? `<button class="a-link" data-act="logout">${icon('out')}Salir<small>${esc(me.user)}</small></button>` : ''}
     </div></nav>`);
-  setHTML('#alert', (me.claude_logged_in === false ? `<p class="a-alert login" role="status">${icon('help')}<span>Tu cuenta todavía no está conectada a Claude. Pide a quien te dio acceso que la conecte.</span></p>` : '')
+  setHTML('#alert', limitAlerts(true) + (me.claude_logged_in === false ? `<p class="a-alert login" role="status">${icon('help')}<span>Tu cuenta todavía no está conectada a Claude. Pide a quien te dio acceso que la conecte.</span></p>` : '')
     + (kind && kind != 'mis' ? need.filter(r => !(kind == 'session' && id == r.id)).map(r => `<a class="a-alert" href="#session/${r.id}"><span class="a-flag">Te necesita</span><span class="a-an">${esc(r.name)}</span><span class="go">Contestar ${icon('right')}</span></a>`).join('') : ''));
   document.title = need.length ? `(${need.length}) Te necesita · Flows` : 'Flows';
   if (!kind && $('#a-list')) setHTML('#a-list', admList());
@@ -2302,6 +2417,7 @@ function admHome() {
     <section id="start" aria-labelledby="a-h">
       <h1 id="a-h">¿Qué necesitas?</h1>
       <p class="a-lede">Te avisamos aquí cuando esté listo, o si necesitamos que decidas algo.</p>
+      <div class="a-card prov" id="prov"></div>
       <div class="a-card a-box">
         <label class="sr" for="a-msg">Tu petición</label>
         <textarea id="a-msg" rows="4" placeholder="Escríbelo con tus palabras, como se lo dirías a un compañero">${esc(localStorage.getItem('flows.adm.draft') || '')}</textarea>
@@ -2315,6 +2431,7 @@ function admHome() {
     </section>
     <section class="a-mine" id="a-mine" aria-labelledby="a-mh"><h2 id="a-mh">Mis peticiones</h2><div id="a-list" aria-live="polite">${admList()}</div></section>
   </div>`;
+  provLoad();
   const ta = $('#a-msg');
   ta.addEventListener('input', () => { try { localStorage.setItem('flows.adm.draft', ta.value); } catch {} });
   ta.addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.admPedir(null, $('.a-pedir')); });
@@ -2389,10 +2506,8 @@ function admMd(s) {  // the little markdown assistants write: paragraphs, headin
   endTop(); return out;
 }
 function admItem(e, T) {
-  if (e.type == 'input') return e.text.trim() == '/compact' ? '' : `<div class="a-you"><span class="sr">Tú: </span>${esc(e.text)}${e.files ? `<div class="atts">${e.files.map(f => {
-    const src = `/uploads/${encodeURIComponent(sess?.id)}/${encodeURIComponent(f.name)}`;
-    return `<a class="att" href="${src}" ${f.image ? 'target="_blank" rel="noopener"' : 'download'}>${f.image ? `<img src="${src}" alt="" loading="lazy">` : icon('file')}<span>${esc(f.name)}</span></a>`;
-  }).join('')}</div>` : ''}</div>`;
+  if (e.type == 'attach') return `<div class="a-say">${atts(e.files)}</div>`;
+  if (e.type == 'input') return e.text.trim() == '/compact' ? '' : `<div class="a-you"><span class="sr">Tú: </span>${esc(e.text)}${atts(e.files)}</div>`;
   const note = (ic, h) => `<div class="a-note">${icon(ic)}<span>${h}</span></div>`;
   if (e.type == 'ask') return note('bell', e.tool == 'AskUserQuestion' ? `Te preguntó: <b>${esc(e.input.questions?.map(q => q.question).join(' / '))}</b>` : `Te pidió permiso: <b>${esc(admPerm(e).t)}</b>`);
   if (e.type == 'answer') return note(e.allow ? 'check' : 'x', e.tool == 'AskUserQuestion'
