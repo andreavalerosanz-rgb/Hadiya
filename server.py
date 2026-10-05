@@ -1566,7 +1566,7 @@ class H(BaseHTTPRequestHandler):
         remote["devices"][hashlib.sha256(tok.encode()).hexdigest()] = {
             "name": str(body.get("name") or "Phone")[:40], "created": time.time(), "last": time.time()}
         save_remote()
-        https = [listeners.get("tunnel", {}).get("srv")] + ([listeners.get("tailnet", {}).get("srv")] if remote.get("tailnet_mode") == "https" else [])
+        https = [listeners.get(k, {}).get("srv") for k in ("tunnel", "public")] + ([listeners.get("tailnet", {}).get("srv")] if remote.get("tailnet_mode") == "https" else [])
         secure = "; Secure" if self.server in https else ""
         cookie = f"flows_device={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={DEVICE_DAYS * 86400}{secure}"
         return self.send(200, {"ok": True}, headers=[("Set-Cookie", cookie)])
@@ -1592,7 +1592,7 @@ class H(BaseHTTPRequestHandler):
             logins.update({k: v for k, v in logins.items() if v["exp"] > time.time()} | {
                 hashlib.sha256(tok.encode()).hexdigest(): {"user": name, "salt": u["pw"].split("$")[0], "exp": time.time() + SESSION_DAYS * 86400}})
             save_logins()
-        secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" or self.server is listeners.get("tunnel", {}).get("srv") else ""
+        secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" or self.server in [listeners.get(k, {}).get("srv") for k in ("tunnel", "public")] else ""
         return self.send(200, {"ok": True}, headers=[("Set-Cookie", f"flows_session={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={SESSION_DAYS * 86400}{secure}")])
 
     def route(self):
@@ -1887,6 +1887,9 @@ if __name__ == "__main__":
     if remote.get("tailnet"):
         listeners["tailnet"] = {"srv": serve(("127.0.0.1", TAILNET_PORT), RH)}  # tailscaled keeps its serve config
         print(f"Tailscale phone listener on 127.0.0.1:{TAILNET_PORT}")
+    if os.environ.get("FLOWS_PUBLIC_PORT"):  # your own domain: a named tunnel (deploy/server-setup.sh) forwards https here
+        listeners["public"] = {"srv": serve(("127.0.0.1", int(os.environ["FLOWS_PUBLIC_PORT"])), RH)}
+        print(f"Public (named tunnel) listener on 127.0.0.1:{os.environ['FLOWS_PUBLIC_PORT']}")
 
     def lan_when_ready():  # at boot the Wi-Fi may come up after us: keep trying
         while remote.get("lan") and "lan" not in listeners:
