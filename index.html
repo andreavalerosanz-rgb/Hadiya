@@ -903,6 +903,90 @@ body.adm .toast.err{background:var(--p-ink);color:#fff}
   body.adm .dfoot>.a-always{justify-content:center;text-align:center}
   .a-marks li{grid-template-columns:130px minmax(0,1fr)}
 }
+/* ---------- archivos: server files + this device ---------- */
+.f-tabs{display:flex;gap:2px;margin:4px 32px 0;max-width:1096px;border-bottom:1px solid var(--spool)}
+.f-tabs [role=tab]{display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 18px;margin-bottom:-1px;border:0;border-bottom:3px solid transparent;background:none;color:var(--mute);font:600 15px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.f-tabs [aria-selected=true]{color:var(--edge);border-bottom-color:var(--flag)}
+.f-tabs [role=tab]:hover{color:var(--edge)}
+.f-prog{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin:14px 32px 0;max-width:1096px;padding:10px 14px;background:var(--panel);border:1px solid var(--spool);border-radius:3px}
+.f-prog[hidden]{display:none}
+.f-pt{flex:1 1 220px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.f-prog progress{flex:1 1 160px;height:10px;accent-color:var(--flag)}
+.f-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:0 2px;font:14px/1.3 var(--mono);overflow-wrap:anywhere}
+.f-crumbs button{min-height:40px;padding:6px;border:0;border-radius:3px;background:none;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.f-crumbs [aria-current]{padding:6px;font-weight:700}
+.f-crumbs>span[aria-hidden]{opacity:.55}
+.f-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 14px}
+.f-bar a,.f-vh a{text-decoration:none}
+.window label.f-hid,.f-hid{display:inline-flex;align-items:center;gap:8px;min-height:40px;margin:0 0 0 auto;font:14px/1.2 var(--body);letter-spacing:0;text-transform:none;color:inherit;cursor:pointer}
+.f-hid input{width:18px;height:18px;margin:0;accent-color:var(--flag-deep);color-scheme:light}
+.f-list{list-style:none;margin:0;padding:0;border-top:1px solid #dcd7cf}
+.f-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:2px 12px;min-height:50px;border-bottom:1px solid #dcd7cf}
+.f-name{display:flex;align-items:center;gap:10px;min-width:0;min-height:44px;padding:4px;border:0;background:none;color:inherit;font:inherit;text-align:left}
+button.f-name{cursor:pointer}
+button.f-name:hover span{text-decoration:underline}
+.f-name:disabled{cursor:default;opacity:.55}
+.f-name span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f-meta{font-size:13px;color:var(--ink-mute);white-space:nowrap;font-variant-numeric:tabular-nums}
+.f-acts{display:flex;align-items:center;gap:6px}
+.f-panel .ic,.fpick .ic{width:40px;height:40px;color:var(--ink);border-color:#cfcac2;text-decoration:none}
+.f-panel .ic:hover,.fpick .ic:hover{border-color:var(--ink)}
+.f-drop.drop{outline:2px dashed var(--flag-deep);outline-offset:8px;border-radius:3px}
+.f-dz{display:flex;align-items:center;gap:8px}
+.f-err{margin:8px 0;color:var(--flag-deep);font-weight:600}
+.f-viewer{margin:0 0 16px;border:1px solid #cfcac2;border-radius:3px;background:#fff}
+.f-vh{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;padding:8px 10px;border-bottom:1px solid #dcd7cf}
+.f-vh b{display:flex;align-items:center;gap:8px;min-width:0;margin-right:auto;overflow-wrap:anywhere}
+.f-pre{margin:0;padding:12px;max-height:60vh;overflow:auto;font:12.5px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.window .f-h{margin-top:26px}.f-panel>.f-h:first-child{margin-top:0}
+.f-note{display:flex;align-items:flex-start;gap:10px;margin:22px 0 0;padding:10px 12px;border:1px solid #dcd7cf;border-radius:3px;font-size:14px}
+.f-link{padding:0;border:0;background:none;color:var(--flag-deep);font:inherit;text-decoration:underline;cursor:pointer}
+.f-sync{margin-top:14px;padding-top:14px;border-top:1px solid #dcd7cf}
+.f-sync h4{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin:0;font:700 18px/1.2 var(--cond);letter-spacing:.05em;text-transform:uppercase}
+.f-sync h4 .i{align-self:center}
+.f-sync h4 small{font:13px var(--body);letter-spacing:0;text-transform:none;color:var(--ink-mute)}
+.f-sync input{width:100%;min-height:44px;padding:0 10px;border:1px solid #cfcac2;border-radius:3px;background:#fff;color:var(--ink);font:13px var(--mono)}
+.f-tree{max-height:340px;overflow:auto;padding:6px 8px;border:1px solid #dcd7cf;border-radius:3px;background:#fff;font-size:14px}
+.f-tree ul{list-style:none;margin:0;padding:0 0 0 18px}.f-tree>ul{padding:0}
+.f-tree .i{width:15px;height:15px;margin-right:6px}
+.f-tree summary{display:flex;align-items:center;min-height:30px;cursor:pointer}
+.f-tf{display:flex;align-items:center;min-height:28px}
+.f-tf span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f-tf small{margin-left:auto;padding-left:10px;color:var(--ink-mute);white-space:nowrap}
+dialog.fpick{width:min(560px,calc(100% - 24px));max-height:min(680px,calc(100% - 24px));padding:0 0 8px;border:0;border-radius:3px;background:var(--punch);color:var(--ink)}
+dialog.fpick::backdrop{background:rgba(0,0,0,.6)}
+.fp-h{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid #dcd7cf;background:inherit}
+.fp-h h2{display:flex;align-items:center;gap:8px;margin:0;font:700 20px/1.1 var(--cond);letter-spacing:.05em;text-transform:uppercase}
+.fpick .f-crumbs,.fpick .f-list,.fpick .hint,.fpick .f-err{margin:8px 16px}
+.fpick .hint{font-size:13px;color:var(--ink-mute)}
+@media (max-width:820px),(max-height:500px) and (orientation:landscape){
+  .f-tabs,.f-prog{margin-left:16px;margin-right:16px}
+  .f-tabs [role=tab]{flex:1;justify-content:center;padding:0 8px}
+  .f-row{grid-template-columns:minmax(0,1fr) auto}
+  .f-meta{grid-column:1;grid-row:2;min-width:0;margin-top:-8px;padding:0 0 8px 32px;overflow:hidden;text-overflow:ellipsis}
+  .f-acts{grid-column:2;grid-row:1/3}
+  .f-panel .ic,.fpick .ic{width:44px;height:44px}
+  .f-bar>*{flex:1 1 auto;justify-content:center}
+  .window label.f-hid,.f-hid{margin-left:0}
+  .window.f-panel{padding:16px 14px}
+}
+body.adm .f-page>h1{margin-bottom:0}
+body.adm .f-tabs{margin:6px 0 0;border-color:var(--p-line)}
+body.adm .f-tabs [role=tab]{color:var(--p-mute);font:600 17px/1 var(--body);letter-spacing:0;text-transform:none}
+body.adm .f-tabs [aria-selected=true]{color:var(--p-ink);border-bottom-color:var(--flag-deep)}
+body.adm .f-card{margin-top:14px;padding:16px}
+body.adm .f-prog{margin:14px 0 0;background:var(--p-card);border-color:var(--p-line)}
+body.adm .f-h{display:flex;align-items:center;gap:8px;margin:26px 0 4px;font:700 19px/1.25 var(--body)}
+body.adm .f-panel>.f-h:first-child{margin-top:0}
+body.adm .f-panel .hint,body.adm .fpick .hint{margin:4px 0 0;color:var(--p-mute);font-size:15px}
+body.adm .f-panel .ic,body.adm .fpick .ic{color:var(--p-ink);border-color:var(--p-line);background:var(--p-card);border-radius:10px}
+body.adm .f-list,body.adm .f-row,body.adm .f-sync,body.adm .f-note,body.adm .f-tree,body.adm .f-viewer,body.adm .f-vh{border-color:var(--p-line)}
+body.adm .f-meta,body.adm .f-sync h4 small{color:var(--p-mute)}
+body.adm .f-sync label{display:block;margin:12px 0 6px;font-weight:600}
+body.adm .f-sync h4{font:700 18px/1.2 var(--body);letter-spacing:0;text-transform:none}
+body.adm dialog.fpick{border-radius:12px;background:var(--p-card);color:var(--p-ink)}
+body.adm .fp-h h2{font:700 20px/1.2 var(--body);letter-spacing:0;text-transform:none}
+body.adm .f-panel code{font:13px var(--mono);background:var(--p-ground);padding:1px 5px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -919,6 +1003,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <datalist id="projects"></datalist><datalist id="sites"></datalist><datalist id="folders"></datalist>
 <input type="file" id="filepick" multiple hidden>
 <dialog id="decide" class="decide" aria-labelledby="decide-h"></dialog>
+<dialog id="fpick" class="fpick" aria-labelledby="fpick-h"></dialog>
 <script>
 /* ============ helpers ============ */
 const $ = s => document.querySelector(s);
@@ -989,6 +1074,7 @@ const P = {
   talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
   pin: '<path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v8"/>', up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', ul: '<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>', laptop: '<rect x="4" y="5" width="16" height="11" rx="1"/><path d="M2 19h20"/>',
   out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
   brain: '<path d="M12 5.5a3 3 0 0 0-5.6-1.4 3 3 0 0 0-2.3 4.6 3.3 3.3 0 0 0 .7 5.6 3.4 3.4 0 0 0 3.8 4.8A3 3 0 0 0 12 19.5zM12 5.5a3 3 0 0 1 5.6-1.4 3 3 0 0 1 2.3 4.6 3.3 3.3 0 0 1-.7 5.6 3.4 3.4 0 0 1-3.8 4.8 3 3 0 0 1-3.4.4zM12 5.5v14M8.3 9.5a2.2 2.2 0 0 1 2 2.3M15.7 9.5a2.2 2.2 0 0 0-2 2.3M8 14.8h2M14 14.8h2"/>',
 };
@@ -1017,6 +1103,7 @@ const CAPS = [
   {id: 'full', name: 'Full auto', note: 'Skip every permission check. Only for throwaway branches.', danger: true},
 ];
 let PKG = 'dev';  // from /api/me: 'admin' = Google Workspace only
+let FILES_OK = true;  // from /api/me: the files API is on for this person (DEPLOY.md)
 const ADMIN_CAPS = ['drive', 'gmail', 'cal', 'team'];
 const capsFor = () => PKG == 'admin' ? CAPS.filter(c => ADMIN_CAPS.includes(c.id)) : CAPS;
 const capTools = st => [...CAPS.filter(c => st.caps?.includes(c.id) && c.tools).map(c => c.tools), st.extra_tools].filter(Boolean).join(',');
@@ -1220,7 +1307,7 @@ const shown = new WeakMap();  // last HTML assigned per element; skip identical 
 const setHTML = (sel, h) => { const el = $(sel); if (el && shown.get(el) !== h) { el.innerHTML = h; shown.set(el, h); } };
 async function refresh() {
   const [all, use, q, w, me] = await Promise.all([api('runs').catch(() => []), api('usage').catch(() => ({})), api('queue').catch(() => queue), api('workflows').catch(() => ({})), api('me').catch(() => ({}))]);
-  queue = q; wfs = w; PKG = me.package || 'dev';
+  queue = q; wfs = w; PKG = me.package || 'dev'; FILES_OK = me.files !== false;
   if (isRemote == null) { const r = await fetch('/api/remote'); isRemote = r.status == 403; if (r.ok) phoneOn = (j => j.lan.on || j.tunnel.on || j.tailnet.on)(await r.json()); }
   if (isRemote) regSW();
   if (isRemote && !push) await pushLoad();
@@ -1237,6 +1324,7 @@ async function refresh() {
       ${pill}<button class="ic rack-toggle" data-act="menu" aria-expanded="${menuOpen}" aria-controls="rack-body" aria-label="${menuOpen ? 'Close menu' : 'Menu' + (nq ? ', ' + nq + ' queued' : '') + (ask ? ', decision needed' : '')}">${icon(menuOpen ? 'x' : 'menu')}${nq && !menuOpen ? `<span class="bdg">${nq}</span>` : ''}${ask && !menuOpen ? '<i class="qdot"></i>' : ''}</button></div>
     <div class="rack-body" id="rack-body">
     <a class="item" href="#" ${!kind ? 'aria-current="page"' : ''}>${icon('home')}<span>Home</span></a>
+    ${FILES_OK ? `<a class="item" href="#files" ${kind == 'files' ? 'aria-current="page"' : ''}>${icon('folder')}<span>Archivos</span></a>` : ''}
     <a class="item" href="#guide" ${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}<span>How to use Flows</span></a>
     ${me.user ? `<button class="item" data-act="logout">${icon('x')}<span>Sign out</span><small>${esc(me.user)}</small></button>` : ''}
     ${isRemote ? '' : `<a class="item" href="#phone" ${kind == 'phone' ? 'aria-current="page"' : ''}>${icon('phone')}<span>Phone access</span>${phoneOn ? '<small>ON</small>' : ''}</a>`}
@@ -1332,7 +1420,7 @@ addEventListener('hashchange', () => rec?.abort());
 ACT.attach = () => $('#filepick').click();
 ACT.unattach = i => { att.splice(+i, 1); drawAtts(); };
 $('#filepick').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
-const dropZone = e => e.target.closest?.('#start,#composer');
+const dropZone = e => e.target.closest?.('#start,#composer,#f-drop');
 document.addEventListener('dragover', e => {
   if (!e.dataTransfer?.types.includes('Files')) return;
   e.preventDefault();  // a file dropped anywhere else must not navigate away from the app
@@ -1342,9 +1430,10 @@ document.addEventListener('dragleave', e => { const z = e.target.closest?.('.dro
 document.addEventListener('drop', e => {
   if (!e.dataTransfer?.types.includes('Files')) return;
   e.preventDefault(); $('.drop')?.classList.remove('drop');
-  if (dropZone(e)) addFiles(e.dataTransfer.files);
+  const z = dropZone(e);
+  if (z?.id == 'f-drop') fDrop(e); else if (z) addFiles(e.dataTransfer.files);
 });
-document.addEventListener('paste', e => { const f = e.clipboardData?.files; if (f?.length && dropZone(e)) { e.preventDefault(); addFiles(f); } });
+document.addEventListener('paste', e => { const f = e.clipboardData?.files; if (f?.length && dropZone(e) && !e.target.closest('#f-drop')) { e.preventDefault(); addFiles(f); } });
 
 /* ---- phone push: state is cached in `push` because refresh() redraws the sidebar every 5s ---- */
 let push = null, swReg = null;
@@ -1514,6 +1603,7 @@ async function route() {
   else if (kind == 'run') showRun(id);
   else if (kind == 'session') { sess = {id, events: []}; sessSel = agent || 'lead'; showSession(); }
   else if (kind == 'guide') guide();
+  else if (kind == 'files') filesPage();
   else if (kind == 'phone') phonePage();
   else home(kind == 'templates');
 }
@@ -1590,6 +1680,7 @@ function home(toTemplates) {
             <button class="btn-p" data-act="startSession" id="s-start">${icon('play')}Start session</button>
             <button class="btn-s" data-act="queueSession" title="Run it later, once the queue reaches it" aria-label="Queue">${icon('list')}<span class="lbl">Queue</span></button>
             <button class="btn-q" data-act="attach" title="Attach files or images" aria-label="Attach files">${icon('clip')}<span class="lbl">Attach files</span></button>
+            ${FILES_OK ? `<button class="btn-q" data-act="fPick" title="Adjuntar desde el servidor" aria-label="Adjuntar desde el servidor">${icon('folder')}<span class="lbl">Desde el servidor</span></button>` : ''}
             ${micBtn('#s-msg', 'btn-q')}
             <span class="hint kbd-hint" style="margin:0">Ctrl + Enter starts · drop or paste files and screenshots too</span>
           </div>
@@ -2059,6 +2150,7 @@ function drawSession() {
         <div class="bar">
           <div class="chips">
           <button class="chip" data-act="attach" title="Attach files or images (or drop / paste them here)">${icon('clip')}Attach</button>
+          ${FILES_OK ? `<button class="chip" data-act="fPick" title="Adjuntar un archivo del servidor">${icon('folder')}Desde el servidor</button>` : ''}
           ${micBtn('#msg', 'chip')}
           <button class="chip" data-act="faster">${icon('bolt')}Go faster</button>
           <button class="chip" data-act="quick" data-arg="status">${icon('list')}Status update</button>
@@ -2369,6 +2461,350 @@ ACT.phoneTunnel = async on => { try { await api('remote/tunnel', {method: 'POST'
 ACT.phoneCode = async () => { clearTimeout(timer); await api('remote/code', {method: 'POST'}); phonePage(); };
 ACT.phoneRevoke = async id => { if (!confirm('Remove this phone? It will need a new pairing code to get back in.')) return; await api('remote/revoke', {method: 'POST', body: JSON.stringify({id})}); toast('Phone removed'); phonePage(); };
 
+/* ============ archivos: the server's files (your home on this PC) and this device's ============ */
+const FSKIP = ['node_modules', '.git'];  // never uploaded from a folder, never synced (the server skips them too)
+const fq = (p, x = '') => 'path=' + encodeURIComponent(p ?? '') + x;
+const fjoin = (a, b) => a ? a.replace(/\/$/, '') + '/' + b : b;
+const fsize = n => n < 1024 ? n + ' B' : n < 1048576 ? Math.round(n / 1024) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+const fdate = t => t ? new Date(t * 1000).toLocaleString('es-ES', {day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+const fdl = p => '/api/files/download?' + fq(p);
+const ftilde = p => !p ? '~' : /^[~/]/.test(p) ? p : '~/' + p;  // as the project-folder field writes it
+const fbtn = () => PKG == 'admin' ? 'a-small' : 'btn-q', fpri = () => PKG == 'admin' ? 'a-btn a-pri' : 'btn-p';
+const DIRPICK = 'webkitdirectory' in document.createElement('input') && !/iPhone|iPad|Android/.test(navigator.userAgent);
+const fErr = async r => new Error((await r.json().catch(() => ({}))).error || r.statusText || 'Error ' + r.status);
+let FS = {tab: localStorage.getItem('flows.files.tab') || 'server', path: localStorage.getItem('flows.files.path') || '', hidden: false, list: null, err: '', view: null, xhr: null, busy: false, stop: false};
+const fLive = t => { const el = $('#f-live'); if (el) el.textContent = t; };
+const fCrumbs = (path, act) => { const s = path ? path.split('/') : [];
+  return [['', '~'], ...s.map((x, i) => [s.slice(0, i + 1).join('/'), x])].map(([p, l], i, a) => i == a.length - 1 ? `<span aria-current="location">${esc(l)}</span>`
+    : `<button type="button" data-act="${act}" data-arg="${esc(p)}" ${p ? '' : 'aria-label="Carpeta personal"'}>${esc(l)}</button><span aria-hidden="true">/</span>`).join(''); };
+
+function filesPage() {
+  const adm = PKG == 'admin', W = adm ? 'a-card f-card' : 'window';
+  const tab = (id, ic, label) => `<button type="button" role="tab" id="ft-${id}" aria-controls="fp-${id}" aria-selected="${FS.tab == id}" tabindex="${FS.tab == id ? 0 : -1}" data-act="fTab" data-arg="${id}">${icon(ic)}${label}</button>`;
+  const intro = 'Tu carpeta personal en el servidor y los archivos del dispositivo desde el que entras.';
+  main.innerHTML = `<div class="f-page ${adm ? 'a-col' : ''}">
+    ${adm ? `<h1>Archivos</h1><p class="a-lede">${intro}</p>` : `<header class="head"><div><h1>Archivos</h1><div class="sub">${intro}</div></div></header>`}
+    ${FILES_OK ? `<div class="f-tabs" role="tablist" aria-label="Qué archivos">${tab('server', 'globe', 'Servidor')}${tab('device', 'laptop', 'Este dispositivo')}</div>
+    <div class="f-prog" id="f-prog" hidden></div><p class="sr" id="f-live" aria-live="polite"></p>
+    <section class="${W} f-panel" id="fp-server" role="tabpanel" aria-labelledby="ft-server" ${FS.tab == 'server' ? '' : 'hidden'}>
+      <div id="f-drop" class="f-drop">
+        <nav class="f-crumbs" id="f-crumbs" aria-label="Carpeta actual"></nav>
+        <div class="f-bar" id="f-bar"></div>
+        <div id="f-view"></div>
+        <div id="f-list"><div class="skel"></div></div>
+        ${DIRPICK ? `<p class="hint f-dz">${icon('ul')}Arrastra aquí archivos o carpetas para subirlos a esta carpeta.</p>` : ''}
+      </div>
+    </section>
+    <section class="${W} f-panel" id="fp-device" role="tabpanel" aria-labelledby="ft-device" ${FS.tab == 'device' ? '' : 'hidden'}></section>
+    <input type="file" id="f-pick" multiple hidden><input type="file" id="f-pickdir" webkitdirectory multiple hidden>`
+    : `<section class="${W}"><p style="margin:0">Los archivos del servidor solo están disponibles cuando Flows funciona para una sola persona, o para un administrador que usa la misma cuenta del sistema que el servidor.</p></section>`}
+  </div>`;
+  if (!FILES_OK) return;
+  $('#f-pick').addEventListener('change', e => { fUpload([...e.target.files].map(f => ({f, rel: f.name}))); e.target.value = ''; });
+  $('#f-pickdir').addEventListener('change', e => { fUpload([...e.target.files].map(f => ({f, rel: f.webkitRelativePath || f.name})).filter(x => !x.rel.split('/').some(p => FSKIP.includes(p)))); e.target.value = ''; });
+  $('#f-bar').addEventListener('change', e => { if (e.target.id == 'f-hidden') { FS.hidden = e.target.checked; fLoad(); } });
+  $('#fp-device').addEventListener('change', e => { if (e.target.id == 'l-target' && LS.cur) { LS.cur.target = e.target.value.trim() || LS.cur.target; lPut(LS.cur); } });
+  $('.f-tabs').addEventListener('keydown', e => { if (!{ArrowLeft: 1, ArrowRight: 1, Home: 1, End: 1}[e.key]) return; e.preventDefault(); const t = FS.tab == 'server' ? 'device' : 'server'; ACT.fTab(t); $('#ft-' + t).focus(); });
+  if (window.showDirectoryPicker && !LS.saved) lAll().then(a => { LS.saved = a; fDevice(); }).catch(() => (LS.saved = []));
+  fLoad(); fDevice();
+}
+ACT.fTab = t => {
+  FS.tab = t; localStorage.setItem('flows.files.tab', t);
+  for (const id of ['server', 'device']) { const b = $('#ft-' + id); b.setAttribute('aria-selected', id == t); b.tabIndex = id == t ? 0 : -1; $('#fp-' + id).hidden = id != t; }
+};
+async function fLoad(p = FS.path) {
+  try {
+    const j = await api('files/list?' + fq(p, FS.hidden ? '&hidden=1' : ''));
+    if (j.path != FS.path) FS.view = null;
+    Object.assign(FS, {path: j.path, home: j.home, list: j.entries, err: ''});
+    localStorage.setItem('flows.files.path', j.path);
+  } catch (e) { if (p) return fLoad(''); FS.list = null; FS.err = e.message; }
+  fDraw();
+}
+function fDraw() {
+  if (!$('#f-list')) return;
+  const B = fbtn(), name = FS.path.split('/').pop() || '~';
+  setHTML('#f-crumbs', fCrumbs(FS.path, 'fOpen'));
+  setHTML('#f-bar', `<button type="button" class="${B}" data-act="fUpPick" data-arg="f-pick">${icon('ul')}Subir archivos</button>
+    ${DIRPICK ? `<button type="button" class="${B}" data-act="fUpPick" data-arg="f-pickdir">${icon('folder')}Subir carpeta</button>` : ''}
+    <button type="button" class="${B}" data-act="fMkdir">${icon('plus')}Nueva carpeta</button>
+    <a class="${B}" href="${fdl(FS.path)}" download>${icon('dl')}Descargar carpeta (.zip)</a>
+    ${PKG == 'admin' ? '' : `<button type="button" class="${B}" data-act="fUseCwd" data-arg="${esc(FS.path)}">${icon('team')}Usar como carpeta del proyecto</button>`}
+    <label class="f-hid"><input type="checkbox" id="f-hidden" ${FS.hidden ? 'checked' : ''}>Mostrar ocultos</label>`);
+  const rows = (FS.list || []).map(e => { const p = fjoin(FS.path, e.name), n = esc(e.name), out = e.link && !e.mtime;  // a symlink out of the home: listed, never opened
+    return `<li class="f-row">
+      <button type="button" class="f-name" data-act="${e.dir ? 'fOpen' : 'fView'}" data-arg="${esc(p)}" ${out ? 'disabled' : ''}>${icon(e.dir ? 'folder' : 'file')}<span>${n}</span></button>
+      <span class="f-meta">${out ? 'Enlace fuera de tu carpeta' : (e.dir ? 'Carpeta' : fsize(e.size)) + ' · ' + fdate(e.mtime)}</span>
+      <span class="f-acts">${out ? '' : `<a class="ic" href="${fdl(p)}" download aria-label="Descargar ${n}${e.dir ? ' (.zip)' : ''}" title="Descargar${e.dir ? ' (.zip)' : ''}">${icon('dl')}</a>`}
+        <button type="button" class="ic" data-act="fRename" data-arg="${esc(p)}" aria-label="Renombrar o mover ${n}" title="Renombrar o mover">${icon('pencil')}</button>
+        <button type="button" class="ic" data-act="fDel" data-arg="${esc(p)}" aria-label="Eliminar ${n}" title="Eliminar (va a la papelera)">${icon('trash')}</button></span></li>`; }).join('');
+  setHTML('#f-list', FS.err ? `<p class="f-err" role="alert">${esc(FS.err)}</p>` : FS.list == null ? '<div class="skel"></div>'
+    : rows ? `<ul class="f-list" aria-label="Contenido de ${esc(name)}">${rows}</ul>` : '<p class="hint">Esta carpeta está vacía.</p>');
+  const v = FS.view;
+  setHTML('#f-view', v ? `<div class="f-viewer"><div class="f-vh"><b>${icon('file')}${esc(v.path.split('/').pop())}</b><span class="f-meta">${fsize(v.size)}</span>
+      <a class="${B}" href="${fdl(v.path)}" download>${icon('dl')}Descargar</a><button type="button" class="ic" data-act="fClose" aria-label="Cerrar la vista previa">${icon('x')}</button></div>
+      <pre class="f-pre" tabindex="0" aria-label="Contenido de ${esc(v.path)}">${esc(v.text)}</pre></div>` : '');
+  fDevice();  // it names the current server folder
+}
+ACT.fOpen = p => { FS.view = null; fLoad(p); };
+ACT.fView = async p => {
+  try { FS.view = await api('files/read?' + fq(p)); fDraw(); $('#f-view .f-pre')?.focus(); }
+  catch (e) { toast(e.message, true); }
+};
+ACT.fClose = () => { FS.view = null; fDraw(); };
+ACT.fUpPick = id => $('#' + id).click();
+ACT.fMkdir = async () => {
+  const n = prompt('Nombre de la carpeta nueva:')?.trim(); if (!n) return;
+  if (/[\/\\]/.test(n) || n == '.' || n == '..') return toast('El nombre no puede llevar / ni ser . o ..', true);
+  try { await api('files/mkdir', {method: 'POST', body: JSON.stringify({path: fjoin(FS.path, n)})}); toast('Carpeta creada'); fLoad(); } catch (e) { toast(e.message, true); }
+};
+ACT.fRename = async p => {
+  const old = p.split('/').pop(), v = prompt(`Nuevo nombre para «${old}». Para moverlo, escribe una ruta desde ~ (p. ej. ~/proyectos/${old}):`, old)?.trim();
+  if (!v || v == old) return;
+  try { await api('files/rename', {method: 'POST', body: JSON.stringify({path: p, to: /^[~/]/.test(v) ? v : fjoin(p.split('/').slice(0, -1).join('/'), v)})}); toast('Hecho'); if (FS.view?.path == p) FS.view = null; fLoad(); }
+  catch (e) { toast(e.message, true); }
+};
+ACT.fDel = async p => {
+  if (!confirm(`¿Eliminar «${p.split('/').pop()}»? Va a la papelera del servidor (~/.flows-trash), de donde se puede recuperar.`)) return;
+  try { await api('files/delete', {method: 'POST', body: JSON.stringify({path: p})}); toast('Movido a la papelera'); if (FS.view?.path == p) FS.view = null; fLoad(); }
+  catch (e) { toast(e.message, true); }
+};
+ACT.fUseCwd = p => { saveHome({cwd: ftilde(p)}); toast('Carpeta del proyecto: ' + ftilde(p)); location.hash = ''; };
+
+/* ---- uploads: one at a time, raw body, XHR for the progress bar ---- */
+function fPut(dir, rel, blob, over, onp) {
+  return new Promise((ok, no) => {
+    const x = FS.xhr = new XMLHttpRequest();
+    x.open('POST', '/api/files/upload?' + fq(dir, '&name=' + encodeURIComponent(rel) + (over ? '&overwrite=1' : '') + (blob.lastModified ? '&mtime=' + blob.lastModified / 1000 : '')));
+    x.setRequestHeader('X-Flow', '1'); x.setRequestHeader('Content-Type', 'application/octet-stream');
+    x.upload.onprogress = e => onp?.(e.loaded);
+    x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch {} x.status == 200 ? ok(j) : no(new Error(j.error || 'Error ' + x.status)); };
+    x.onerror = () => no(new Error('Se cortó la conexión')); x.onabort = () => no(new Error('Cancelado'));
+    x.send(blob);
+  });
+}
+function fProg(text, frac) {  // fProg() hides it; fProg(null, f) moves the bar only
+  const el = $('#f-prog'); if (!el) return;
+  if (text === undefined) { el.hidden = true; el.innerHTML = ''; return; }
+  if (el.hidden || !el.firstChild) { el.hidden = false; el.innerHTML = `<span class="f-pt"></span><progress max="100" value="0" aria-label="Progreso"></progress><button type="button" class="${fbtn()}" data-act="fStop">${icon('x')}Cancelar</button>`; }
+  if (text != null) el.querySelector('.f-pt').textContent = text;
+  el.querySelector('progress').value = Math.round(frac * 100);
+}
+ACT.fStop = () => { FS.stop = true; FS.xhr?.abort(); };
+async function fSend(items, dir, verb) {  // items: [{f: File, rel, over}] -> {ok: [[item, entry]], bad: [[item, error]]}
+  const total = items.reduce((a, x) => a + x.f.size, 0) || 1, ok = [], bad = [];
+  let done = 0;
+  FS.busy = true; FS.stop = false; fLive(`${verb} ${items.length} archivo${items.length == 1 ? '' : 's'}…`);
+  for (const [i, x] of items.entries()) {
+    if (FS.stop) break;
+    fProg(`${verb} ${i + 1} de ${items.length} · ${x.rel}`, done / total);
+    try { ok.push([x, await fPut(dir, x.rel, x.f, x.over, n => fProg(null, (done + n) / total))]); }
+    catch (e) { bad.push([x, e.message]); }
+    done += x.f.size;
+  }
+  FS.busy = false; FS.xhr = null; fProg();
+  fLive(`${ok.length} de ${items.length} archivo${items.length == 1 ? '' : 's'} terminado${items.length == 1 ? '' : 's'}${bad.length ? `, ${bad.length} con error` : ''}.`);
+  return {ok, bad};
+}
+const fSaid = (ok, bad, what) => toast(bad.length ? `${ok.length} ${what} · ${bad.length} con error: ${bad[0][1]}` : `${ok.length} archivo${ok.length == 1 ? '' : 's'} ${what}`, !!bad.length);
+async function fUpload(items, dir = FS.path) {  // from the pickers and drops: [{f, rel}] into the open server folder
+  if (!items.length) return;
+  if (FS.busy) return toast('Espera a que termine la subida en curso', true);
+  const exist = new Set();  // what is already there: top-level names, and the inside of a folder that already exists
+  try {
+    const here = new Map((await api('files/list?' + fq(dir, '&hidden=1'))).entries.map(e => [e.name, e]));
+    for (const top of new Set(items.map(x => x.rel.split('/')[0]))) {
+      const e = here.get(top);
+      if (e && !e.dir) exist.add(top);
+      else if (e) (await api('files/list?' + fq(fjoin(dir, top), '&deep=1&hidden=1'))).entries.forEach(x => exist.add(top + '/' + x.name));
+    }
+  } catch {}
+  const clash = items.filter(x => exist.has(x.rel));
+  const over = clash.length > 0 && confirm(`${clash.length == 1 ? `«${clash[0].rel}» ya existe` : `${clash.length} archivos ya existen (${clash.slice(0, 3).map(x => x.rel).join(', ')}${clash.length > 3 ? '…' : ''})`} en el servidor. ¿Reemplazarlo${clash.length == 1 ? '' : 's'}? Con Cancelar solo se suben los nuevos.`);
+  const todo = items.filter(x => over || !exist.has(x.rel)).map(x => ({...x, over}));
+  if (!todo.length) return toast('No había nada nuevo que subir');
+  const {ok, bad} = await fSend(todo, dir, 'Subiendo');
+  fSaid(ok, bad, 'subidos'); if (dir == FS.path) fLoad();
+}
+async function fDrop(e) {  // files and whole folders dropped on the server listing
+  const ents = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry?.()).filter(Boolean), out = [];  // read now: items die after the event
+  if (!ents.length) return fUpload([...e.dataTransfer.files].map(f => ({f, rel: f.name})));
+  const walk = async (en, pre) => {
+    if (en.isFile) out.push({f: await new Promise((ok, no) => en.file(ok, no)), rel: pre + en.name});
+    else if (en.isDirectory && !FSKIP.includes(en.name)) {
+      const r = en.createReader(); let b;
+      while ((b = await new Promise((ok, no) => r.readEntries(ok, no))).length) for (const c of b) await walk(c, pre + en.name + '/');
+    }
+  };
+  try { for (const en of ents) await walk(en, ''); } catch (err) { return toast('No se pudo leer lo que has soltado: ' + err.message, true); }
+  fUpload(out);
+}
+
+/* ---- this device: upload / download in any browser; on Chrome/Edge desktop, a local folder kept in step with a server copy ---- */
+let LS = {saved: null, cur: null, files: null};  // saved: remembered folders (IndexedDB), cur: the open one, files: its tree
+const idb = (mode, fn) => new Promise((ok, no) => {
+  const o = indexedDB.open('flows-files', 1);
+  o.onupgradeneeded = () => o.result.createObjectStore('dirs', {keyPath: 'id'});
+  o.onerror = () => no(o.error);
+  o.onsuccess = () => { const tx = o.result.transaction('dirs', mode), q = fn(tx.objectStore('dirs')); tx.oncomplete = () => ok(q.result); tx.onerror = () => no(tx.error); };
+});
+const lAll = () => idb('readonly', s => s.getAll()), lPut = r => idb('readwrite', s => s.put(r)), lDel = id => idb('readwrite', s => s.delete(id));
+async function lWalk(h, pre = '', out = []) {  // [{rel, size, mod, h}] without node_modules/.git
+  for await (const [n, c] of h.entries()) {
+    if (c.kind == 'directory') { if (!FSKIP.includes(n)) await lWalk(c, pre + n + '/', out); }
+    else { const f = await c.getFile(); out.push({rel: pre + n, size: f.size, mod: f.lastModified, h: c}); }
+  }
+  return out;
+}
+const fSrvTree = async p => {  // server copy: rel -> {size, mtime}; {} when it does not exist yet
+  try { return Object.fromEntries((await api('files/list?' + fq(p, '&deep=1&hidden=1'))).entries.map(e => [e.name, e])); }
+  catch (e) { if (/No existe/.test(e.message)) return {}; throw e; }
+};
+function fDevice() {
+  if (!$('#fp-device')) return;
+  const B = fbtn(), P = fpri(), here = ftilde(FS.path);
+  setHTML('#fp-device', `<h3 class="f-h">${icon('ul')}De este dispositivo al servidor</h3>
+    <p class="hint">Se suben a la carpeta abierta en la pestaña Servidor: <code>${esc(here)}</code> · <button type="button" class="f-link" data-act="fTab" data-arg="server">cambiar</button></p>
+    <div class="f-bar"><button type="button" class="${P}" data-act="fUpPick" data-arg="f-pick">${icon('ul')}Elegir archivos</button>
+      ${DIRPICK ? `<button type="button" class="${B}" data-act="fUpPick" data-arg="f-pickdir">${icon('folder')}Elegir una carpeta</button>` : ''}</div>
+    <h3 class="f-h">${icon('dl')}Del servidor a este dispositivo</h3>
+    <p class="hint">Cada archivo de la pestaña Servidor tiene su botón de descarga; una carpeta se descarga como .zip (hasta 500 MB, sin node_modules ni .git).</p>
+    <div class="f-bar"><a class="${B}" href="${fdl(FS.path)}" download>${icon('dl')}Descargar ${esc(here)} (.zip)</a></div>
+    ${window.showDirectoryPicker ? `<h3 class="f-h">${icon('laptop')}Una carpeta de este ordenador</h3>
+      <p class="hint">Ábrela, cópiala al servidor para que trabajen los agentes y después trae lo que hayan cambiado.</p>
+      <div class="f-bar"><button type="button" class="${P}" data-act="lOpen">${icon('folder')}Abrir carpeta local</button></div>${lSaved()}${lCur()}`
+    : `<p class="f-note">${icon('phone')}<span>Aquí puedes subir y descargar archivos. Sincronizar una carpeta entera de este dispositivo necesita Chrome o Edge en un ordenador.</span></p>`}`);
+}
+const lSaved = () => !LS.saved?.length ? '' : `<p class="flabel">Carpetas recordadas</p><ul class="f-list">${LS.saved.map(r => `<li class="f-row">
+    <span class="f-name">${icon('folder')}<span>${esc(r.name)}</span></span><span class="f-meta">→ ${esc(r.target)}${r.copied ? ' · copiada ' + fdate(r.copied) : ''}</span>
+    <span class="f-acts">${LS.cur?.id == r.id ? '<span class="f-meta">Abierta</span>' : `<button type="button" class="${fbtn()}" data-act="lReopen" data-arg="${r.id}" aria-label="Reabrir ${esc(r.name)}">Reabrir</button>`}
+      <button type="button" class="ic" data-act="lForget" data-arg="${r.id}" aria-label="Olvidar ${esc(r.name)}" title="Olvidar (no borra nada)">${icon('x')}</button></span></li>`).join('')}</ul>`;
+function lCur() {
+  const r = LS.cur; if (!r) return '';
+  const n = LS.files?.length, size = LS.files?.reduce((a, f) => a + f.size, 0);
+  return `<div class="f-sync"><h4>${icon('folder')}${esc(r.name)}<small>${LS.files ? `${n} archivo${n == 1 ? '' : 's'} · ${fsize(size)}` : 'Leyendo…'}</small></h4>
+    <label for="l-target">Carpeta en el servidor</label><input id="l-target" value="${esc(r.target)}" spellcheck="false" autocomplete="off">
+    <div class="f-bar"><button type="button" class="${fpri()}" data-act="lPush">${icon('ul')}Copiar al servidor</button>
+      <button type="button" class="${fbtn()}" data-act="lPull">${icon('dl')}Traer cambios</button>
+      ${PKG == 'admin' ? '' : `<button type="button" class="${fbtn()}" data-act="fUseCwd" data-arg="${esc(r.target)}">${icon('team')}Usar como carpeta del proyecto</button>`}</div>
+    <p class="hint">${r.copied ? `Última copia: ${fdate(r.copied)}.` : 'Aún no se ha copiado.'} Sin node_modules ni .git. Lo que se borre en un lado no se borra en el otro.</p>
+    ${LS.files ? lTree(LS.files) : '<div class="skel"></div>'}</div>`;
+}
+function lTree(files) {
+  const MAX = 1500, root = {d: {}, f: []};
+  for (const x of files.slice(0, MAX)) { const ps = x.rel.split('/'); ps.pop(); let t = root; for (const p of ps) t = t.d[p] ??= {d: {}, f: []}; t.f.push(x); }
+  const draw = t => `<ul>${Object.entries(t.d).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => `<li><details><summary>${icon('folder')}${esc(k)}</summary>${draw(v)}</details></li>`).join('')}
+    ${t.f.map(x => `<li class="f-tf">${icon('file')}<span>${esc(x.rel.split('/').pop())}</span><small>${fsize(x.size)}</small></li>`).join('')}</ul>`;
+  return `<div class="f-tree" role="group" aria-label="Contenido de la carpeta local">${files.length ? draw(root) : '<p class="hint">La carpeta está vacía.</p>'}${files.length > MAX ? `<p class="hint">… y ${files.length - MAX} archivos más</p>` : ''}</div>`;
+}
+async function lUse(r) {
+  LS.cur = r; LS.files = null; fDevice();
+  try { LS.files = await lWalk(r.handle); } catch (e) { toast('No se pudo leer la carpeta: ' + e.message, true); LS.cur = null; }
+  fDevice();
+}
+ACT.lOpen = async () => {
+  let h;
+  try { h = await showDirectoryPicker({id: 'flows-sync', mode: 'read'}); } catch (e) { if (e.name != 'AbortError') toast(e.message, true); return; }
+  let r = null;
+  for (const x of LS.saved || []) if (await x.handle.isSameEntry(h).catch(() => false)) r = x;
+  r ||= {id: crypto.randomUUID(), name: h.name, target: '~/flows-sync/' + h.name, files: {}, copied: 0};
+  r.handle = h; await lPut(r); LS.saved = [...(LS.saved || []).filter(x => x.id != r.id), r];
+  lUse(r);
+};
+ACT.lReopen = async id => {  // a remembered handle needs the permission asked again, from a click
+  const r = LS.saved.find(x => x.id == id);
+  try { if (await r.handle.requestPermission({mode: 'read'}) != 'granted') return toast('Sin permiso para leer esa carpeta', true); } catch (e) { return toast(e.message, true); }
+  lUse(r);
+};
+ACT.lForget = async id => { await lDel(id); if (LS.cur?.id == id) LS.cur = LS.files = null; LS.saved = LS.saved.filter(x => x.id != id); fDevice(); };
+const lNames = l => l.slice(0, 4).map(x => x.rel || x.name).join(', ') + (l.length > 4 ? '…' : '');
+ACT.lPush = async (_, btn) => {
+  const r = LS.cur; if (!r) return;
+  if (FS.busy) return toast('Espera a que termine lo que está en curso', true);
+  r.target = $('#l-target').value.trim() || r.target;
+  btn.setAttribute('aria-busy', 'true');
+  try {
+    const files = LS.files = await lWalk(r.handle), srv = await fSrvTree(r.target), k = r.files;
+    const same = f => { const s = srv[f.rel], x = k[f.rel]; return s && x && x.lsize == f.size && x.lmod == f.mod && x.ssize == s.size && x.smtime == s.mtime; };
+    const todo = files.filter(f => !same(f));
+    // the server's copy changed since our last copy (an agent worked on it): overwriting it needs a yes
+    const theirs = todo.filter(f => srv[f.rel] && (!k[f.rel] || k[f.rel].ssize != srv[f.rel].size || k[f.rel].smtime != srv[f.rel].mtime));
+    const keep = theirs.length && !confirm(`${theirs.length} archivo${theirs.length == 1 ? ' ha' : 's han'} cambiado en el servidor desde la última copia (${lNames(theirs)}). ¿Sobrescribirlo${theirs.length == 1 ? '' : 's'} con los de este ordenador? Con Cancelar se quedan como están en el servidor.`) ? new Set(theirs) : new Set();
+    const go = todo.filter(f => !keep.has(f));
+    if (!go.length) toast('Nada que copiar: el servidor ya está al día');
+    else {
+      const {ok, bad} = await fSend(await Promise.all(go.map(async f => ({f: await f.h.getFile(), rel: f.rel, over: true}))), r.target, 'Copiando');
+      for (const [it, j] of ok) k[it.rel] = {lsize: it.f.size, lmod: it.f.lastModified, ssize: j.size, smtime: j.mtime};
+      r.copied = now(); await lPut(r); fSaid(ok, bad, 'copiados al servidor');
+    }
+  } catch (e) { toast(e.message, true); }
+  btn.removeAttribute('aria-busy'); fDevice();
+};
+ACT.lPull = async (_, btn) => {
+  const r = LS.cur; if (!r) return;
+  if (FS.busy) return toast('Espera a que termine lo que está en curso', true);
+  r.target = $('#l-target').value.trim() || r.target;
+  try { if (await r.handle.requestPermission({mode: 'readwrite'}) != 'granted') return toast('Hace falta permiso para escribir en la carpeta local', true); } catch (e) { return toast(e.message, true); }
+  btn.setAttribute('aria-busy', 'true'); FS.busy = true; FS.stop = false;
+  try {
+    const srv = await fSrvTree(r.target), k = r.files;
+    if (!Object.keys(srv).length) throw new Error(`En el servidor no hay nada en ${r.target}`);
+    const local = Object.fromEntries((LS.files = await lWalk(r.handle)).map(f => [f.rel, f]));
+    const changed = Object.values(srv).filter(s => !k[s.name] || k[s.name].ssize != s.size || k[s.name].smtime != s.mtime);
+    // changed here too since the copy (or here and never copied): overwriting needs a yes
+    const mine = changed.filter(s => { const l = local[s.name], x = k[s.name]; return l && (!x || l.size != x.lsize || l.mod != x.lmod); });
+    const keep = mine.length && !confirm(`${mine.length} archivo${mine.length == 1 ? ' ha' : 's han'} cambiado también en este ordenador (${lNames(mine)}). ¿Sobrescribirlo${mine.length == 1 ? '' : 's'} con la versión del servidor? Con Cancelar se quedan como están aquí.`) ? new Set(mine) : new Set();
+    const go = changed.filter(s => !keep.has(s)), total = go.reduce((a, s) => a + s.size, 0) || 1, bad = [];
+    let done = 0, n = 0;
+    if (!go.length) toast(changed.length ? 'No se ha traído nada' : 'No hay cambios en el servidor');
+    else fLive(`Trayendo ${go.length} archivo${go.length == 1 ? '' : 's'}…`);
+    for (const s of go) {
+      if (FS.stop) break;
+      fProg(`Trayendo ${++n} de ${go.length} · ${s.name}`, done / total);
+      try {
+        const res = await fetch(fdl(fjoin(r.target, s.name)));
+        if (!res.ok) throw await fErr(res);
+        const blob = await res.blob(), ps = s.name.split('/'), fn = ps.pop();
+        let d = r.handle; for (const p of ps) d = await d.getDirectoryHandle(p, {create: true});
+        const fh = await d.getFileHandle(fn, {create: true}), w = await fh.createWritable();
+        await w.write(blob); await w.close();
+        const lf = await fh.getFile(); k[s.name] = {lsize: lf.size, lmod: lf.lastModified, ssize: s.size, smtime: s.mtime};
+      } catch (e) { bad.push([s, e.message]); }
+      done += s.size;
+    }
+    if (go.length) { await lPut(r); LS.files = await lWalk(r.handle); fSaid(go.slice(0, n).filter(s => !bad.some(b => b[0] == s)), bad, 'traídos del servidor'); fLive('Cambios traídos.'); }
+  } catch (e) { toast(e.message, true); }
+  FS.busy = false; fProg(); btn.removeAttribute('aria-busy'); fDevice();
+};
+
+/* ---- composer: attach a file from the server (same listing, in a dialog) ---- */
+let FPK = {path: '', size: {}};
+ACT.fPick = () => { const d = $('#fpick'); FPK.path = FS.path; if (!d.open) d.showModal(); fPickLoad(); };
+async function fPickLoad(p = FPK.path) {
+  let j;
+  try { j = await api('files/list?' + fq(p)); } catch (e) { if (p) return fPickLoad(''); j = {path: '', entries: [], err: e.message}; }
+  FPK.path = j.path; FPK.size = {};
+  const rows = j.entries.filter(e => !e.link || e.mtime).map(e => { const p = fjoin(j.path, e.name); FPK.size[p] = e.size;
+    return `<li class="f-row"><button type="button" class="f-name" data-act="${e.dir ? 'fPickOpen' : 'fPickFile'}" data-arg="${esc(p)}" ${e.dir ? '' : `aria-label="Adjuntar ${esc(e.name)}"`}>${icon(e.dir ? 'folder' : 'file')}<span>${esc(e.name)}</span></button><span class="f-meta">${e.dir ? 'Carpeta' : fsize(e.size)}</span></li>`; }).join('');
+  const d = $('#fpick');
+  d.innerHTML = `<div class="fp-h"><h2 id="fpick-h">${icon('folder')}Adjuntar desde el servidor</h2><button type="button" class="ic" data-act="fPickClose" aria-label="Cerrar">${icon('x')}</button></div>
+    <nav class="f-crumbs" aria-label="Carpeta">${fCrumbs(j.path, 'fPickOpen')}</nav>
+    ${j.err ? `<p class="f-err" role="alert">${esc(j.err)}</p>` : ''}<ul class="f-list">${rows || '<li class="hint">Carpeta vacía</li>'}</ul>
+    <p class="hint">Toca un archivo para adjuntarlo (hasta ${MAX_MB} MB).</p>`;
+  (d.querySelector('.f-list .f-name') || d.querySelector('[data-act=fPickClose]'))?.focus();
+}
+ACT.fPickOpen = p => fPickLoad(p);
+ACT.fPickClose = () => $('#fpick').close();
+ACT.fPickFile = async p => {
+  const name = p.split('/').pop();
+  if (FPK.size[p] > MAX_MB << 20) return toast(`«${name}» pesa más de ${MAX_MB} MB`, true);
+  try {
+    const r = await fetch(fdl(p)); if (!r.ok) throw await fErr(r);
+    const b = await r.blob(), ext = name.split('.').pop().toLowerCase(), type = {png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp'}[ext] || '';
+    $('#fpick').close(); addFiles([new File([b], name, {type})]); toast(`Adjuntado: ${name}`);
+  } catch (e) { toast(e.message, true); }
+};
+
 /* ============ guide ============ */
 function guide() {
   const sec = (ic, title, body) => `<section class="window"><h3>${icon(ic)}${title}</h3>${body}</section>`;
@@ -2456,6 +2892,7 @@ function admRefresh(me) {
       <button class="rack-toggle" data-act="menu" aria-expanded="${menuOpen}" aria-controls="rack-body" aria-label="${menuOpen ? 'Cerrar el menú' : 'Menú' + (need.length ? ', una petición te necesita' : '')}">${icon(menuOpen ? 'x' : 'menu')}<span>${menuOpen ? 'Cerrar' : 'Menú'}</span>${need.length && !menuOpen ? '<i class="qdot"></i>' : ''}</button></div>
     <nav class="rack-body" id="rack-body" aria-label="Menú"><div class="a-card a-nav">
       <a class="a-link" href="#mis">${icon('list')}Mis peticiones</a>
+      ${FILES_OK ? `<a class="a-link" href="#files" ${kind == 'files' ? 'aria-current="page"' : ''}>${icon('folder')}Archivos</a>` : ''}
       <a class="a-link" href="#guide" ${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}Ayuda</a>
       ${me.user ? `<button class="a-link" data-act="logout">${icon('out')}Salir<small>${esc(me.user)}</small></button>` : ''}
     </div></nav>`);
@@ -2469,6 +2906,7 @@ function admRoute(kind, id) {
   scrollTo(0, 0);
   if (kind == 'session' && id) { sess = {id, events: []}; sessSel = 'lead'; showSession(); }
   else if (kind == 'guide') admGuide();
+  else if (kind == 'files') filesPage();
   else { if (kind) history.replaceState(null, '', location.pathname); admHome(); if (kind == 'mis') $('#a-mine').scrollIntoView(); }
 }
 
@@ -2485,7 +2923,7 @@ function admHome() {
         <label class="sr" for="a-msg">Tu petición</label>
         <textarea id="a-msg" rows="4" placeholder="Escríbelo con tus palabras, como se lo dirías a un compañero">${esc(localStorage.getItem('flows.adm.draft') || '')}</textarea>
         <div class="atts" id="atts" aria-label="Archivos adjuntos"></div>
-        <div class="a-tools"><button type="button" class="a-small" data-act="attach">${icon('clip')}<span class="lbl">Adjuntar</span></button>${micBtn('#a-msg', 'a-small')}</div>
+        <div class="a-tools"><button type="button" class="a-small" data-act="attach">${icon('clip')}<span class="lbl">Adjuntar</span></button>${FILES_OK ? `<button type="button" class="a-small" data-act="fPick">${icon('folder')}<span class="lbl">Del servidor</span></button>` : ''}${micBtn('#a-msg', 'a-small')}</div>
       </div>
       <p class="a-lab" id="a-ideas">Ideas rápidas</p>
       <div class="a-chips" role="group" aria-labelledby="a-ideas">${Object.entries(KEYS).map(([k, x]) => `<button type="button" class="a-chip" data-act="admKey" data-arg="${k}" aria-pressed="false">${icon(x.i)}<span>${x.n}</span></button>`).join('')}</div>
@@ -2604,6 +3042,7 @@ function admDrawSession() {
         <div class="atts" id="atts" aria-label="Archivos adjuntos"></div>
         <div class="a-bar">
           <button type="button" class="a-small" data-act="attach">${icon('clip')}<span class="lbl">Adjuntar</span></button>
+          ${FILES_OK ? `<button type="button" class="a-small" data-act="fPick">${icon('folder')}<span class="lbl">Del servidor</span></button>` : ''}
           ${micBtn('#msg', 'a-small')}<span class="grow"></span>
           <button type="button" class="a-btn a-pri" data-act="sendMsg">Enviar</button>
         </div>
