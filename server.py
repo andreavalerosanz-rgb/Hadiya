@@ -1132,6 +1132,64 @@ def good_morning():
         enqueue({"kind": "session", "name": "Buenos días", "message": "¡Buenos días, Claude!"}, o)
 
 
+# ---------- plan del día (Trello) ----------
+# The day starts at 6am: that's when today's plan is drawn up. After that it's re-read every
+# minute, so a card that lands on any board shows up (marked "new") without waiting for tomorrow.
+# ponytail: polling, Trello webhooks need a public URL; switch if the board count grows a lot.
+PLAN_FILE = DATA / "plan.json"
+plan = json.loads(PLAN_FILE.read_text()) if PLAN_FILE.exists() else {}
+DONE_LIST = re.compile(r"done|hecho|fet\b|terminad|complet", re.I)
+DOING_LIST = re.compile(r"doing|in process|en curso|today|hoy", re.I)
+
+
+def trello(path):
+    env = dict(l.split("=", 1) for l in (Path.home() / ".config/flows/trello.env").read_text().split() if "=" in l)
+    with urlopen(f"https://api.trello.com/1/{path}{'&' if '?' in path else '?'}key={env['TRELLO_KEY']}&token={env['TRELLO_TOKEN']}", timeout=20) as f:
+        return json.load(f)
+
+
+def plan_tasks(boards, day, since):
+    """Open cards that are today's work: overdue, due today, under way (started or in a doing list), or due this week."""
+    from datetime import datetime
+    local = lambda s: s and datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone()
+    out = []
+    for b in boards:
+        lists = {l["id"]: l["name"] for l in b["lists"]}
+        for c in b["cards"]:
+            ln = lists.get(c["idList"], "")
+            if c["dueComplete"] or DONE_LIST.search(ln):
+                continue
+            due, start = local(c["due"]), local(c["start"])
+            group = ("overdue" if due and due.date() < day else "today" if due and due.date() == day
+                     else "doing" if (start and start.date() <= day) or DOING_LIST.search(ln)
+                     else "week" if due and (due.date() - day).days <= 7 else None)
+            if group:
+                out.append({"id": c["id"], "name": c["name"], "board": b["name"], "list": ln, "url": c["shortUrl"], "group": group,
+                            "due": due and due.isoformat(), "new": int(c["id"][:8], 16) > since})  # a card's id starts with its creation time
+    return sorted(out, key=lambda t: (t["due"] or "9", t["board"]))
+
+
+def plan_tick():
+    from datetime import datetime, timedelta
+    day = (datetime.now() - timedelta(hours=6)).date()  # before 6am it's still yesterday's plan
+    boards = trello("members/me/boards?filter=open&fields=name&lists=open&list_fields=name")
+    for b in boards:
+        b["cards"] = trello(f"boards/{b['id']}/cards?filter=open&fields=name,due,start,dueComplete,idList,shortUrl")
+    if plan.get("day") != str(day):
+        plan.update(day=str(day), planned_at=time.time())
+    plan.update(tasks=plan_tasks(boards, day, plan["planned_at"]), checked=time.time(), error="")
+    PLAN_FILE.write_text(json.dumps(plan))
+
+
+def plan_worker():
+    while True:
+        try:
+            plan_tick()
+        except Exception as e:
+            plan["error"] = str(e)
+        time.sleep(60)
+
+
 def worker():
     while True:
         try:
@@ -1583,6 +1641,10 @@ class H(BaseHTTPRequestHandler):
                 # the server usually can't look inside a 700 home: then go by what their last run said
                 auth = os.path.exists(f"{home}/.claude/.credentials.json") if os.access(home, os.X_OK) else use(u).get("auth", True)
                 return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth, "package": package(u)})
+            if p == ["api", "plan"] and m == "GET":
+                if u and not load_users()[u].get("admin"):  # one Trello account: the server owner's
+                    return self.send(403, {"error": "Only an admin can see the plan"})
+                return self.send(200, plan)
             if p[:2] == ["api", "workflows"]:
                 wfs = load_wfs(u)
                 if m == "GET" and len(p) == 2:
@@ -1761,4 +1823,6 @@ if __name__ == "__main__":
                 time.sleep(10)
     threading.Thread(target=lan_when_ready, daemon=True).start()
     threading.Thread(target=worker, daemon=True).start()
+    if (Path.home() / ".config/flows/trello.env").exists():
+        threading.Thread(target=plan_worker, daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
