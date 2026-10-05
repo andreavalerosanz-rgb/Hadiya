@@ -1,0 +1,12 @@
+[Unit]
+Description=Flows (local Claude Code workbench, @PKG@)
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/flows/server.py
+Environment=FLOWS_DATA=%h/.local/share/flows
+Environment=FLOWS_PACKAGE=@PKG@
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

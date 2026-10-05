@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Flows
+Comment=Local Claude Code workbench
+Icon=flows
+Categories=Development;
+Terminal=false
+Exec=sh -c "for b in google-chrome chromium chromium-browser microsoft-edge brave-browser; do command -v \\$b >/dev/null && exec \\$b --app=http://localhost:8787; done; exec xdg-open http://localhost:8787"
