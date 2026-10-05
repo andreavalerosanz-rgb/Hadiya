@@ -39,19 +39,42 @@ BRAIN_TOOLS = [
 ]
 
 
-def brain_mcp():
-    """`server.py brain-mcp`: the Second Brain's tools as an MCP server on stdio (newline JSON-RPC). Each call goes to
-    /api/brain/<tool> on Flows with the brain's token. It runs as the owner's Linux user: no Flows data access here."""
-    def call(name, args):
-        req = Request(f"http://127.0.0.1:{os.environ['FLOWS_PORT']}/api/brain/{name}", data=json.dumps(args).encode(), method="POST",
-                      headers={"Content-Type": "application/json", "X-Flow": "1", "X-Brain": os.environ["FLOWS_BRAIN_TOKEN"]})
-        try:
-            with urlopen(req, timeout=120) as f:
-                return json.loads(f.read())["text"], False
-        except HTTPError as e:
-            return json.loads(e.read() or b"{}").get("error") or str(e), True
-        except Exception as e:
-            return f"Flows is unreachable: {e}", True
+_S = lambda d: {"type": "string", "description": d}
+_DEV = {"device": _S("Device name or id (optional when only one device is online)"), "folder": _S("Shared folder name, from device_list_folders")}
+_PATH = _S("Path relative to the shared folder (forward slashes; no absolute paths)")
+_T = lambda name, desc, req, **props: {"name": name, "description": desc, "inputSchema": {
+    "type": "object", "required": ["folder", *req], "properties": {**_DEV, **props}}}
+LINK_TOOLS = [
+    {"name": "device_list_folders", "description": "The user's linked devices (their own laptops/PCs, via Flows Link), whether each is online, "
+     "and the folders each one shares (read-only? commands allowed?). Start here. These folders are NOT on this server's filesystem.",
+     "inputSchema": {"type": "object", "properties": {}}},
+    _T("device_list", "List a folder on the user's device.", [], path=_PATH, recursive={"type": "boolean"}, limit={"type": "integer", "description": "Max entries (default 500)"}),
+    _T("device_stat", "Does a file/folder exist on the device; size and modification time.", ["path"], path=_PATH),
+    _T("device_read", "Read a text file on the user's device (numbered lines, like Read). Images come back as images.", ["path"], path=_PATH,
+       offset={"type": "integer", "description": "First line, 1-based"}, limit={"type": "integer", "description": "Number of lines (default 2000)"}),
+    _T("device_write", "Create or overwrite a text file on the user's device (parent folders are created).", ["path", "content"], path=_PATH, content=_S("Full file content")),
+    _T("device_edit", "Replace an exact string in a file on the device, like Edit: old_string must match exactly once unless replace_all.",
+       ["path", "old_string", "new_string"], path=_PATH, old_string=_S("Exact text to replace"), new_string=_S("Replacement"), replace_all={"type": "boolean"}),
+    _T("device_mkdir", "Create a folder (and its parents) on the device.", ["path"], path=_PATH),
+    _T("device_move", "Move or rename a file/folder inside one shared folder on the device.", ["path", "to"], path=_PATH, to=_S("New path, relative to the shared folder")),
+    _T("device_delete", "Delete a file/folder on the device. It goes to <folder>/.flows-trash/, so the user can get it back.", ["path"], path=_PATH),
+    _T("device_glob", "Find files on the device by glob (**/*.php, src/**/*.{js,ts}). A pattern without / matches file names at any depth.",
+       ["pattern"], pattern=_S("Glob pattern"), path=_S("Subfolder to search (default: the whole shared folder)")),
+    _T("device_grep", "Search file contents on the device with a Python regular expression. Returns path:line:text.", ["pattern"],
+       pattern=_S("Regular expression"), path=_S("Subfolder or file (default: whole folder)"), glob=_S("Only files matching this glob, e.g. *.php"),
+       ignore_case={"type": "boolean"}, files_only={"type": "boolean", "description": "Only list the files that match"}, limit={"type": "integer"}),
+    _T("device_exec", "Run a shell command on the user's device, in a shared folder (or a subfolder). Only works if the user shared "
+       "that folder with commands allowed.", ["command"], command=_S("Shell command"), path=_S("Working subfolder (default: the folder)"),
+       timeout={"type": "integer", "description": "Seconds, max 300 (default 60)"}),
+    _T("device_pull", "Copy a file (any type, up to 20 MB) from the user's device to a path on this server.", ["path", "to"], path=_PATH,
+       to=_S("Absolute destination path on this server")),
+    _T("device_push", "Copy a file (any type, up to 20 MB) from this server to the user's device.", ["from", "path"],
+       path=_PATH, **{"from": _S("Absolute source path on this server")}),
+]
+
+
+def mcp_loop(tools, call):
+    """Newline JSON-RPC MCP server on stdio. call(name, args) -> (content list, is_error)."""
     for line in sys.stdin:
         try:
             msg = json.loads(line)
@@ -64,10 +87,10 @@ def brain_mcp():
             res = {"protocolVersion": prm.get("protocolVersion") or "2024-11-05", "capabilities": {"tools": {}},
                    "serverInfo": {"name": "flows", "version": "1"}}
         elif m == "tools/list":
-            res = {"tools": BRAIN_TOOLS}
+            res = {"tools": tools}
         elif m == "tools/call":
-            text, err = call(prm.get("name"), prm.get("arguments") or {})
-            res = {"content": [{"type": "text", "text": text}], "isError": err}
+            content, err = call(prm.get("name"), prm.get("arguments") or {})
+            res = {"content": content, "isError": err}
         elif m == "ping":
             res = {}
         else:
@@ -76,8 +99,59 @@ def brain_mcp():
         print(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": res}), flush=True)
 
 
-if __name__ == "__main__" and sys.argv[1:2] == ["brain-mcp"]:  # before anything below touches the data dir
-    raise SystemExit(brain_mcp())
+def link_mcp():
+    """`server.py link-mcp`: the `device` tools (Flows Link) on stdio. Each call goes to /api/link/mcp/<tool> with this
+    process's token. Runs as the owner's Linux user, so device_pull/push read and write this server's files as them."""
+    def post(name, args):
+        req = Request(f"http://127.0.0.1:{os.environ['FLOWS_PORT']}/api/link/mcp/{name}", data=json.dumps(args).encode(), method="POST",
+                      headers={"Content-Type": "application/json", "X-Flow": "1", "X-Link-Mcp": os.environ["FLOWS_LINK_TOKEN"]})
+        with urlopen(req, timeout=330) as f:
+            return json.loads(f.read())
+
+    def call(name, a):
+        txt = lambda t: [{"type": "text", "text": t}]
+        try:
+            if name == "device_push":
+                src = Path(os.path.expanduser(str(a.get("from") or "")))
+                if not src.is_absolute() or not src.is_file():
+                    return txt(f"No such file on this server: {src}"), True
+                if src.stat().st_size > 20 << 20:
+                    return txt("Over 20 MB"), True
+                a = {**{k: v for k, v in a.items() if k != "from"}, "data": base64.b64encode(src.read_bytes()).decode()}
+            j = post(name, a)
+            if name == "device_pull":
+                dst = Path(os.path.expanduser(str(a.get("to") or "")))
+                if not dst.is_absolute():
+                    return txt("`to` must be an absolute path on this server"), True
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(base64.b64decode(j["data"]))
+                return txt(f"Copied {j['size']} bytes to {dst}"), False
+            return j["content"], False
+        except HTTPError as e:
+            return txt(json.loads(e.read() or b"{}").get("error") or str(e)), True
+        except Exception as e:
+            return txt(f"Flows Link error: {e}"), True
+    mcp_loop(LINK_TOOLS, call)
+
+
+def brain_mcp():
+    """`server.py brain-mcp`: the Second Brain's tools as an MCP server on stdio (newline JSON-RPC). Each call goes to
+    /api/brain/<tool> on Flows with the brain's token. It runs as the owner's Linux user: no Flows data access here."""
+    def call(name, args):
+        req = Request(f"http://127.0.0.1:{os.environ['FLOWS_PORT']}/api/brain/{name}", data=json.dumps(args).encode(), method="POST",
+                      headers={"Content-Type": "application/json", "X-Flow": "1", "X-Brain": os.environ["FLOWS_BRAIN_TOKEN"]})
+        try:
+            with urlopen(req, timeout=120) as f:
+                return [{"type": "text", "text": json.loads(f.read())["text"]}], False
+        except HTTPError as e:
+            return [{"type": "text", "text": json.loads(e.read() or b"{}").get("error") or str(e)}], True
+        except Exception as e:
+            return [{"type": "text", "text": f"Flows is unreachable: {e}"}], True
+    mcp_loop(BRAIN_TOOLS, call)
+
+
+if __name__ == "__main__" and sys.argv[1:2] in (["brain-mcp"], ["link-mcp"]):  # before anything below touches the data dir
+    raise SystemExit(brain_mcp() if sys.argv[1] == "brain-mcp" else link_mcp())
 
 ROOT = Path(__file__).parent
 DATA = Path(os.environ.get("FLOWS_DATA") or ROOT / "data")  # the .deb sets ~/.local/share/flows
@@ -359,9 +433,262 @@ def test_connector(c):
         return {"ok": False, "error": str(e) or type(e).__name__}
 
 
+# ---------- Flows Link: folders on the user's own devices (link/flows_link.py) ----------
+# The device opens no port: it long-polls /api/link/poll with its token, gets file ops, posts results to /api/link/reply.
+# Agents reach it through the `device` MCP server (link_mcp), which calls /api/link/mcp/<tool> with a per-process secret.
+LINK_FILE = DATA / "link.json"
+link = json.loads(LINK_FILE.read_text()) if LINK_FILE.exists() else {}
+link.setdefault("devices", {})  # sha256(device token) -> {id, name, owner, created, last, platform, folders}
+link_codes = {}     # owner ("" single-user) -> {code, exp}: one live pairing code each, memory only, single use
+link_q = {}         # device id -> ops waiting for its next poll
+link_wait = {}      # op id -> {dev, ev, res, taken}
+link_polls, link_seen = {}, {}  # device id -> open long-polls / time of the last one
+link_mcp_toks = {}  # secret -> {owner, proc, t}: one per `claude` process, dies with it
+lcond = threading.Condition()
+LINK_TTL, LINK_WAIT, LINK_POLL = 600, 60, 25
+LINK_ABC = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # 8 of these: ~39 bits, no 0/O/1/I
+LINK_WRITES = {"write", "edit", "mkdir", "move", "delete", "exec"}
+LINK_NOTE = ("The user's own devices (their laptop or PC, linked with Flows Link) may share folders with you. Those folders are reachable "
+             "ONLY through the mcp__device tools (device_list_folders, device_read, device_write, device_edit, device_glob, device_grep, "
+             "device_exec…; load them with ToolSearch \"device\" if they are deferred). Device paths are NOT on this server's filesystem: "
+             "never use Read, Write, Edit or Bash on them. When the user talks about files on their computer, start with device_list_folders.")
+
+
+class LinkError(Exception):
+    pass
+
+
+def save_link():
+    LINK_FILE.write_text(json.dumps(link, indent=1))
+    os.chmod(LINK_FILE, 0o600)
+
+
+def link_new_code(owner):
+    if PACKAGES[package(owner)]:
+        raise ValueError("Flows Link no está disponible en este paquete")
+    c = "".join(secrets.choice(LINK_ABC) for _ in range(8))
+    link_codes[owner or ""] = {"code": c, "exp": time.time() + LINK_TTL}
+    return {"code": c[:4] + "-" + c[4:], "exp": link_codes[owner or ""]["exp"]}
+
+
+def link_pair(body):
+    """A client trades a pairing code for its device token. 20 wrong codes in 15 min (all clients) pause pairing."""
+    if locked("link", 20):
+        raise PermissionError("Demasiados intentos. Espera 15 minutos y crea un código nuevo.")
+    code = re.sub(r"[^A-Z0-9]", "", str(body.get("code") or "").upper())
+    hit = None
+    for o, c in list(link_codes.items()):  # compare against every live code, always the whole list
+        if c["exp"] > time.time() and hmac.compare_digest(code.encode(), c["code"].encode()):
+            hit = o
+    if hit is None:
+        fails["link"].append(time.time())
+        raise PermissionError("El código no es válido o ha caducado. Crea uno nuevo en Flows → Mis dispositivos.")
+    del link_codes[hit]
+    tok, did = secrets.token_urlsafe(32), secrets.token_hex(4)
+    name = re.sub(r"[\x00-\x1f]", "", str(body.get("name") or "Dispositivo"))[:40] or "Dispositivo"
+    with lcond:
+        link["devices"][hashlib.sha256(tok.encode()).hexdigest()] = {
+            "id": did, "name": name, "owner": hit, "created": time.time(), "last": time.time(),
+            "platform": str(body.get("platform") or "")[:20], "folders": []}
+        save_link()
+    return {"token": tok, "id": did, "name": name}
+
+
+def link_device(headers):
+    """The device behind `Authorization: Bearer <token>`, or None. Hashes compared in constant time."""
+    a = headers.get("Authorization") or ""
+    if not a.startswith("Bearer ") or len(a) > 200:
+        return None
+    h = hashlib.sha256(a[7:].strip().encode()).hexdigest()
+    k = next((k for k in list(link["devices"]) if hmac.compare_digest(k, h)), None)
+    return link["devices"].get(k) if k else None
+
+
+def link_alive(d):
+    return d in link["devices"].values()
+
+
+def link_poll(d, body):
+    """Store the folders the device reports, then wait (up to LINK_POLL s) for ops for it, and only it."""
+    fl = []
+    for f in body.get("folders") or []:
+        n = str(f.get("name") or "")
+        if re.fullmatch(r"[A-Za-z0-9._-]{1,40}", n) and n not in [x["name"] for x in fl]:
+            fl.append({"name": n, "path": str(f.get("path") or "")[:300], "read_only": bool(f.get("read_only")),
+                       "exec": bool(f.get("exec")) and not f.get("read_only")})
+    i = d["id"]
+    with lcond:
+        if fl != d.get("folders") or time.time() - d.get("last", 0) > 600:
+            d.update(folders=fl, last=time.time(), platform=str(body.get("platform") or d.get("platform") or "")[:20])
+            save_link()
+        fresh = not link_online(d)  # just (re)connected: answer at once so the client can say "Conectado"
+        link_polls[i] = link_polls.get(i, 0) + 1
+        link_seen[i] = time.time()
+        try:
+            lcond.wait_for(lambda: link_q.get(i) or not link_alive(d), 0 if fresh else LINK_POLL)
+            if not link_alive(d):
+                return None
+            ops = link_q.pop(i, [])
+            for o in ops:
+                if o["id"] in link_wait:
+                    link_wait[o["id"]]["taken"] = True
+        finally:
+            link_polls[i] -= 1
+            link_seen[i] = time.time()
+    return {"ops": ops}
+
+
+def link_reply(d, body):
+    with lcond:
+        w = link_wait.get(str(body.get("id")))
+        if not w or w["dev"] != d["id"]:  # never another device's op
+            return False
+        w["res"] = {"ok": bool(body.get("ok")), "result": body.get("result"), "error": str(body.get("error") or "")[:2000]}
+        w["ev"].set()
+    return True
+
+
+def link_online(d):
+    return bool(link_polls.get(d["id"])) or time.time() - link_seen.get(d["id"], 0) < LINK_POLL + 10
+
+
+def link_call(d, op, wait=LINK_WAIT):
+    """Queue one op for device d, wait for its reply. LinkError if it isn't connected, didn't answer or refused."""
+    if not link_online(d):
+        raise LinkError(f"el dispositivo no está conectado: «{d['name']}». Pide al usuario que ejecute `python3 flows_link.py run` en él.")
+    i, ev = uuid.uuid4().hex, threading.Event()
+    with lcond:
+        link_wait[i] = w = {"dev": d["id"], "ev": ev, "res": None, "taken": False}
+        link_q.setdefault(d["id"], []).append({"id": i, **op})
+        lcond.notify_all()
+    ev.wait(wait)
+    with lcond:
+        link_wait.pop(i, None)
+        if not w["taken"]:
+            link_q[d["id"]] = [o for o in link_q.get(d["id"], []) if o["id"] != i]
+    r = w["res"]
+    if r is None:
+        raise LinkError(f"el dispositivo no está conectado: «{d['name']}»" if not w["taken"] else f"«{d['name']}» no respondió en {int(wait)} s")
+    if not r["ok"]:
+        raise LinkError(f"{d['name']}: {r['error']}")
+    return r["result"]
+
+
+def link_devices(owner):
+    return [{**{k: d.get(k) for k in ("id", "name", "created", "last", "platform", "folders")}, "online": link_online(d)}
+            for d in link["devices"].values() if d["owner"] == (owner or "")]
+
+
+def link_revoke(owner, did):
+    with lcond:
+        for k in [k for k, d in link["devices"].items() if d["id"] == did and d["owner"] == (owner or "")]:
+            del link["devices"][k]
+        for w in link_wait.values():  # its waiting calls fail now instead of timing out
+            if w["dev"] == did and w["res"] is None:
+                w["res"] = {"ok": False, "error": "dispositivo revocado"}
+                w["ev"].set()
+        link_q.pop(did, None)
+        save_link()
+        lcond.notify_all()  # its open poll returns 401
+
+
+def link_api(owner, tool, a):
+    """The `device` MCP tools for this owner's devices. Returns {"content": [...]} (or {"data", "size"} for device_pull)."""
+    if PACKAGES[package(owner)]:
+        raise LinkError("Flows Link is not available in this package")
+    devs = [d for d in link["devices"].values() if d["owner"] == (owner or "")]
+    txt = lambda t: {"content": [{"type": "text", "text": t}]}
+    if tool == "device_list_folders":
+        if not devs:
+            return txt("No devices linked. The user can link one in Flows → Mis dispositivos.")
+        return txt("\n".join(f"- {d['name']} (id {d['id']}, {'online' if link_online(d) else 'OFFLINE'})" + "".join(
+            f"\n    {f['name']}: {'read-only' if f['read_only'] else 'read/write'}{', commands allowed' if f['exec'] else ''}"
+            for f in d.get("folders") or []) + ("" if d.get("folders") else "\n    (no shared folders)") for d in devs))
+    want = str(a.get("device") or "").strip().lower()
+    pick = [d for d in devs if want in (d["id"], d["name"].lower())] if want else [d for d in devs if link_online(d)] or devs
+    if not pick:
+        raise LinkError(f"No device «{a.get('device')}». Devices: " + (", ".join(d["name"] for d in devs) or "none"))
+    if len(pick) > 1:
+        raise LinkError("Several devices are online; pass `device`: " + ", ".join(d["name"] for d in pick))
+    d = pick[0]
+    f = next((f for f in d.get("folders") or [] if f["name"] == a.get("folder")), None)
+    if not f:
+        raise LinkError(f"«{d['name']}» shares no folder «{a.get('folder')}». Shared: " + (", ".join(x["name"] for x in d.get("folders") or []) or "none"))
+    op = {"device_list": "list", "device_stat": "stat", "device_read": "read", "device_write": "write", "device_edit": "edit",
+          "device_mkdir": "mkdir", "device_move": "move", "device_delete": "delete", "device_glob": "glob", "device_grep": "grep",
+          "device_exec": "exec", "device_pull": "read", "device_push": "write"}.get(tool)
+    if not op:
+        raise KeyError(tool)
+    for k in ("path", "to") if tool != "device_pull" else ("path",):  # the client checks again: it is the one that must hold
+        if re.match(r"^([/\\]|[A-Za-z]:)", str(a.get(k) or "")):
+            raise LinkError(f"`{k}` must be relative to the shared folder, not absolute")
+    if op in LINK_WRITES and f["read_only"]:
+        raise LinkError(f"Folder «{f['name']}» is shared read-only")
+    if op == "exec" and not f["exec"]:
+        raise LinkError(f"Commands are off for «{f['name']}»: the user must share it with --allow-exec")
+    args = {k: a[k] for k in ("path", "to", "recursive", "limit", "offset", "content", "old_string", "new_string", "replace_all",
+                              "pattern", "glob", "ignore_case", "files_only", "command", "timeout", "data") if k in a}
+    if tool == "device_pull":  # its `to` is a path on this server, for link_mcp only
+        args = {"path": a.get("path"), "binary": True}
+    if tool == "device_read" and re.search(r"\.(png|jpe?g|gif|webp)$", str(a.get("path") or ""), re.I):
+        args["binary"] = True
+    wait = min(int(a.get("timeout") or 60), 300) + 15 if op == "exec" else LINK_WAIT
+    r = link_call(d, {"op": op, "folder": f["name"], "args": args}, wait)
+    if tool == "device_pull":
+        return {"data": r["data"], "size": r["size"]}
+    if op == "read":
+        if args.get("binary"):
+            raw = base64.b64decode(r.get("data") or "")
+            if image_type(raw) and len(raw) <= MAX_IMAGE:
+                return {"content": [{"type": "image", "data": r["data"], "mimeType": image_type(raw)}]}
+            return txt(f"Binary file, {r['size']} bytes: use device_pull to copy it to this server.")
+        if r.get("binary"):
+            return txt(f"Binary file, {r['size']} bytes: use device_pull to copy it to this server.")
+        body = "\n".join(f"{n:6}\t{ln}" for n, ln in enumerate(r["lines"], r["start"]))
+        more = f"\n(showing lines {r['start']}-{r['start'] + len(r['lines']) - 1} of {r['total_lines']}; pass offset/limit for more)" if r.get("truncated") else ""
+        return txt((body or "(empty file)") + more)
+    if op == "list":
+        lines = [e["path"] + "/" if e["dir"] else f"{e['path']}  ({e['size']} B)" for e in r["entries"]]
+        return txt("\n".join(lines or ["(empty)"]) + ("\n(truncated: raise limit or list a subfolder)" if r["truncated"] else ""))
+    if op in ("glob", "grep"):
+        x = r["files" if op == "glob" else "matches"]
+        return txt("\n".join(x or ["(no matches)"]) + ("\n(truncated)" if r["truncated"] else ""))
+    if op == "exec":
+        return txt(f"exit code: {r['code']}\n--- stdout ---\n{r['stdout']}\n--- stderr ---\n{r['stderr']}")
+    if op == "write":
+        return txt(f"{'Created' if r['created'] else 'Wrote'} {f['name']}/{a.get('path')} ({r['bytes']} bytes) on {d['name']}")
+    return txt(json.dumps(r, ensure_ascii=False))
+
+
+def with_link(owner, cmd, extra):
+    """Flows Link on a `claude` command line: the `device` MCP server (link_mcp), pre-allowed, plus LINK_NOTE in the
+    appended prompt. Dev package only, and only once the owner has linked a device. Its secret travels by env, never
+    argv, and stops working when that process ends."""
+    if PACKAGES[package(owner)] or not any(d["owner"] == (owner or "") for d in link["devices"].values()):
+        return cmd, extra
+    tok = secrets.token_urlsafe(32)
+    with lcond:
+        for k, v in list(link_mcp_toks.items()):
+            if (v["proc"] and v["proc"].poll() is not None) or (not v["proc"] and time.time() - v["t"] > 120):
+                del link_mcp_toks[k]
+        link_mcp_toks[tok] = {"owner": owner or "", "proc": None, "t": time.time()}
+    out, it, tools, note = [], iter(cmd), False, False
+    for a in it:
+        if a in ("--allowedTools", "--append-system-prompt"):
+            a += "=" + next(it)
+        if a.startswith("--allowedTools="):
+            a, tools = a + ",mcp__device", True
+        elif a.startswith("--append-system-prompt=") and not note:
+            a, note = a + "\n\n" + LINK_NOTE, True
+        out.append(a)
+    srv = {"device": {"command": sys.executable or "python3", "args": [str((ROOT / "server.py").resolve()), "link-mcp"]}}
+    return (out + ([] if tools else ["--allowedTools=mcp__device"]) + ([] if note else ["--append-system-prompt=" + LINK_NOTE])
+            + ["--mcp-config=" + json.dumps({"mcpServers": srv})], {**(extra or {}), "FLOWS_LINK_TOKEN": tok, "FLOWS_PORT": str(PORT)})
+
+
 def launch(owner, cmd, cwd, extra=None, provider="claude"):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
-    cmd, extra = with_connectors(*with_provider(fence(owner, cmd), extra, provider))
+    cmd, extra = with_connectors(*with_link(owner, *with_provider(fence(owner, cmd), extra, provider)))
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
@@ -370,8 +697,11 @@ def launch(owner, cmd, cwd, extra=None, provider="claude"):
         cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd,
                *(["--preserve-env=" + ",".join(extra)] if extra else []), "--", *cmd]
         cwd = None  # the server user can't enter their home; sudo -D does it as them
-    return subprocess.Popen(cmd, cwd=cwd, env={**ENV, **(extra or {})}, text=True, stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(cmd, cwd=cwd, env={**ENV, **(extra or {})}, text=True, stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if (extra or {}).get("FLOWS_LINK_TOKEN") in link_mcp_toks:
+        link_mcp_toks[extra["FLOWS_LINK_TOKEN"]]["proc"] = p  # the device tools die with this process
+    return p
 # Drop API keys so the CLI uses the subscription login, and any parent Claude
 # session's vars so child runs don't piggyback on (or break) the host's auth.
 ENV = {k: v for k, v in os.environ.items()
@@ -1444,9 +1774,9 @@ def save_logins():
     os.chmod(SESS_FILE, 0o600)
 
 
-def locked(k):
+def locked(k, n=None):
     fails[k] = [t for t in fails.get(k, []) if t > time.time() - FAIL_WINDOW]
-    return len(fails[k]) >= (50 if k == "*" else 5)
+    return len(fails[k]) >= (n or (50 if k == "*" else 5))
 
 
 LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Pair with Flows", b"Sign in to Flows") + b"""<main>
@@ -1589,6 +1919,40 @@ class H(BaseHTTPRequestHandler):
         secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" or self.server is listeners.get("tunnel", {}).get("srv") else ""
         return self.send(200, {"ok": True}, headers=[("Set-Cookie", f"flows_session={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={SESSION_DAYS * 86400}{secure}")])
 
+    def link_client(self, p, m, body):
+        """Flows Link endpoints that aren't the browser's. pair/poll/reply: the device program, on any listener (laptop,
+        tailnet, tunnel, behind a proxy), signed in by its device token alone, never by cookies. mcp: the `device` MCP
+        server of one live `claude` process, laptop listener only, like the brain's."""
+        if m != "POST" or self.headers.get("X-Flow") != "1":
+            return self.send(403, {"error": "forbidden"})
+        try:
+            if p[2] == "mcp":
+                t = link_mcp_toks.get(self.headers.get("X-Link-Mcp") or "")
+                if (not t or self.remote or len(p) != 4 or (t["proc"] and t["proc"].poll() is not None)
+                        or self.headers.get("Host", "").split(":")[0] not in ("localhost", "127.0.0.1")):
+                    return self.send(403, {"error": "forbidden"})
+                return self.send(200, link_api(t["owner"] or None, p[3], body))
+            if p[2] == "pair":
+                return self.send(200, link_pair(body))
+            d = link_device(self.headers)
+            if not d:
+                return self.send(401, {"error": "Dispositivo no vinculado o revocado"})
+            if p[2] == "poll":
+                r = link_poll(d, body)
+                return self.send(200, r) if r is not None else self.send(401, {"error": "Dispositivo revocado"})
+            ok = link_reply(d, body)
+            return self.send(200 if ok else 404, {"ok": ok})
+        except PermissionError as e:
+            return self.send(429 if "intentos" in str(e) else 403, {"error": str(e)})
+        except LinkError as e:
+            return self.send(400, {"error": str(e)})
+        except KeyError:
+            return self.send(404, {"error": "unknown tool"})
+        except (ValueError, TypeError) as e:
+            return self.send(400, {"error": str(e)})
+        except Exception as e:
+            return self.send(500, {"error": str(e)})
+
     def route(self):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n) or b"{}") if n else {}
@@ -1611,6 +1975,11 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {"error": str(e)})
             except Exception as e:
                 return self.send(500, {"error": str(e)})
+        if p[:2] == ["api", "link"] and p[2:3] in (["pair"], ["poll"], ["reply"], ["mcp"]):
+            return self.link_client(p, m, body)
+        if m == "GET" and p == ["link", "flows_link.py"]:  # the client program: public, holds no secret
+            return self.send(200, (ROOT / "link" / "flows_link.py").read_bytes(), "text/x-python; charset=utf-8",
+                             [("Content-Disposition", 'attachment; filename="flows_link.py"'), ("X-Content-Type-Options", "nosniff")])
         if MULTI:  # signed-in users on every listener; the phone pairing below is single-user only
             if not self.remote and self.headers.get("Host", "").split(":")[0] not in HOSTS:
                 return self.send(403, {"error": "bad host"})
@@ -1750,6 +2119,16 @@ class H(BaseHTTPRequestHandler):
                         return self.send(200, test_connector(body))
                     set_connectors(body.get("connectors"))
                     return self.send(200, {"connectors": conns})
+            if p[:2] == ["api", "link"]:  # Mis dispositivos: each person sees and pairs only their own
+                if m == "GET" and len(p) == 2:
+                    c = link_codes.get(u or "")
+                    return self.send(200, {"devices": link_devices(u), "available": not PACKAGES[package(u)],
+                                           "code": {"code": c["code"][:4] + "-" + c["code"][4:], "exp": c["exp"]} if c and c["exp"] > time.time() else None})
+                if m == "POST" and p[2:] == ["code"]:
+                    return self.send(200, link_new_code(u))
+                if m == "POST" and p[2:] == ["revoke"]:
+                    link_revoke(u, str(body.get("id") or ""))
+                    return self.send(200, {"devices": link_devices(u)})
             if p[:2] == ["api", "provider"]:
                 if m == "GET":
                     return self.send(200, {**prov, **(local_health() if p[2:] == ["health"] else {})})
