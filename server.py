@@ -4,12 +4,12 @@
 Each step runs `claude -p` using your logged-in CLI (subscription auth).
 Run: python3 server.py  ->  http://localhost:8787
 """
-import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shutil, socket, subprocess, sys, threading, time, uuid
+import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shutil, socket, stat, subprocess, sys, threading, time, uuid, zipfile
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 from urllib.request import Request, urlopen
 
 ID = {"type": "string", "description": "The session id"}
@@ -1793,6 +1793,133 @@ const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();con
 const j=await r.json().catch(()=>({}));if(r.ok)location.reload();else document.getElementById('err').textContent=j.error||'Could not sign in';};</script></body></html>"""
 
 
+# ---------- files API: the owner's home from any device (browse, preview, upload, download, move) ----------
+ME = pwd.getpwuid(os.getuid()).pw_name  # the server's own Linux user
+SKIP_DIRS, TRASH, MAX_ZIP, MAX_READ = {"node_modules", ".git"}, ".flows-trash", 500 << 20, 1 << 20
+
+
+def files_ok(owner):
+    """File ops run as the server's Linux user, so they must only touch that user's own home: single-user mode, or a
+    multi-user admin whose Linux user is the server's. Anyone else's files would end up owned by `flows` (DEPLOY.md)."""
+    u = load_users()[owner] if owner else None
+    return not u or (u["unix"] == ME and bool(u.get("admin")))
+
+
+def files_root(owner):
+    if not files_ok(owner):
+        raise PermissionError("Los archivos del servidor solo están disponibles en modo de un usuario (ver DEPLOY.md)")
+    return Path(unix_home(owner) if owner else Path.home()).resolve()
+
+
+def fpath(owner, rel, follow=True):
+    """A path from the browser ("", "~", "~/a", "a/b" or absolute) -> (root, Path), symlinks resolved, refused outside the
+    root. follow=False resolves only the parent: rename/delete a symlink itself, never what it points to."""
+    root, rel = files_root(owner), str(rel or "").strip()
+    rel = "" if rel == "~" else rel[2:] if rel.startswith("~/") else rel
+    p = Path(os.path.normpath(root / rel))
+    p = p.resolve() if follow or p == root else p.parent.resolve() / p.name
+    if p != root and root not in p.parents:
+        raise PermissionError("Esa ruta está fuera de tu carpeta personal")
+    return root, p
+
+
+def frel(root, p):
+    return "" if p == root else p.relative_to(root).as_posix()
+
+
+def fentry(name, st, link=False):
+    return {"name": name, "dir": bool(st and stat.S_ISDIR(st.st_mode)), "size": st.st_size if st else 0,
+            "mtime": st.st_mtime if st else 0, **({"link": True} if link else {})}
+
+
+def files_list(owner, rel, hidden=False, deep=False):
+    """One folder (dirs first), or deep=1: every file below it by relative path (for the device sync), capped."""
+    root, d = fpath(owner, rel)
+    if not d.is_dir():
+        raise FileNotFoundError("No existe esa carpeta")
+    out = []
+    if deep:
+        for dp, dns, fns in os.walk(d):  # symlinked folders are not entered
+            dns[:] = [n for n in dns if n not in SKIP_DIRS and (hidden or n[0] != ".") and not (dp == str(root) and n == TRASH)]
+            for n in fns:
+                f = Path(dp) / n
+                try:
+                    if (hidden or n[0] != ".") and not f.is_symlink() and len(out) < 50000:
+                        out.append(fentry(f.relative_to(d).as_posix(), f.stat()))
+                except OSError:
+                    pass
+    else:
+        for e in os.scandir(d):
+            if hidden or e.name[0] != ".":
+                try:  # a symlink out of the root is listed, but nothing about its target is told
+                    r = Path(e.path).resolve() if e.is_symlink() else None
+                    st = e.stat() if not r or root in r.parents else None
+                except OSError:
+                    st = None  # broken symlink
+                out.append(fentry(e.name, st, e.is_symlink()))
+        out.sort(key=lambda e: (not e["dir"], e["name"].casefold()))
+    return {"path": frel(root, d), "home": str(root), "entries": out}
+
+
+def zip_files(root, d):
+    """What a folder download holds: no node_modules/.git/trash, no symlink out of the root. Stops once over MAX_ZIP."""
+    out, total = [], 0
+    for dp, dns, fns in os.walk(d):
+        dns[:] = [n for n in dns if n not in SKIP_DIRS and not (dp == str(root) and n == TRASH)]
+        for n in fns:
+            try:
+                r = (Path(dp) / n).resolve()
+                if not r.is_file() or root not in r.parents:
+                    continue
+                total += r.stat().st_size
+            except OSError:
+                continue
+            out.append((r, (Path(dp) / n).relative_to(d).as_posix()))
+            if total > MAX_ZIP:
+                return out, total
+    return out, total
+
+
+def disposition(name):
+    return "attachment; filename=\"%s\"; filename*=UTF-8''%s" % (re.sub(r'[^\w.\- ]', "_", name), quote(name))
+
+
+def files_move(owner, src, dst):
+    root, s = fpath(owner, src, follow=False)
+    _, t = fpath(owner, dst, follow=False)
+    if s == root:
+        raise ValueError("Tu carpeta personal no se puede mover")
+    if not os.path.lexists(s):
+        raise FileNotFoundError("No existe")
+    if os.path.lexists(t):
+        raise FileExistsError(f"«{t.name}» ya existe")
+    if not t.parent.is_dir():
+        raise FileNotFoundError("No existe la carpeta de destino")
+    if s.is_dir() and not s.is_symlink() and s in t.parents:
+        raise ValueError("No se puede mover una carpeta dentro de sí misma")
+    shutil.move(s, t)  # a rename on the same disk
+    return frel(root, t)
+
+
+def files_trash(owner, rel):
+    """Delete = move into <home>/.flows-trash/<time>-<name>. Nothing is ever removed for good here."""
+    root, s = fpath(owner, rel, follow=False)
+    trash = root / TRASH
+    if s == root:
+        raise ValueError("Tu carpeta personal no se puede borrar")
+    if not os.path.lexists(s):
+        raise FileNotFoundError("No existe")
+    if s == trash or trash in s.parents:
+        raise ValueError("Ya está en la papelera (~/.flows-trash). Vacíala a mano si quieres liberar espacio.")
+    trash.mkdir(exist_ok=True)
+    t, n = trash / f"{time.strftime('%Y%m%d-%H%M%S')}-{s.name}", 1
+    while os.path.lexists(t):
+        n += 1
+        t = trash / f"{time.strftime('%Y%m%d-%H%M%S')}-{n}-{s.name}"
+    shutil.move(s, t)
+    return frel(root, t)
+
+
 sub_scan = {}  # run id -> (events scanned, {tool_use_id: {id, desc, status}})
 
 
@@ -1959,10 +2086,130 @@ class H(BaseHTTPRequestHandler):
         except Exception as e:
             return self.send(500, {"error": str(e)})
 
+    def files(self, m, op, body, u):
+        """/api/files/<op>: list, read, download (GET); upload, mkdir, rename, delete (POST). Paths are relative to the
+        owner's home; anything resolving outside it is refused (fpath)."""
+        q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
+        try:
+            if m == "GET" and op == "list":
+                return self.send(200, files_list(u, q.get("path"), q.get("hidden") == "1", q.get("deep") == "1"))
+            if m == "GET" and op == "read":
+                root, f = fpath(u, q.get("path"))
+                if not f.is_file():
+                    raise FileNotFoundError("No existe ese archivo")
+                if f.stat().st_size > MAX_READ:
+                    return self.send(413, {"error": "Es demasiado grande para verlo aquí (más de 1 MB): descárgalo"})
+                raw = f.read_bytes()
+                try:
+                    if b"\0" in raw:
+                        raise ValueError
+                    text = raw.decode("utf-8")
+                except ValueError:
+                    return self.send(415, {"error": "No es un archivo de texto: descárgalo para abrirlo"})
+                return self.send(200, {"path": frel(root, f), "text": text, "size": len(raw)})
+            if m == "GET" and op == "download":
+                return self.files_download(u, q.get("path"))
+            if m == "POST" and op == "upload":
+                return self.files_upload(u, q)
+            if m == "POST" and op == "mkdir":
+                root, d = fpath(u, body.get("path"))
+                if not d.parent.is_dir():
+                    raise FileNotFoundError("No existe la carpeta de destino")
+                d.mkdir()
+                return self.send(200, {"path": frel(root, d)})
+            if m == "POST" and op == "rename":
+                return self.send(200, {"path": files_move(u, body.get("path"), body.get("to"))})
+            if m == "POST" and op == "delete":
+                return self.send(200, {"trash": files_trash(u, body.get("path"))})
+            return self.send(404, {"error": "not found"})
+        except PermissionError as e:
+            return self.send(403, {"error": f"Sin permiso: {e.filename}" if e.errno else str(e)})
+        except FileNotFoundError as e:
+            return self.send(404, {"error": "No existe" if e.errno else str(e)})
+        except FileExistsError as e:
+            return self.send(409, {"error": f"«{Path(e.filename or '').name}» ya existe" if e.errno else str(e)})
+
+    def files_download(self, u, rel):
+        """A file as is, or a folder as a zip streamed while it is built (no Content-Length, connection closes)."""
+        root, f = fpath(u, rel)
+        if f.is_dir():
+            files, total = zip_files(root, f)
+            if total > MAX_ZIP:
+                return self.send(413, {"error": f"La carpeta pasa de {MAX_ZIP >> 20} MB (sin node_modules ni .git): descarga sus subcarpetas por separado"})
+            name, ctype, size = (f.name or "home") + ".zip", "application/zip", None
+        elif f.is_file():
+            name, ctype, size = f.name, "application/octet-stream", f.stat().st_size
+        else:
+            raise FileNotFoundError("No existe")
+        self.send_response(200)
+        for k, v in (("Content-Type", ctype), ("Content-Disposition", disposition(name)), ("Cache-Control", "no-store"),
+                     ("X-Content-Type-Options", "nosniff"), *([("Content-Length", str(size))] if size is not None else [])):
+            self.send_header(k, v)
+        self.end_headers()
+        self.close_connection = True
+        try:
+            if size is None:
+                with zipfile.ZipFile(self.wfile, "w", zipfile.ZIP_DEFLATED, compresslevel=1, strict_timestamps=False) as z:
+                    for src, arc in files:
+                        try:
+                            z.write(src, f"{name[:-4]}/{arc}")
+                        except FileNotFoundError:  # vanished while zipping
+                            pass
+            else:
+                with open(f, "rb") as fh:
+                    shutil.copyfileobj(fh, self.wfile, 1 << 20)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # the browser cancelled
+
+    def files_upload(self, u, q):
+        """Raw body -> <path>/<name> (name may hold subfolders: folder uploads). Streamed to a temp file in 1 MB chunks,
+        then renamed into place. Refuses to overwrite unless overwrite=1."""
+        n, left = int(self.headers.get("Content-Length") or -1), None
+        try:
+            if n < 0:
+                raise ValueError("Falta Content-Length")
+            parts = [x for x in str(q.get("name") or "").replace("\\", "/").split("/") if x not in ("", ".")]
+            if not parts or ".." in parts or any("\0" in x for x in parts):
+                raise ValueError("Nombre de archivo no válido")
+            root, d = fpath(u, q.get("path"))
+            _, dst = fpath(u, str(d.joinpath(*parts)))
+            if dst.is_dir():
+                raise FileExistsError(f"Ya hay una carpeta «{dst.name}»")
+            if dst.exists() and q.get("overwrite") != "1":
+                raise FileExistsError(f"«{'/'.join(parts)}» ya existe")
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if fpath(u, str(dst))[1] != dst:  # a folder made on the way was a symlink race: refuse
+                raise PermissionError("Esa ruta está fuera de tu carpeta personal")
+            if shutil.disk_usage(dst.parent).free < n + (64 << 20):
+                return self.send(507, {"error": "No queda espacio en el disco del servidor"})
+            tmp, left = dst.parent / f".{dst.name}.flows-part-{secrets.token_hex(4)}", n
+            try:
+                with open(tmp, "xb") as fh:
+                    while left:
+                        b = self.rfile.read(min(left, 1 << 20))
+                        if not b:
+                            raise ValueError("La subida se cortó")
+                        fh.write(b)
+                        left -= len(b)
+                if q.get("mtime"):
+                    t = float(q["mtime"])
+                    os.utime(tmp, (t, t))
+                if dst.exists() and q.get("overwrite") != "1":
+                    raise FileExistsError(f"«{'/'.join(parts)}» ya existe")
+                os.replace(tmp, dst)
+            finally:
+                tmp.unlink(missing_ok=True)
+            return self.send(200, {"path": frel(root, dst), **fentry(dst.name, dst.stat())})
+        except Exception:
+            if left is None and 0 < n <= 16 << 20:  # refused before reading: drain a small body so the browser sees our answer
+                self.rfile.read(n)
+            raise
+
     def route(self):
         n = int(self.headers.get("Content-Length") or 0)
-        body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         p = self.path.split("?")[0].strip("/").split("/")
+        raw = p == ["api", "files", "upload"]  # streamed to disk by files_upload(), never held in memory
+        body = json.loads(self.rfile.read(n) or b"{}") if n and not raw else {}
         m = self.command
         u = self.user = None
         tok = self.headers.get("X-Brain")
@@ -2072,11 +2319,13 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, raw, "text/html; charset=utf-8", hd)
             if m == "GET" and p == ["api", "me"]:
                 if not u:
-                    return self.send(200, {"user": None, "admin": True, "claude_logged_in": True, "package": package(None)})
+                    return self.send(200, {"user": None, "admin": True, "claude_logged_in": True, "package": package(None), "files": True})
                 home = unix_home(u)
                 # the server usually can't look inside a 700 home: then go by what their last run said
                 auth = os.path.exists(f"{home}/.claude/.credentials.json") if os.access(home, os.X_OK) else use(u).get("auth", True)
-                return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth, "package": package(u)})
+                return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth, "package": package(u), "files": files_ok(u)})
+            if p[:2] == ["api", "files"] and len(p) == 3:
+                return self.files(m, p[2], body, u)
             if p[:2] == ["api", "workflows"]:
                 wfs = load_wfs(u)
                 if m == "GET" and len(p) == 2:
