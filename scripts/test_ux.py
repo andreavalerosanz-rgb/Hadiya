@@ -1,6 +1,6 @@
 """python3 scripts/test_ux.py [base_url] — layout regression on the longest real session (needs a running server and `pip install playwright`).
 One line per failed check, exit 1 if any. Screenshots of failures only, to data/shots/<run>/ (never into the repo)."""
-import json, sys, time, urllib.request
+import json, re, sys, time, urllib.request
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -73,6 +73,33 @@ def sessions():
     runs = [r for r in get("/api/runs") if r.get("kind") == "session"]
     return sorted((r["id"] for r in runs), key=lambda i: len(get(f"/api/runs/{i}").get("events", [])), reverse=True)
 
+URL = "https://github.com/" + "/".join(["a_long_path_segment_without_breaks"] * 4) + ".tsx"
+PENDING = {  # fake decisions served through a route: long unbroken text, multiSelect, "Something else", a long shell command
+    "q": {"id": "q", "ts": 1, "tool": "AskUserQuestion", "input": {"questions": [
+        {"header": "Layout", "question": "Which layout for " + URL + "?", "options": [{"label": "Sidebar_with_an_unbreakable_label_" * 2, "description": URL}, {"label": "Top bar"}]},
+        {"header": "Features", "question": "Which features?", "multiSelect": True, "options": [{"label": "Search"}, {"label": "Export"}]}]}},
+    "p": {"id": "p", "ts": 1, "tool": "Bash", "suggestions": [1], "input": {"command": "grep -rl " + "x" * 200 + " . | xargs sed -n 1,9p", "description": URL}}}
+
+def decisions(page, sid, dev):
+    for k, item in PENDING.items():
+        def fake(route, _req=None, item=item):
+            r = route.fetch(); j = r.json()
+            for x in j if isinstance(j, list) else [j]:
+                if x.get("id") == sid: x["status"] = "asking"; x["pending"] = {item["id"]: item}
+            route.fulfill(response=r, body=json.dumps(j))
+        page.route(re.compile(r".*/api/runs(/" + sid + r")?(\?.*)?$"), fake)
+        page.goto(f"{BASE}/"); page.wait_for_timeout(1000); no_overflow(page, f"{dev} home with a decision banner")
+        page.goto(f"{BASE}/#session/{sid}"); page.wait_for_selector("#decide[open]", timeout=15000); page.wait_for_timeout(400)
+        tag = f"{dev} {'question' if k == 'q' else 'permission'} dialog"
+        no_overflow(page, tag)
+        d = js(page, """(d=>{const f=d.querySelector('.dfoot').getBoundingClientRect();return {sw:d.scrollWidth,cw:d.clientWidth,foot:f.bottom<=innerHeight+1,
+            short:[...d.querySelectorAll('button,label.opt,input[type=text]')].filter(e=>{const h=e.getBoundingClientRect().height;return h&&h<44}).length}})(document.querySelector('#decide'))""")
+        check(page, d["sw"] <= d["cw"] and d["foot"] and not d["short"], f"{tag}: inner width {d['sw']}/{d['cw']}px, buttons visible {d['foot']}, {d['short']} targets under 44px")
+        if k == "q":
+            page.click("#decide .other input[type=text]"); page.keyboard.type("my own answer"); page.wait_for_timeout(200)
+            no_overflow(page, f"{tag} typing in Something else")
+        page.unroute(re.compile(r".*/api/runs(/" + sid + r")?(\?.*)?$"))
+
 def mobile(page, sid, dev, others):
     H = page.viewport_size["height"]
     for h in ROUTES + ["#wf/" + w for w in list(get("/api/workflows"))[:1]]:
@@ -110,7 +137,8 @@ def mobile(page, sid, dev, others):
         b = page.query_selector(sel)
         check(page, b and b.is_visible(), f"{dev}: no {what} button")
         if b and b.is_visible(): b.click(); page.wait_for_timeout(400); no_overflow(page, f"{dev} {what}")
-    page.reload(); page.wait_for_selector(".logbox", timeout=15000)
+    decisions(page, sid, dev)
+    page.goto(f"{BASE}/#session/{sid}"); page.wait_for_selector(".logbox", timeout=15000)
     page.set_viewport_size({"width": H, "height": page.viewport_size["width"]}); page.wait_for_timeout(400)
     no_overflow(page, f"{dev} landscape session")
     page.goto(f"{BASE}/"); page.wait_for_timeout(800); no_overflow(page, f"{dev} landscape home")
