@@ -1364,7 +1364,6 @@ const kidsOf = id => sessions.filter(r => r.parent == id);
 const pinned = () => sessions.filter(r => r.pinned).sort((a, b) => a.pinned - b.pinned);
 const brainIcon = r => r.brain ? `<span class="brn" title="Second Brain">${icon('brain')}<span class="sr">Second Brain</span></span>` : '';
 let queue = {items: [], limited_until: 0};
-let provState = {provider: 'claude', base_url: '', model: '', reachable: null, model_present: false};
 const ACT = {};
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
@@ -1579,47 +1578,8 @@ ACT.pushOff = async () => {
   refresh();
 };
 
-/* ---- provider: Claude (subscription) or Kimi local (Ollama-style endpoint) ---- */
-function provCard() {
-  const p = provState, local = p.provider == 'local', admin = PKG == 'admin';
-  const [cls, msg] = p.reachable == null ? ['', 'Comprobando Kimi local…']
-    : !p.reachable ? ['bad', `Kimi local no responde en ${esc(p.base_url)}. ¿Está Ollama en marcha?`]
-    : !p.model ? ['bad', 'Ollama responde, pero falta indicar el modelo.']
-    : !p.model_present ? ['bad', `Ollama responde, pero no tiene «${esc(p.model)}». Descárgalo con <code>ollama pull ${esc(p.model)}</code>.`]
-    : ['ok', `Kimi local listo · ${esc(p.model)}`];
-  return `<div class="pv-h"><b id="pv-l">Con qué modelo trabajar</b><small>Las sesiones nuevas usan esta opción; una sesión en marcha sigue con la suya.</small></div>
-    <div class="seg" role="group" aria-labelledby="pv-l">
-      <button type="button" data-act="provPick" data-arg="claude" aria-pressed="${!local}">Claude</button>
-      <button type="button" data-act="provPick" data-arg="local" aria-pressed="${local}">Kimi local</button></div>
-    <p class="pst ${cls}" role="status"><i></i><span>${msg}</span></p>
-    ${admin ? '' : `<details ${p.reachable && p.model_present ? '' : 'open'}><summary>Ajustes de Kimi local</summary>
-      <label for="pv-url">Dirección del servidor (compatible con Anthropic, p. ej. Ollama)</label><input id="pv-url" value="${esc(p.base_url)}" autocomplete="off" spellcheck="false">
-      <label for="pv-model">Modelo (etiqueta de Ollama)</label><input id="pv-model" value="${esc(p.model)}" placeholder="la etiqueta que hayas descargado con ollama pull" autocomplete="off" spellcheck="false">
-      <button type="button" class="${admin ? 'a-small' : 'btn-s'}" data-act="provSave">Guardar y comprobar</button></details>`}`;
-}
-async function provLoad() {
-  provState = await api('provider/health').catch(() => provState);
-  setHTML('#prov', provCard());
-}
-ACT.provPick = async v => {
-  try { await api('provider', {method: 'POST', body: JSON.stringify({provider: v})}); toast(v == 'local' ? 'Las próximas sesiones usarán Kimi local' : 'Las próximas sesiones usarán Claude'); }
-  catch (e) { toast(e.message, true); }
-  provLoad();
-};
-ACT.provSave = async () => {
-  try { await api('provider', {method: 'POST', body: JSON.stringify({base_url: $('#pv-url').value, model: $('#pv-model').value})}); toast('Guardado'); }
-  catch (e) { toast(e.message, true); }
-  provLoad();
-};
-ACT.kimi = async id => {  // the Claude limit ran out: switch and resume this session on the local model
-  try { await api(`sessions/${id}/local`, {method: 'POST'}); toast('Siguiendo con Kimi local'); }
-  catch (e) { toast(e.message, true); }
-  provLoad(); refresh();
-};
-const limitAlerts = adm => sessions.filter(r => r.status == 'waiting' && r.provider != 'local').map(r =>
-  `<div class="${adm ? 'a-alert' : 'alert'} limit" role="status">${icon('clock')}<span><b>Claude ha llegado a su límite de uso</b> en «${esc(r.name)}». Puede seguir con el modelo local.</span>
-   <button type="button" class="${adm ? 'a-small' : 'btn-s'}" data-act="kimi" data-arg="${r.id}">Continuar con Kimi local</button></div>`).join('');
-
+let usageOpen = false;
+addEventListener('toggle', e => { if (e.target.id == 'usage') usageOpen = e.target.open; }, true);
 function usagePanel(u) {
   const row = (label, w) => {
     if (!w) return '';

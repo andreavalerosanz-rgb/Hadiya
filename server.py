@@ -186,62 +186,11 @@ def fence(owner, cmd):
     return out + ["--tools=" + pk["tools"]] + (["--append-system-prompt=" + pk["note"]] if pk["note"] else [])  # built-ins: Read, Bash, Edit, WebFetch… all gone
 
 
-PROV_FILE = DATA / "provider.json"
-prov = {"provider": "claude", "base_url": "http://127.0.0.1:11434", "model": ""}  # install-wide; "local" = Ollama & co.
-if PROV_FILE.exists():
-    prov.update(json.loads(PROV_FILE.read_text()))
-
-
-def with_provider(cmd, extra, provider):
-    """The ONE place the provider is applied: every `claude` we start goes through launch(), which calls this.
-    "claude" = untouched. "local" = an Anthropic-compatible endpoint (Ollama) and its model tag, for --model and for
-    the subagents' haiku/sonnet/opus aliases. A running process keeps what it was started with."""
-    if provider != "local":
-        return cmd, extra
-    if not prov["model"]:
-        raise ValueError("Falta el modelo local: indícalo en los ajustes de Kimi local")
-    out, it = [], iter(cmd)
-    for a in it:
-        if a == "--model":
-            next(it)
-        elif not a.startswith("--model="):
-            out.append(a)
-    m = prov["model"]
-    env = {"ANTHROPIC_BASE_URL": prov["base_url"], "ANTHROPIC_AUTH_TOKEN": "ollama", "ANTHROPIC_API_KEY": "", "ANTHROPIC_MODEL": m,
-           "ANTHROPIC_DEFAULT_OPUS_MODEL": m, "ANTHROPIC_DEFAULT_SONNET_MODEL": m, "ANTHROPIC_DEFAULT_HAIKU_MODEL": m,
-           "ANTHROPIC_SMALL_FAST_MODEL": m, "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
-    return out + ["--model", m], {**(extra or {}), **env}
-
-
-def local_health():
-    """Is the local endpoint up, and does it have the model? (Ollama: GET /api/tags.)"""
-    try:
-        with urlopen(prov["base_url"] + "/api/tags", timeout=1.5) as f:
-            names = [m.get("name") or m.get("model") or "" for m in json.loads(f.read()).get("models") or []]
-    except Exception:
-        return {"reachable": False, "model_present": False, "models": []}
-    m = prov["model"]
-    return {"reachable": True, "models": names, "model_present": bool(m) and (m in names or m + ":latest" in names)}
-
-
-def set_provider(body):
-    new = {**prov, **{k: str(body[k]).strip() for k in ("provider", "base_url", "model") if k in body}}
-    new["base_url"] = new["base_url"].rstrip("/")
-    if new["provider"] not in ("claude", "local"):
-        raise ValueError("Proveedor desconocido")
-    if not re.match(r"https?://[^\s/]+", new["base_url"]):
-        raise ValueError("La dirección debe empezar por http:// o https://")
-    if new["provider"] == "local" and not new["model"]:
-        raise ValueError("Indica primero el modelo local")
-    prov.update(new)
-    PROV_FILE.write_text(json.dumps(prov, indent=1))
-
-
-def launch(owner, cmd, cwd, extra=None, provider="claude"):
+def launch(owner, cmd, cwd, extra=None):
     """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
     # Long sessions grew to 400k tokens and every turn re-read all of it. Compact at ~200k instead of near 1M.
     extra = {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": os.environ.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "200000"), **(extra or {})}
-    cmd, extra = with_provider(fence(owner, cmd), extra, provider)
+    cmd = fence(owner, cmd)
     if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
         raise ValueError("This run has no owner")
     if owner:
@@ -670,7 +619,7 @@ def execute(r):
                     return
                 r["steps"].append(s)
             cwd = workdir(r.get("owner"), step.get("cwd") or r["workflow"].get("cwd"))
-            p = launch(r.get("owner"), cmd, cwd, provider=r.get("provider", "claude"))
+            p = launch(r.get("owner"), cmd, cwd)
             procs[r["id"]] = p
             # stdin avoids the ~128KB argv limit when {{prev}} is large
             p.stdin.write(render(step["prompt"], r["input"], prev, r["workflow"].get("site") or ""))
@@ -724,7 +673,7 @@ def start_run(wf_id, inp, owner):
     wf = load_wfs(owner)[wf_id]
     r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "workflow_id": wf_id, "owner": owner,
          "name": wf["name"], "input": inp, "status": "running", "started": time.time(),
-         "ended": None, "cost": 0, "steps": [], "workflow": wf, "provider": prov["provider"]}
+         "ended": None, "cost": 0, "steps": [], "workflow": wf}
     with lock:
         runs[r["id"]] = r
     threading.Thread(target=execute, args=(r,), daemon=True).start()
@@ -772,8 +721,7 @@ def spawn(r):
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
         r["cost_base"] = r["cost"]  # new process reports cost from zero
-    r["provider"] = prov["provider"]  # fixed for this process; a respawn picks up the current choice
-    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), extra, r["provider"])
+    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), extra)
     procs[r["id"]] = p
     threading.Thread(target=pump, args=(r, p), daemon=True).start()
     return p
@@ -1019,17 +967,7 @@ def stop_session(r):
             procs[r["id"]].terminate()
 
 
-def continue_local(r):
-    """Continuar con Kimi local: switch the provider, end the lead's process and resume the same session on it."""
-    set_provider({"provider": "local"})
-    with lock:
-        p = procs.pop(r["id"], None)
-        if p:
-            restart(r, p)
-    send(r, "Continúa donde lo dejaste. (El límite de Claude se agotó; sigues con el modelo local.)")
-
-
-def transcript(r, since, cap=12000):
+def transcript(r, since, cap=4000):
     """Compact text of a session's events from index `since` (lead only, subagents' inner work skipped)."""
     out, n, evs = [], since, r["events"]
     short = lambda x, k: (x if isinstance(x, str) else json.dumps(x, ensure_ascii=False))[:k]
@@ -1867,14 +1805,6 @@ class H(BaseHTTPRequestHandler):
                         push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40], "owner": u}
                     PUSH_FILE.write_text(json.dumps(push))
                     return self.send(200, {"ok": True})
-            if p[:2] == ["api", "provider"]:
-                if m == "GET":
-                    return self.send(200, {**prov, **(local_health() if p[2:] == ["health"] else {})})
-                if m == "POST" and len(p) == 2:
-                    if u and not load_users()[u].get("admin"):
-                        return self.send(403, {"error": "Solo un administrador cambia el proveedor"})
-                    set_provider(body)
-                    return self.send(200, prov)
             if m == "GET" and p == ["api", "usage"]:
                 return self.send(200, use(u))
             if p[:2] == ["api", "queue"]:
@@ -1933,9 +1863,6 @@ class H(BaseHTTPRequestHandler):
                 if p[3:] == ["pin"]:
                     r["pinned"] = time.time() if body.get("on") else None
                     save_run(r)
-                    return self.send(200, {"ok": True})
-                if p[3:] == ["local"]:
-                    continue_local(r)
                     return self.send(200, {"ok": True})
                 if p[3:] == ["stop"]:
                     stop_session(r)
