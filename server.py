@@ -20,12 +20,12 @@ BRAIN_TOOLS = [
          "message": {"type": "string", "description": "The brief: goal, exact paths, constraints, contracts with other workstreams, how to verify, what to report"},
          "name": {"type": "string", "description": "Short name shown to the user"},
          "cwd": {"type": "string", "description": "Project folder (default: yours)"},
-         "model": {"type": "string", "description": "Lead model, e.g. sonnet or opus (default: yours)"}}}},
+         "model": {"type": "string", "description": "Lead model: sonnet (default) for normal work, opus only for hard design, debugging or architecture"}}}},
     {"name": "list_sessions", "description": "Your sessions: status, pending questions and their last message.",
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "read_session", "description": "A session's recent transcript: messages, tool calls, errors, questions and answers. "
      "Returns the `since` to pass next time to read only what is new.",
-     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": ID, "since": {"type": "integer", "description": "Event index to start from (default: the last 40 events)"}}}},
+     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": ID, "since": {"type": "integer", "description": "Event index to start from (default: the last 15 events)"}}}},
     {"name": "send_message", "description": "Send a message to a session: next instructions, information from other sessions, corrections.",
      "inputSchema": {"type": "object", "required": ["id", "text"], "properties": {"id": ID, "text": {"type": "string"}}}},
     {"name": "answer_question", "description": "Answer a session's pending question (AskUserQuestion). Permission checks stay with the user.",
@@ -346,7 +346,7 @@ BRAIN = """You are the Second Brain of this project: you run it end to end by co
 - Run at most {n} sessions at once.
 - You'll receive [Flows] messages when a session asks something or finishes a turn. Answer questions by your own judgment with answer_question, review results (read_session), relay what other sessions need with send_message, and give next instructions.
 - Ask the user (AskUserQuestion) only for decisions that are really theirs: taste, scope, money, credentials, anything irreversible or outward-facing.
-- Don't do the implementation yourself; you may read files to check work.
+- Don't do the implementation or the checking yourself: you have no terminal or editor. Every file or image you read stays in your context and is re-read on each of your turns, so never Read images or files over ~200 lines; ask a session for a short report instead.
 - At the end verify the whole thing works and report to the user briefly. Answer in the user's language. Keep it tight."""
 CHILD = ("This session is part of a project coordinated by the Second Brain: your AskUserQuestion questions go to it. "
          "Ask it about decisions, contracts with other sessions or anything unclear. When you finish, end with a concise "
@@ -385,6 +385,162 @@ def load_wfs(owner):
 def save_wfs(w, owner):
     wf_file(owner).parent.mkdir(exist_ok=True)
     wf_file(owner).write_text(json.dumps(w, indent=2))
+
+
+# Claude Code subagents: ~/.claude/agents/<name>.md, YAML frontmatter + directives. Often symlinks into
+# the user's own repo: edits go through the link, so the repo file is what changes.
+def claude_dir(owner):
+    # ponytail: multi-user reads/writes the owner's home as the server user; needs a sudo helper if homes are 700
+    return Path(unix_home(owner) if owner else Path.home()) / ".claude"
+
+
+def front(text):
+    """(frontmatter, body) of an agent or SKILL.md. Only the YAML these files use: scalars, quoted
+    scalars, `[a, b]` and `- item` lists, `>`/`|` blocks."""
+    m = re.match(r"---\n(.*?)\n---\n?(.*)", text, re.S)
+    if not m:
+        return {}, text
+    meta, key = {}, None
+    for line in m.group(1).splitlines():
+        s = line.strip()
+        if not s or s[0] == "#":
+            continue
+        if key and line[0] in " \t":  # belongs to the key above: a list item or a folded line
+            if s[:2] == "- ":
+                meta[key] = (meta[key] or []) + [s[2:].strip()]
+            else:
+                meta[key] = (meta[key] + " " + s).strip()
+            continue
+        key, _, v = (x.strip() for x in line.partition(":"))
+        if v[:1] == "[":
+            v = [x.strip().strip("'\"") for x in v.strip("[]").split(",") if x.strip()]
+        elif v in (">", "|", ">-", "|-"):
+            v = ""
+        elif len(v) > 1 and v[0] == v[-1] == "'":
+            v = v[1:-1].replace("''", "'")
+        elif len(v) > 1 and v[0] == v[-1] == '"':
+            v = json.loads(v)
+        meta[key] = v
+    return meta, m.group(2)
+
+
+def yaml_str(v):
+    """Plain when YAML reads it back unchanged, else double-quoted (JSON is valid YAML)."""
+    return json.dumps(v, ensure_ascii=False) if not v or re.search(r":\s|\s#|^[-?:,\[\]{}#&*!|>'\"%@`\s]|\s$", v) else v
+
+
+def agent_info(f):
+    meta, body = front(f.read_text())
+    return {"name": f.stem, "description": meta.get("description", ""), "model": meta.get("model", ""),
+            "tools": meta.get("tools", ""), "skills": meta.get("skills") or [], "file": str(f.resolve()), "link": f.is_symlink()}, meta, body
+
+
+def list_agents(owner):
+    d = claude_dir(owner) / "agents"
+    return [agent_info(f)[0] for f in sorted(d.glob("*.md")) if f.is_file() and re.fullmatch(r"[a-z0-9-]+", f.stem)]
+
+
+def list_skills(owner):
+    out = []
+    for f in sorted((claude_dir(owner) / "skills").glob("*/SKILL.md")):
+        meta = front(f.read_text())[0]
+        out.append({"name": meta.get("name") or f.parent.name, "description": " ".join(str(meta.get("description", "")).split())})
+    return out
+
+
+def agent_api(owner, m, name, body):
+    if not re.fullmatch(r"[a-z0-9-]+", name):
+        raise ValueError("Nombre: solo minúsculas, números y guiones")
+    d = claude_dir(owner) / "agents"
+    f = d / f"{name}.md"
+    if not (m == "PUT" and body.get("new")) and not f.is_symlink() and not f.is_file():
+        raise KeyError(name)
+    if m == "GET":
+        info, _, text = agent_info(f)
+        return {**info, "body": text}
+    if m == "DELETE":
+        kept = f.resolve() if f.is_symlink() else None
+        f.unlink()  # a symlink: only the link goes, the repo file stays
+        return {"ok": True, "kept": kept and str(kept)}
+    if m != "PUT":
+        raise KeyError(m)
+    desc = " ".join(str(body.get("description") or "").split())
+    if not desc:
+        raise ValueError("Falta la descripción: es lo que usa el agente principal para elegirlo")
+    if body.get("new"):
+        # New agents go where the others are linked from (the user's agents repo), linked the same way.
+        repo = next((x.resolve().parent for x in d.glob("*.md") if x.is_symlink() and x.is_file()), None)
+        if f.exists() or f.is_symlink() or (repo and (repo / f.name).exists()):
+            raise ValueError(f"Ya existe un agente llamado {name}")
+        meta = {}
+        d.mkdir(parents=True, exist_ok=True)
+        if repo:
+            (repo / f.name).touch()
+            f.symlink_to(repo / f.name)
+    else:
+        meta = front(f.read_text())[0]  # keep keys the editor doesn't show (effort, maxTurns, …)
+    skills = [s for s in body.get("skills") or [] if re.fullmatch(r"[A-Za-z0-9:_-]+", str(s))]
+    meta = {"name": name, **meta, "description": desc, "tools": " ".join(str(body.get("tools") or "").split()),
+            "model": str(body.get("model") or "").strip(), "skills": skills}
+    head = []
+    for k, v in meta.items():
+        if isinstance(v, list):
+            head += [f"{k}:"] + [f"  - {yaml_str(str(x))}" for x in v] if v else []
+        elif str(v):
+            head.append(f"{k}: {yaml_str(str(v))}")
+    f.write_text("---\n" + "\n".join(head) + "\n---\n" + str(body.get("body") or "").strip() + "\n")  # follows the link
+    return agent_info(f)[0]
+
+
+# Projects: a session belongs to the git root of its folder (else the folder itself). Each project has a short
+# Markdown context in ~/.claude/flows-projects/<slug>.md that its sessions read first and keep up to date.
+PROJECT = ("Project context: {f} is shared by every session working on {p}. Read it first if it exists. Before ending a turn "
+           "that changed something durable (goal, decisions, state, next steps, conventions), update it concisely: keep it short "
+           "and rewrite stale parts instead of appending forever. If it doesn't exist yet, create it starting with \"# {name}\".")
+
+
+def project_of(path):
+    # ponytail: multi-user, the server user can't see into a 700 home, so it falls back to the folder itself
+    p = Path(path)
+    return str(next((d for d in (p, *p.parents) if (d / ".git").exists()), p))
+
+
+def project_slug(path):
+    return (re.sub(r"[^a-z0-9]+", "-", Path(path).name.lower()).strip("-")[:40] or "root") + "-" + hashlib.sha1(path.encode()).hexdigest()[:6]
+
+
+def project_file(owner, path):
+    return claude_dir(owner) / "flows-projects" / f"{project_slug(path)}.md"
+
+
+def run_project(r):
+    if "project" not in r:  # runs from before projects existed
+        try:
+            r["project"] = project_of(workdir(r.get("owner"), r["config"].get("cwd")))
+        except (ValueError, KeyError):
+            r["project"] = None
+    return r["project"]
+
+
+def projects(owner, slug=None):
+    """The owner's projects, newest session first, with their sessions and context (an excerpt when listing)."""
+    out = {}
+    for r in sorted(runs.values(), key=lambda r: r["started"], reverse=True):
+        if r.get("owner") != owner or r.get("kind") != "session" or not run_project(r):
+            continue
+        s = project_slug(r["project"])
+        j = out.setdefault(s, {"slug": s, "name": Path(r["project"]).name or r["project"], "path": r["project"], "sessions": []})
+        j["sessions"].append({**{k: r.get(k) for k in ("id", "name", "status", "started", "ended", "pinned", "brain", "parent")},
+                              **({"status": "waiting"} if r.get("waiting") else {}), "last":r["events"][-1].get("ts") if r["events"] else r["started"]})
+    for j in out.values() if not slug else [out[slug]]:
+        f = project_file(owner, j["path"])
+        try:
+            j["context"], j["mtime"] = f.read_text(), f.stat().st_mtime
+        except OSError:
+            j["context"], j["mtime"] = "", None
+        if not slug:
+            j["context"] = j["context"][:300]
+    return out[slug] if slug else list(out.values())
 
 
 def render(template, inp, prev, site=""):
@@ -600,11 +756,18 @@ def spawn(r):
         cmd += ["--mcp-config", json.dumps({"mcpServers": {"flows": {  # a second --mcp-config (Playwright) adds up
             "command": sys.executable or "python3", "args": [str((ROOT / "server.py").resolve()), "brain-mcp"]}}})]
         lead = BRAIN.format(n=c.get("agents") or 3)
+        cmd += ["--disallowedTools", "Bash,Edit,Write,NotebookEdit"]  # it coordinates; sessions do the work
     else:
         lead = ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))) + ("\n\n" + CHILD if r.get("parent") else "")
     out = udir(r.get("owner"), "uploads", r["id"], make=True)
     note += (f"\n\nTo send the user a file in the chat, write it into {out}/ (plain filename, no subfolders). "
              "It appears as a downloadable attachment under your message when your turn ends.")
+    if package(r.get("owner")) == "dev" and run_project(r):
+        f, pj = project_file(r.get("owner"), r["project"]), r["project"]
+        if not r.get("owner") and not f.exists():  # multi-user: their own claude creates it, so they own it
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(f"# {Path(pj).name or pj}\n\nFolder: {pj}\n")
+        note += "\n\n" + PROJECT.format(f=f, p=pj, name=Path(pj).name or pj)
     cmd += ["--append-system-prompt", "\n\n".join(filter(None, [lead, note]))]
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
@@ -680,7 +843,7 @@ def pump(r, p):
             if t == "result":
                 save_run(r)
             if r.get("parent") and was in ("working", "asking") and r["status"] == "idle":
-                done = last_text(r, 3000)
+                done = last_text(r, 1200)
         if done is not None:
             tell_brain(r, "finished its turn:\n" + done)
     p.wait()
@@ -832,10 +995,11 @@ def start_session(body, owner, brain=None):
     c = {k: body.get(k) for k in ("cwd", "model", "permission_mode", "allowed_tools", "agents", "caps", "sub_models")}
     if brain:
         c = {**{k: brain["config"].get(k) for k in ("permission_mode", "allowed_tools", "caps", "sub_models")}, "agents": 3,
-             "cwd": body.get("cwd") or brain["config"].get("cwd"), "model": body.get("model") or brain["config"].get("model")}
+             "cwd": body.get("cwd") or brain["config"].get("cwd"), "model": body.get("model") or "sonnet"}  # not the brain's opus: children were ~80% of a brain project's cost
     r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "kind": "session", "owner": owner,
          "name": str(body.get("name") or "")[:60] or (text.splitlines()[0][:60] if text else "Session"), "status": "working",
          "started": time.time(), "ended": None, "cost": 0, "events": [], "session_id": None, "config": c}
+    run_project(r)
     if body.get("brain") and not brain:
         r["brain"] = True
     if brain:
@@ -911,8 +1075,8 @@ def brain_api(b, tool, a):
     if tool == "list_sessions":
         with lock:
             kids = [{"id": r["id"], "name": r["name"], "status": r["status"],
-                     "questions": [{"question_id": q["id"], "tool": q["tool"], "input": q["input"]} for q in (r.get("pending") or {}).values()],
-                     "last_message": last_text(r, 1500)} for r in runs.values() if r.get("parent") == b["id"]]
+                     "questions": [{"question_id": q["id"], "tool": q["tool"], "input": json.dumps(q["input"], ensure_ascii=False)[:300]} for q in (r.get("pending") or {}).values()],
+                     "last_message": last_text(r, 300)} for r in runs.values() if r.get("parent") == b["id"]]
         return json.dumps(kids, ensure_ascii=False, indent=1) if kids else "No sessions yet."
     r = runs.get(str(a.get("id")))
     if not r or r.get("parent") != b["id"]:
@@ -920,7 +1084,7 @@ def brain_api(b, tool, a):
     if tool == "read_session":
         with lock:
             since = a.get("since")
-            text, nxt = transcript(r, max(0, int(since) if since is not None else len(r["events"]) - 40))
+            text, nxt = transcript(r, max(0, int(since) if since is not None else len(r["events"]) - 15))
         return f"Status: {r['status']}\n{text}\n(next since={nxt})"
     if tool == "send_message":
         send(r, str(a.get("text") or ""))
@@ -1659,6 +1823,27 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"ok": True})
                 if m == "POST" and len(p) == 4 and p[3] == "run":
                     return self.send(200, {"id": start_run(p[2], body.get("input", ""), u)})
+            if p[:2] in (["api", "agents"], ["api", "skills"]):
+                if package(u) != "dev":
+                    return self.send(403, {"error": "Los agentes solo están en el paquete dev"})
+                if m == "GET" and p == ["api", "skills"]:
+                    return self.send(200, list_skills(u))
+                if m == "GET" and p == ["api", "agents"]:
+                    return self.send(200, list_agents(u))
+                if len(p) == 3:
+                    return self.send(200, agent_api(u, m, p[2], body))
+            if p[:2] == ["api", "projects"]:
+                with lock:
+                    if m == "GET" and len(p) == 2:
+                        return self.send(200, projects(u))
+                    j = projects(u, p[2]) if len(p) == 3 else {}[0]  # KeyError: not one of theirs
+                if m == "GET":
+                    return self.send(200, j)
+                if m == "PUT":
+                    f = project_file(u, j["path"])
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    f.write_text(str(body.get("context") or "").strip() + "\n")
+                    return self.send(200, {"ok": True})
             if m == "GET" and p == ["sw.js"]:
                 return self.send(200, SW_JS.encode(), "text/javascript", [("Service-Worker-Allowed", "/")])
             if m == "GET" and len(p) == 2 and p[0] == "icons":
