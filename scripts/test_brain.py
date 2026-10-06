@@ -106,7 +106,7 @@ try:
     c = wait(C, lambda r: r["status"] == "asking")
     assert c["parent"] == B and c["name"] == "Web"
     assert c["config"] == {"permission_mode": "acceptEdits", "allowed_tools": "Read", "caps": None, "sub_models": None,
-                           "agents": 3, "cwd": "/tmp", "model": "opus"}, c["config"]
+                           "agents": 3, "cwd": "/tmp", "model": "sonnet"}, c["config"]
     b = wait(B, lambda r: any(e.get("from") == C for e in r["events"]))
     q = [e for e in b["events"] if e.get("from") == C][0]
     assert q["type"] == "input" and q["text"].startswith(f'[Flows] Session "Web" ({C}) asks you (question_id q1)') and "Color?" in q["text"]
