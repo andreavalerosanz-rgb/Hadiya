@@ -92,3 +92,6 @@ Caveats:
 - Every subagent, whatever model it asks for (haiku/sonnet/opus), runs on that one tag.
 - Local models are weaker at tool use than Claude; resuming a Claude session on one carries its history over but may behave worse.
 - Multi-user: only an admin can change the provider; it applies to everyone.
+
+## 7. Token Optimizer (fewer tokens per session)
+Each person installs the plugin once, as themselves: `sudo -u alice -i bash /opt/flows/deploy/setup-token-optimizer.sh`. Its hooks (checkpoint before compaction, output compression, quality score) then run inside every Flows session they own. Dashboard: `python3 <plugin>/skills/token-optimizer/scripts/measure.py dashboard`.
