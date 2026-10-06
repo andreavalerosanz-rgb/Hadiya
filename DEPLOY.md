@@ -76,22 +76,5 @@ Per person: `sudo -u flows python3 server.py adduser carla carla --package admin
 Phone, or any PC without the .deb: open Flows through Phone access (LAN, Tailscale or tunnel) or a server set up as above, and choose "Install app" or "Add to Home Screen". Flows is already a PWA.
 Versions come from git tags: `git tag v1.0 && scripts/build-deb.sh`.
 
-## Kimi local (a second provider, for when Claude runs out of tokens)
-
-Flows can start `claude` against a local Anthropic-compatible endpoint instead of your Claude subscription.
-Pick **Claude / Kimi local** on the home screen; new sessions and runs use the choice, a running session keeps its own.
-When Claude hits its usage limit, the session shows **Continuar con Kimi local**, which switches and resumes it.
-
-1. Install Ollama (https://ollama.com) and start it (it listens on `http://127.0.0.1:11434`).
-2. Pull the model you want: `ollama pull <tag>`. Look up the Kimi tag in the Ollama library; Flows has no default and does not guess one.
-3. In Flows, home → *Ajustes de Kimi local*: set the server address (default above) and the model tag, then *Guardar y comprobar*.
-   The dot turns green when the server answers and has that tag. Settings are stored in `data/provider.json`.
-
-Caveats:
-- Full Kimi K2/K3 is a ~1T-parameter MoE: it does not run on a laptop with 4 GB VRAM / 15 GB RAM. Use a smaller model, or a tag that Ollama serves remotely.
-- Every subagent, whatever model it asks for (haiku/sonnet/opus), runs on that one tag.
-- Local models are weaker at tool use than Claude; resuming a Claude session on one carries its history over but may behave worse.
-- Multi-user: only an admin can change the provider; it applies to everyone.
-
 ## 7. Token Optimizer (fewer tokens per session)
 Each person installs the plugin once, as themselves: `sudo -u alice -i bash /opt/flows/deploy/setup-token-optimizer.sh`. Its hooks (checkpoint before compaction, output compression, quality score) then run inside every Flows session they own. Dashboard: `python3 <plugin>/skills/token-optimizer/scripts/measure.py dashboard`.
