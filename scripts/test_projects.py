@@ -20,5 +20,9 @@ r = {"id": "x", "kind": "session", "owner": None, "started": 1, "status": "idle"
 s.runs["x"] = r
 assert s.run_project(r) == str(repo) and s.projects(None)[0]["sessions"][0]["id"] == "x"
 assert s.projects(None, a)["path"] == str(repo)
+(repo / "style.css").write_text("/*\nTheme Name: X\n*/")
+assert s.wp_flag(None, str(repo)) == {"on": True, "auto": True, "set": False, "path": str(repo)}
+s.wp_set(None, str(repo), False)
+assert not s.wp_flag(None, str(repo))["on"] and s.wp_flag(None, str(repo))["set"] and not s.wp_flag(None, str(plain))["on"]
 shutil.rmtree(home)
 print("ok")
