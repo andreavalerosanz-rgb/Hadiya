@@ -579,6 +579,7 @@ details.mdet .cnt{display:none}
 .recent a.rk{margin-left:26px;border-top-style:dashed}
 .capt>.i{color:var(--flag-deep);width:22px;height:22px}
 .brainopt{margin:18px 0 0!important}
+.wpopt{margin:10px 0 0!important}
 .kids{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 32px 0;max-width:1400px}
 .kids>.cap{display:inline-flex;align-items:center;gap:6px;color:var(--mute);margin-right:4px}
 .kids>.cap .i{width:16px;height:16px;color:var(--flag)}
@@ -732,6 +733,7 @@ details.mdet .cnt{display:none}
   body.sess #s-perms .window{width:100%;max-height:88dvh;border-radius:var(--r-l) var(--r-l) 0 0;padding-bottom:0}
   .perm-grid{grid-template-columns:1fr;gap:8px}
   .capsel{gap:8px}.capsel .capt{margin:0}
+  .wpopt{min-height:44px}
   .capsel .capt small{font:400 14px/1.35 var(--body);text-transform:none;letter-spacing:0}  /* sentences in caps condensed were hard to read on a phone */
   .pfoot{position:sticky;bottom:0;background:var(--punch);margin:12px -16px 0!important;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid #dcd7cf;flex-wrap:nowrap!important}
   .pfoot>*{flex:1;justify-content:center}
@@ -784,7 +786,7 @@ details.mdet .cnt{display:none}
   .item.sub1{min-height:44px}
   .rack-top .brand{min-width:0}
   /* second brain: its sessions as one scrolling row */
-  .kids{flex-wrap:nowrap;overflow-x:auto;margin:10px 0 0;padding:0 16px 2px;scrollbar-width:none}
+  .kids{position:relative;min-width:0;max-width:100%;flex-wrap:nowrap;overflow-x:auto;margin:10px 0 0;padding:0 16px 2px;scrollbar-width:none}
   .kids::-webkit-scrollbar{display:none}
   .kids>*{flex:none}
   .kids .none{flex:1 0 220px;white-space:normal}
@@ -1468,6 +1470,15 @@ async function refresh() {
 }
 
 const pinBtn = r => `<button class="ic pin" data-act="pin" data-arg="${r.id}" aria-pressed="${!!r.pinned}" aria-label="${r.pinned ? 'Unpin' : 'Pin'} “${esc(r.name)}”" title="${r.pinned ? 'Unpin' : 'Pin to the top and to Home'}">${icon('pin')}</button>`;
+ACT.rename = async id => {
+  const r = sessions.find(x => x.id == id) || (sess?.id == id && sess.r);
+  const name = prompt('Session name', r?.name || '');
+  if (name == null || !name.trim()) return;
+  try { await api(`sessions/${id}/rename`, {method: 'POST', body: JSON.stringify({name})}); } catch (e) { return toast('Could not rename: ' + e.message, true); }
+  await refresh();
+  const k = location.hash.slice(1).split('/')[0];
+  if (k == 'session') showSession(); else if (!k) home();
+};
 ACT.pin = async id => {
   const r = sessions.find(x => x.id == id) || (sess?.id == id && sess.r);
   try { await api(`sessions/${id}/pin`, {method: 'POST', body: JSON.stringify({on: !r?.pinned})}); } catch (e) { return toast('Could not pin: ' + e.message, true); }
@@ -1687,6 +1698,7 @@ function home(toTemplates) {
       <div class="cols" style="margin-top:4px">
         <div>
           <label for="s-cwd">Project folder</label><input id="s-cwd" list="projects" value="${esc(last.cwd || (PKG == 'admin' ? '~' : DEFAULT_PROJECTS[0]))}" style="font-family:var(--mono);font-size:13px">
+          ${PKG == 'admin' ? '' : `<label class="capt wpopt"><input type="checkbox" id="s-wp"><span class="box">${icon('check')}</span><span><b>WordPress</b><small>Sessions in this folder load the WordPress plugin skill and act as an expert WordPress developer.</small></span></label>`}
           <label for="s-site" ${PKG == 'admin' ? 'style="display:none"' : ''}>Local site <span class="opt-l">(for browser checks)</span></label><input id="s-site" ${PKG == 'admin' ? 'hidden' : ''} list="sites" value="${esc(last.site ?? DEFAULT_SITES[0])}" placeholder="http://localhost:8080" style="font-family:var(--mono);font-size:13px">
           <div class="row">
             <div><label for="s-model">Lead agent model</label><select id="s-model">${opts(MODELS, last.model)}</select></div>
@@ -1789,15 +1801,6 @@ const mob = matchMedia('(max-width:820px),(max-height:500px) and (orientation:la
   dr.addEventListener('keydown', e => { const d = {ArrowLeft: -24, ArrowRight: 24}[e.key]; if (d) { e.preventDefault(); setW($('#rack').offsetWidth + d); } });
   dr.addEventListener('dblclick', () => { document.body.style.removeProperty('--rack-w'); localStorage.removeItem('rackW'); });
 }
-let capsOpen = false;
-mob.addEventListener('change', () => document.querySelectorAll('details.mdet').forEach(d => d.open = !mob.matches));
-addEventListener('toggle', e => { if (e.target.id == 'capdet' && mob.matches) capsOpen = e.target.open; }, true);
-const capCnt = (n, t) => `<b class="cnt">${n} of ${t} allowed</b>`;
-document.addEventListener('change', e => { if (e.target.matches?.('[data-scap]')) { const c = $('#s-caps .cnt'); if (c) c.outerHTML = capCnt(document.querySelectorAll('[data-scap]:checked').length, document.querySelectorAll('[data-scap]').length); } });
-ACT.focusStart = () => {
-  const L = homeLayout();
-  if (L.hidden.includes('start')) { L.hidden = L.hidden.filter(x => x != 'start'); localStorage.setItem('flows.home', JSON.stringify(L)); if (!location.hash) home(); }
-  if (location.hash) location.hash = ''; setTimeout(() => $('#s-msg')?.focus(), 80); };
 {  // same for the height of the Second Brain's session list (the bar is redrawn with the session, so listen on document)
   const setH = h => { h = Math.round(Math.min(Math.max(h, 40), innerHeight * .7)); document.body.style.setProperty('--kids-h', h + 'px'); localStorage.kidsH = h; };
   if (localStorage.kidsH) document.body.style.setProperty('--kids-h', localStorage.kidsH + 'px');
@@ -1809,6 +1812,15 @@ ACT.focusStart = () => {
   document.addEventListener('keydown', e => { const d = {ArrowUp: -24, ArrowDown: 24}[e.key]; if (d && on(e)) { e.preventDefault(); setH(($('.kids')?.offsetHeight || 0) + d); } });
   document.addEventListener('dblclick', e => { if (on(e)) { document.body.style.removeProperty('--kids-h'); localStorage.removeItem('kidsH'); } });
 }
+let capsOpen = false;
+mob.addEventListener('change', () => document.querySelectorAll('details.mdet').forEach(d => d.open = !mob.matches));
+addEventListener('toggle', e => { if (e.target.id == 'capdet' && mob.matches) capsOpen = e.target.open; }, true);
+const capCnt = (n, t) => `<b class="cnt">${n} of ${t} allowed</b>`;
+document.addEventListener('change', e => { if (e.target.matches?.('[data-scap]')) { const c = $('#s-caps .cnt'); if (c) c.outerHTML = capCnt(document.querySelectorAll('[data-scap]:checked').length, document.querySelectorAll('[data-scap]').length); } });
+ACT.focusStart = () => {
+  const L = homeLayout();
+  if (L.hidden.includes('start')) { L.hidden = L.hidden.filter(x => x != 'start'); localStorage.setItem('flows.home', JSON.stringify(L)); if (!location.hash) home(); }
+  if (location.hash) location.hash = ''; setTimeout(() => $('#s-msg')?.focus(), 80); };
 ACT.go = h => location.hash = h;
 ACT.homeAgents = d => { const o = $('#s-agents'); o.textContent = Math.max(1, Math.min(12, +o.textContent + +d)); };
 ACT.queueSession = (_, btn) => ACT.startSession(_, btn, true);
@@ -2292,6 +2304,8 @@ function drawSession() {
     <div class="setacts">
       <button class="btn-q" data-act="togglePerms" aria-expanded="${!!sess.perms}" aria-controls="s-perms">${icon('shield')}Permissions</button>
       <button class="btn-q" data-act="pin" data-arg="${r.id}" aria-pressed="${!!r.pinned}" title="${r.pinned ? 'Remove from Pinned' : 'Keep it at the top of the sidebar and on Home'}">${icon('pin')}${r.pinned ? 'Unpin' : 'Pin'}</button>
+      <button class="btn-q" data-act="crSquadHere" title="Revisión CR-Squad en esta sesión: escribe antes un archivo, carpeta o PR en el cuadro de mensaje (vacío = cambios actuales)">${icon('team')}CR-Squad</button>
+      <button class="btn-q" data-act="rename" data-arg="${r.id}">Rename</button>
       <button class="btn-q" data-act="del" data-arg="run:${r.id}">${icon('trash')}Delete</button>
     </div></div>`);
   $('#s-menu').classList.toggle('open', !!sess.set);
@@ -2495,6 +2509,11 @@ ACT.sendMsg = async () => {
   forceStick = true;
   if (await send(text, null, null, await packFiles())) { m.value = ''; m.style.height = ''; att = []; drawAtts(); }
 };
+ACT.crSquadHere = async () => {
+  const m = $('#msg'), t = m.value.trim();
+  forceStick = true; sess.set = false; $('#s-menu')?.classList.remove('open'); $('.setbtn')?.setAttribute('aria-expanded', false);
+  if (await send('/cr-squad' + (t ? ' ' + t : ''))) { m.value = ''; m.style.height = ''; }
+};
 ACT.queueMsg = async () => {
   const m = $('#msg'), text = m.value.trim(); if (!text && !att.length) return m.focus();
   try {
@@ -2640,11 +2659,13 @@ async function projectPage(slug) {
       <a class="a-q ag-back" href="#projects">${icon('left')}Proyectos</a>
       <header class="ag-head"><h1>${esc(p.name)}</h1><button type="button" class="a-btn a-pri" data-act="pjNew" data-arg="${esc(p.path)}">${icon('plus')}Nueva sesión en este proyecto</button></header>
       <p class="ag-hint">${esc(p.path)}</p>
+      <label class="capt wpopt"><input type="checkbox" id="pj-wp" ${p.wordpress.on ? 'checked' : ''}><span class="box">${icon('check')}</span><span><b>WordPress</b><small>${p.wordpress.set ? 'Elegido por ti.' : p.wordpress.auto ? 'Detectado automáticamente.' : 'Desactivado por defecto.'} Las sesiones cargan la skill wp-plugin-development.</small></span></label>
       <div id="pj-sess"></div>
       <h2><label for="pj-ctx">Contexto del proyecto</label></h2>
       <p class="ag-hint" style="margin-bottom:8px">Las sesiones lo leen al empezar y lo actualizan cuando cambia algo importante: objetivo, decisiones, estado, próximos pasos.</p>
       <textarea id="pj-ctx" placeholder="# ${esc(p.name)}">${esc(p.context)}</textarea>
       <div class="ag-foot"><button class="a-btn a-pri">Guardar</button></div></form></div>`;
+    $('#pj-wp').onchange = e => api('projects/' + slug, {method: 'PUT', body: JSON.stringify({wordpress: e.target.checked})}).then(() => toast(e.target.checked ? 'WordPress activado' : 'WordPress desactivado'), err => toast(err.message, true));
     $('#pj-form').onsubmit = async e => {
       e.preventDefault();
       try { await api('projects/' + slug, {method: 'PUT', body: JSON.stringify({context: $('#pj-ctx').value})}); toast('Contexto guardado'); }
@@ -2656,6 +2677,16 @@ async function projectPage(slug) {
     <h2>Conversaciones anteriores · ${past.length}</h2><div class="ag-list" style="padding:0">${past.map(pjRow).join('') || '<p class="a-none">Ninguna todavía.</p>'}</div>`);
   timer = setTimeout(() => projectPage(slug), 5000);
 }
+const wpSync = async () => {  // the WordPress toggle follows the folder typed in the start bar
+  const c = $('#s-cwd'), w = $('#s-wp'); if (!c || !w) return;
+  const r = await api('wp?cwd=' + encodeURIComponent(c.value.trim() || '~')).catch(() => null);
+  if (r) w.checked = r.on;
+};
+document.addEventListener('change', async e => {
+  if (e.target.id == 's-cwd') wpSync();
+  if (e.target.id == 's-wp') await api('wp', {method: 'PUT', body: JSON.stringify({cwd: $('#s-cwd').value.trim() || '~', on: e.target.checked})}).catch(err => toast(err.message, true));
+});
+new MutationObserver(() => { if ($('#s-wp') && !$('#s-wp').dataset.init) { $('#s-wp').dataset.init = 1; wpSync(); } }).observe(document.body, {childList: true, subtree: true});
 ACT.pjNew = path => { saveHome({cwd: path}); ACT.focusStart(); };
 ACT.pjStop = async id => {
   if (!confirm('¿Parar esta sesión? Los subagentes en marcha se interrumpen. Puedes reanudarla enviándole un mensaje.')) return;

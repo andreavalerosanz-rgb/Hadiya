@@ -9,7 +9,7 @@ from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import Request, urlopen
 
 ID = {"type": "string", "description": "The session id"}
@@ -462,6 +462,45 @@ def project_file(owner, path):
     return claude_dir(owner) / "flows-projects" / f"{project_slug(path)}.md"
 
 
+WP_NOTE = ("This is a WordPress project. Before any work, invoke the Skill tool with skill `wp-plugin-development` and follow it; "
+           "act as an expert WordPress developer (WP coding standards, hooks, sanitize/escape/nonces, i18n).")
+
+
+def wp_auto(path):
+    """Does the folder look like WordPress? (core, a theme or a plugin, at the top or in ./theme/)"""
+    d = Path(path)
+    try:
+        if (d / "wp-config.php").exists() or (d / "wp-content").is_dir():
+            return True
+        for base in (d, d / "theme"):
+            for f in [*base.glob("*.css")][:5]:
+                if "Theme Name:" in f.read_text(errors="ignore")[:2000]:
+                    return True
+            for f in [*base.glob("*.php")][:20]:
+                if "Plugin Name:" in f.read_text(errors="ignore")[:2000]:
+                    return True
+    except OSError:
+        pass
+    return False
+
+
+def wp_flag(owner, cwd):
+    """WordPress mode of a folder: the user's choice in flows-projects/<slug>.json, else auto-detected."""
+    path = project_of(workdir(owner, cwd))
+    try:
+        on = json.loads(project_file(owner, path).with_suffix(".json").read_text()).get("wordpress")
+    except (OSError, ValueError):
+        on = None
+    auto = wp_auto(path)
+    return {"on": auto if on is None else bool(on), "auto": auto, "set": on is not None, "path": path}
+
+
+def wp_set(owner, cwd, on):
+    f = project_file(owner, project_of(workdir(owner, cwd))).with_suffix(".json")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"wordpress": bool(on)}))
+
+
 def run_project(r):
     if "project" not in r:  # runs from before projects existed
         try:
@@ -487,6 +526,7 @@ def projects(owner, slug=None):
             j["context"], j["mtime"] = f.read_text(), f.stat().st_mtime
         except OSError:
             j["context"], j["mtime"] = "", None
+        j["wordpress"] = wp_flag(owner, j["path"])
         if not slug:
             j["context"] = j["context"][:300]
     return out[slug] if slug else list(out.values())
@@ -717,7 +757,9 @@ def spawn(r):
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(f"# {Path(pj).name or pj}\n\nFolder: {pj}\n")
         note += "\n\n" + PROJECT.format(f=f, p=pj, name=Path(pj).name or pj)
-    cmd += ["--append-system-prompt", "\n\n".join(filter(None, [lead, note]))]
+        if wp_flag(r.get("owner"), pj)["on"]:
+            note += "\n\n" + WP_NOTE
+    cmd +=["--append-system-prompt", "\n\n".join(filter(None, [lead, note]))]
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
         r["cost_base"] = r["cost"]  # new process reports cost from zero
@@ -1770,6 +1812,11 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, list_agents(u))
                 if len(p) == 3:
                     return self.send(200, agent_api(u, m, p[2], body))
+            if p == ["api", "wp"] and package(u) == "dev":  # WordPress mode of any folder, before it has a session
+                cwd = parse_qs(self.path.partition("?")[2]).get("cwd", ["~"])[0] if m == "GET" else body.get("cwd")
+                if m == "PUT":
+                    wp_set(u, cwd, body.get("on"))
+                return self.send(200, wp_flag(u, cwd))
             if p[:2] == ["api", "projects"]:
                 with lock:
                     if m == "GET" and len(p) == 2:
@@ -1777,6 +1824,9 @@ class H(BaseHTTPRequestHandler):
                     j = projects(u, p[2]) if len(p) == 3 else {}[0]  # KeyError: not one of theirs
                 if m == "GET":
                     return self.send(200, j)
+                if m == "PUT" and "wordpress" in body:
+                    wp_set(u, j["path"], body["wordpress"])
+                    return self.send(200, {"ok": True})
                 if m == "PUT":
                     f = project_file(u, j["path"])
                     f.parent.mkdir(parents=True, exist_ok=True)
@@ -1862,6 +1912,10 @@ class H(BaseHTTPRequestHandler):
                     return self.send(200, {"ok": True})
                 if p[3:] == ["pin"]:
                     r["pinned"] = time.time() if body.get("on") else None
+                    save_run(r)
+                    return self.send(200, {"ok": True})
+                if p[3:] == ["rename"]:
+                    r["name"] = str(body.get("name") or "").strip()[:60] or r["name"]
                     save_run(r)
                     return self.send(200, {"ok": True})
                 if p[3:] == ["stop"]:
