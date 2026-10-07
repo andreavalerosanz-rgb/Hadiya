@@ -453,8 +453,8 @@ textarea{field-sizing:content}
 .chip.suggest{border-color:var(--flag);color:var(--flag);background:rgba(255,90,31,.1)}
 /* session: app shell. One-row header, agent strip, the log takes the rest, composer. One scroller: the log. */
 body.sess main{height:100vh;height:100dvh;display:flex;flex-direction:column;padding-bottom:0;overflow:hidden}
-body.sess #main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(6,auto) minmax(0,1fr) auto}
-body.sess #s-body{grid-row:7}body.sess #composer{grid-row:8}  /* fixed overlays (menu, permissions) leave the flow; pin the two that size the page */
+body.sess #main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(7,auto) minmax(0,1fr) auto}
+body.sess #s-body{grid-row:8}body.sess #composer{grid-row:9}  /* fixed overlays (menu, permissions) leave the flow; pin the two that size the page */
 body.sess .shead{flex-wrap:nowrap;align-items:center;gap:16px;padding:10px 32px 8px;max-width:none}
 body.sess .shead .ttl{flex:1;min-width:0}
 body.sess #s-head h1{font:600 20px/1.25 var(--body);letter-spacing:0;text-transform:none;text-wrap:balance;overflow-wrap:anywhere;cursor:pointer;
@@ -821,12 +821,16 @@ details.mdet .cnt{display:none}
 }
 
 /* ---------- desktop: the person sizes things (sidebar drag, read areas and boxes by their corner) ---------- */
-.rack-drag{display:none}
+.rack-drag,.kids-drag{display:none}
 @media (min-width:821px) and (min-height:501px){
   .rack-drag{display:block;position:fixed;top:0;bottom:0;left:calc(var(--rack-w,264px) - 4px);width:8px;z-index:5;cursor:col-resize;touch-action:none;background:linear-gradient(90deg,transparent 3px,var(--line) 3px 5px,transparent 5px);opacity:.5;transition:opacity .18s var(--ease)}
   .rack-drag:hover,.rack-drag:focus-visible,.rack-drag.on{opacity:1;background:linear-gradient(90deg,transparent 2px,var(--flag) 2px 6px,transparent 6px)}
   body.sess #s-body,body.sess .composer,body.sess #s-perms .window{max-width:none}  /* the session follows the sidebar drag */
   body.adm .rack-drag{display:none}
+  body.sess .kids{max-height:var(--kids-h,30vh);overflow-y:auto}  /* the Second Brain's session list: drag the bar under it */
+  .kids-drag{display:block;height:10px;margin:2px 32px 0;cursor:row-resize;touch-action:none;background:linear-gradient(transparent 4px,var(--line) 4px 6px,transparent 6px);opacity:.5}
+  .kids-drag:hover,.kids-drag:focus-visible,.kids-drag.on{opacity:1;background:linear-gradient(transparent 3px,var(--flag) 3px 7px,transparent 7px)}
+  #s-kids:empty+.kids-drag{display:none}
   pre,.a-body{resize:vertical}
   pre[style*=height],.a-body[style*=height]{max-height:none}  /* once dragged, the cap goes */
   textarea,.composer textarea,#s-msg,#inp,#ed-prompt{resize:vertical;max-height:85vh}
@@ -1794,6 +1798,17 @@ ACT.focusStart = () => {
   const L = homeLayout();
   if (L.hidden.includes('start')) { L.hidden = L.hidden.filter(x => x != 'start'); localStorage.setItem('flows.home', JSON.stringify(L)); if (!location.hash) home(); }
   if (location.hash) location.hash = ''; setTimeout(() => $('#s-msg')?.focus(), 80); };
+{  // same for the height of the Second Brain's session list (the bar is redrawn with the session, so listen on document)
+  const setH = h => { h = Math.round(Math.min(Math.max(h, 40), innerHeight * .7)); document.body.style.setProperty('--kids-h', h + 'px'); localStorage.kidsH = h; };
+  if (localStorage.kidsH) document.body.style.setProperty('--kids-h', localStorage.kidsH + 'px');
+  let y0, h0;
+  const on = e => e.target.closest?.('.kids-drag');
+  document.addEventListener('pointerdown', e => { const d = on(e); if (!d) return; d.setPointerCapture(e.pointerId); d.classList.add('on'); y0 = e.clientY; h0 = $('.kids')?.offsetHeight || 0; document.body.style.userSelect = 'none'; });
+  document.addEventListener('pointermove', e => { const d = on(e); if (d?.hasPointerCapture(e.pointerId)) setH(h0 + e.clientY - y0); });
+  document.addEventListener('pointerup', e => { on(e)?.classList.remove('on'); document.body.style.userSelect = ''; });
+  document.addEventListener('keydown', e => { const d = {ArrowUp: -24, ArrowDown: 24}[e.key]; if (d && on(e)) { e.preventDefault(); setH(($('.kids')?.offsetHeight || 0) + d); } });
+  document.addEventListener('dblclick', e => { if (on(e)) { document.body.style.removeProperty('--kids-h'); localStorage.removeItem('kidsH'); } });
+}
 ACT.go = h => location.hash = h;
 ACT.homeAgents = d => { const o = $('#s-agents'); o.textContent = Math.max(1, Math.min(12, +o.textContent + +d)); };
 ACT.queueSession = (_, btn) => ACT.startSession(_, btn, true);
@@ -2224,7 +2239,7 @@ function drawSession() {
   if (!live) list.forEach(t => t.status == 'running' && (t.status = 'stopped'));
   const n = r.config.agents || 3, active = list.filter(t => t.status == 'running').length, brain = isBrain(), boss = runOf(parentId());
   if (!$('#s-body')) {
-    main.innerHTML = `<div id="s-head"></div><div id="s-menu"></div><div id="s-perms"></div><div id="s-rail"></div><div id="s-kids"></div><div id="s-ask"></div><section class="window" id="s-body" aria-live="polite"></section>
+    main.innerHTML = `<div id="s-head"></div><div id="s-menu"></div><div id="s-perms"></div><div id="s-rail"></div><div id="s-kids"></div><div class="kids-drag" role="separator" aria-orientation="horizontal" aria-label="Resize the sessions list" tabindex="0"></div><div id="s-ask"></div><section class="window" id="s-body" aria-live="polite"></section>
       <div class="composer" id="composer">
         <div id="s-queue"></div>
         <label class="flabel" for="msg" id="msg-l" style="color:var(--mute);margin:0 0 6px">Message the lead agent</label>
