@@ -1144,7 +1144,7 @@ main:has(.as){padding-bottom:0}
 .as{min-height:100dvh;display:flex;flex-direction:column;max-width:760px;margin:0 auto;padding:0 16px;font:16px/1.5 var(--body)}
 .as-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:16px 0 10px}
 .as-head h1{margin:0;font:700 30px/1.05 var(--cond);letter-spacing:.02em;text-transform:uppercase;margin-right:auto}
-.as-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:transparent;color:var(--edge);cursor:pointer;font:600 15px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+.as-btn{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:transparent;color:var(--edge);cursor:pointer;font:600 15px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
 .as-btn:hover{border-color:var(--mute)}
 .as-btn:disabled{opacity:.45;cursor:not-allowed}
 .as-btn.pri{background:var(--flag);border-color:var(--flag);color:var(--ink)}
@@ -1156,7 +1156,7 @@ main:has(.as){padding-bottom:0}
 .as-m pre{background:var(--ink);color:var(--edge);border-color:var(--line);max-width:100%}
 .as-m.me{align-self:flex-end;background:var(--flag);color:var(--ink);white-space:pre-wrap;border-bottom-right-radius:var(--r-s)}
 .as-m.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:var(--r-s)}
-.as-m.note,.as-m.ask{align-self:stretch;max-width:none;background:transparent;border:1px dashed var(--line);color:var(--mute);font-size:15px}
+.as-m.note,.as-m.ask{align-self:stretch;max-width:none;background:transparent;border:1px dashed var(--line);color:var(--mute);font-size:16px}
 .as-m.ask{border:1px solid var(--mute);color:var(--edge)}
 .as-m small{display:block;margin-top:4px;font:600 12px/1.2 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
 .as-m.me small{color:var(--ink)}
@@ -1178,11 +1178,37 @@ main:has(.as){padding-bottom:0}
 .as-sin input:not([type=checkbox]),.as-sin textarea{display:block;width:100%;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);font:16px/1.4 var(--body)}
 .as-sin fieldset{border:0;margin:0;padding:0;min-width:0;display:flex;flex-wrap:wrap;gap:6px}
 .as-sin legend{padding:0;margin-bottom:4px;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
-.as-day{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border:1px solid var(--line);border-radius:var(--r-s);cursor:pointer;font:600 15px/1 var(--cond);margin:0!important;color:var(--edge)!important}
+.as-day{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:48px;border:1px solid var(--line);border-radius:var(--r-s);cursor:pointer;font:600 15px/1 var(--cond);margin:0!important;color:var(--edge)!important}
 .as-day:has(input:checked){background:var(--edge);color:var(--ink)!important}
 .as-day:has(input:focus-visible){outline:2px solid var(--flag);outline-offset:2px}
 .as-day input{position:absolute;opacity:0;width:1px;height:1px;min-height:0!important}
 @media (max-width:820px){.as-m{max-width:94%}.as-head h1{font-size:26px}}
+.as-shd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.as-shd .as-btn{min-width:48px;padding:0;justify-content:center}
+.as-sin h3{margin:8px 0 0;font:700 16px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.as-opt{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel)}
+.as-opt>div{flex:1;min-width:0}.as-opt b{font:700 17px/1.2 var(--cond);letter-spacing:.04em;text-transform:uppercase}.as-opt p{margin:2px 0 0;color:var(--mute);font-size:15px}
+#as-new summary{gap:8px}#as-new form{margin-top:8px}
+#as-jobform fieldset{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}#as-jobform legend{grid-column:1/-1}.as-sin label.as-day{display:inline-flex;min-width:0}
+.pl{max-width:760px;margin:0 auto;padding:0 16px 48px;font:16px/1.5 var(--body)}
+.pl-sub{margin:-4px 0 0;color:var(--mute);font-size:15px}
+.pl-none{margin:28px 0;color:var(--mute)}
+.pl-g{margin-top:28px}
+.pl-g h2{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font:700 19px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.pl-g h2 span{color:var(--mute);font-weight:600}
+.pl-g[aria-label=Vencidas] h2 span{color:var(--flag-soft)}
+details.pl-g>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;list-style:none;cursor:pointer}
+details.pl-g>summary::-webkit-details-marker{display:none}
+details.pl-g>summary h2{margin:0;color:var(--mute)}
+details.pl-g>summary::after{content:'';width:8px;height:8px;margin-right:8px;border:solid var(--mute);border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .15s}
+details.pl-g[open]>summary::after{transform:rotate(-135deg)}
+details.pl-g>summary:hover h2{color:var(--edge)}
+.pl-row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 16px;min-height:48px;padding:11px 4px;border-top:1px solid var(--spool);color:var(--edge);text-decoration:none}
+.pl-row:hover{background:var(--char)}
+.pl-row span{flex:1 1 300px;min-width:0;overflow-wrap:anywhere;font-size:17px}
+.pl-row small{color:var(--mute);font:500 14px/1.3 var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.pl-row[data-g=overdue] small{color:var(--flag-soft)}
+.pl-new{margin-right:8px;color:var(--flag);font:700 13px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase}
 /* ---------- goals (dev) ---------- */
 .gl{max-width:760px;margin:0 auto;padding:0 16px 48px;font:16px/1.5 var(--body);display:grid;gap:12px;min-width:0}
 .gl-list{display:grid;gap:8px}
@@ -1209,7 +1235,7 @@ main:has(.as){padding-bottom:0}
 .gl-f input:focus,.gl-f textarea:focus,.gl-acc input:focus{outline:0;border-color:var(--mute);box-shadow:0 0 0 3px rgba(255,90,31,.3)}
 .gl-f fieldset{border:0;margin:8px 0 0;padding:0;min-width:0;display:flex;flex-wrap:wrap;gap:6px}
 .gl-f legend{padding:0;margin-bottom:4px;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
-.gl-opt summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--mute)}
+.gl-opt summary{min-height:48px;display:flex;align-items:center;cursor:pointer;color:var(--mute)}
 .gl-acc{display:flex;gap:8px;align-items:center;margin-bottom:8px}.gl-acc .as-btn{min-width:44px;justify-content:center;margin-top:4px}
 .gl-blk{padding:12px;border:1px solid var(--flag);border-radius:var(--r-m)}
 .gl-hist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
@@ -2670,14 +2696,17 @@ async function planPage() {
   if (g != pollGen) return;
   const hm = t => new Date(t * 1000).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
   const when = d => new Date(d).toLocaleDateString('es', {weekday: 'short', day: 'numeric', month: 'short'});
-  const groups = [['overdue', 'Vencidas'], ['today', 'Para hoy'], ['doing', 'En curso'], ['week', 'Próximos 7 días']];
-  const tasks = pl.tasks || [], nNew = tasks.filter(t => t.new).length;
-  const row = t => `<a href="${esc(t.url)}" target="_blank" rel="noopener">${(([c, i]) => `<span class="st ${c}">${icon(i)}</span>`)(t.group == 'overdue' ? ['failed', 'x'] : t.group == 'doing' ? ['running', 'dot'] : ['idle', 'flag'])}<span>${t.new ? '<b class="mb">Nueva</b> ' : ''}${esc(t.name)}</span><small>${esc(t.board)} · ${esc(t.list)}</small><small>${t.due ? when(t.due) : ''}</small></a>`;
-  main.innerHTML = `
-    <header class="head"><div><h1>Plan de hoy</h1><div class="sub">${pl.day ? `Tareas activas de todos tus tableros de Trello · planificado ${new Date(pl.planned_at * 1000).toLocaleDateString('es', {weekday: 'long', day: 'numeric', month: 'long'})} a las ${hm(pl.planned_at)} · revisado ${hm(pl.checked)}${nNew ? ` · ${nNew} nueva${nNew == 1 ? '' : 's'} desde entonces` : ''}` : 'Aún no se ha leído Trello.'}</div></div></header>
+  const tasks = pl.tasks || [], of = k => tasks.filter(t => t.group == k);
+  // Section headings carry the status, so rows hold only the name and one meta line; next week waits behind a disclosure.
+  const row = t => `<a class="pl-row" data-g="${esc(t.group)}" href="${esc(t.url)}" target="_blank" rel="noopener"><span>${t.new ? '<b class="pl-new">Nueva</b>' : ''}${esc(t.name)}</span><small>${esc(t.board)} · ${esc(t.list)}${t.due ? ' · ' + when(t.due) : ''}</small></a>`;
+  const today = [['overdue', 'Vencidas'], ['today', 'Para hoy'], ['doing', 'En curso']].map(([k, label]) => (ts => ts.length ? `<section class="pl-g" aria-label="${label}"><h2>${label} <span>${ts.length}</span></h2>${ts.map(row).join('')}</section>` : '')(of(k))).join('');
+  const week = of('week'), wasOpen = $('#pl-week')?.open;
+  main.innerHTML = `<div class="pl">
+    <header class="as-head"><h1>Plan de hoy</h1></header>
+    <p class="pl-sub"${pl.day ? ` title="Planificado ${new Date(pl.planned_at * 1000).toLocaleDateString('es', {weekday: 'long', day: 'numeric', month: 'long'})} a las ${hm(pl.planned_at)}"` : ''}>Lo que vence o está en curso en tus tableros de Trello${pl.day ? ` · revisado ${hm(pl.checked)}` : ''}</p>
     ${pl.error ? `<p class="alert" role="status">${icon('help')}<span><b>No se pudo leer Trello:</b> ${esc(pl.error)}</span></p>` : ''}
-    ${groups.map(([k, label]) => (ts => ts.length ? `<section class="recent" aria-label="${label}"><h2>${label} · ${ts.length}</h2>${ts.map(row).join('')}</section>` : '')(tasks.filter(t => t.group == k))).join('')
-      || (pl.day ? '<section class="recent"><p class="none">Nada pendiente para hoy.</p></section>' : '')}`;
+    ${today || (pl.day ? '<p class="pl-none">Nada pendiente para hoy.</p>' : '<p class="pl-none">Aún no se ha leído Trello.</p>')}
+    ${week.length ? `<details class="pl-g" id="pl-week"${wasOpen ? ' open' : ''}><summary><h2>Próximos 7 días <span>${week.length}</span></h2></summary>${week.map(row).join('')}</details>` : ''}</div>`;
   timer = setTimeout(planPage, 30000);
 }
 
@@ -2702,23 +2731,25 @@ function asDraw() {
         ${(a => a ? `<small>${a == 'allow' ? 'Permitido' : 'Denegado'}</small>`
           : `<div class="as-acts"><button class="as-btn pri" data-act="asApprove" data-arg="${esc(x.approval_id)}:1">Permitir</button><button class="as-btn" data-act="asApprove" data-arg="${esc(x.approval_id)}:0">Denegar</button></div>`)(done[x.approval_id] || ans[x.approval_id])}</div>`
     : `<div class="as-m bot">${md(x.text)}<small>${asHm(x.ts)}</small></div>`;
-  list.innerHTML = all.map(card).join('') || '<p class="as-m note">Escribe algo para empezar. Prueba «qué tengo hoy».</p>';
+  list.innerHTML = all.map(card).join('') || '<p class="as-m note">Tu asistente para correo, calendario y sesiones de Flows. Prueba «qué tengo hoy».</p>';
   $('#as-wait').hidden = !AS.wait;
   if (near || AS.stick) { AS.stick = false; scrollTo(0, document.documentElement.scrollHeight); }
 }
-function asHead() {
+function asHead() {  // one header button; Full auto, scheduled tasks and the debug session live in the Ajustes sheet
   const c = AS.cfg;
   $('#as-head').innerHTML = `<h1>Asistente</h1>
-    <button class="as-btn as-sw" role="switch" aria-checked="${!!c.auto}" data-act="asAuto">${icon('bolt')}Full auto ${c.auto ? 'activado' : 'desactivado'}</button>
-    <button class="as-btn" data-act="asJobs">${icon('clock')}Tareas · ${c.jobs.length}</button>
-    ${c.run ? `<a class="as-btn" href="#session/${esc(c.run)}" title="Abrir la sesión del asistente, para depurar">${icon('brain')}Sesión</a>` : ''}`;
+    <button class="as-btn" data-act="asJobs" aria-haspopup="dialog">${icon('gear')}Ajustes</button>`;
   $('#as-warn').hidden = !c.auto;
+  const s = $('#as-cfg'); if (!s) return;
+  s.innerHTML = `<div class="as-opt"><div><b>Full auto</b><p>Actúa sin pedirte permiso, también para enviar correos o editar.</p></div>
+      <button class="as-btn as-sw" role="switch" aria-checked="${!!c.auto}" data-act="asAuto">${c.auto ? 'Activado' : 'Desactivado'}</button></div>`;
+  $('#as-runlink').innerHTML = c.run ? `<a class="as-btn" href="#session/${esc(c.run)}">${icon('brain')}Ver la sesión del asistente</a>` : '';
 }
 async function assistantPage() {
   const g = pollGen;
   main.innerHTML = `<div class="as">
     <header class="as-head" id="as-head"></header>
-    <p class="as-warn" id="as-warn" role="status" hidden><b>Full auto activado:</b> actúa sin pedirte permiso, también para enviar correos o editar. Desactívalo con «Full auto» o escribe /auto off.</p>
+    <p class="as-warn" id="as-warn" role="status" hidden><b>Full auto activado:</b> actúa sin pedirte permiso, también para enviar correos o editar. Desactívalo en Ajustes o escribe /auto off.</p>
     <div class="as-list" id="as-list" aria-live="polite" aria-label="Conversación"></div>
     <p class="as-m note" id="as-wait" role="status" hidden>Pensando…</p>
     <form class="as-form" id="as-form"><label class="sr" for="as-msg">Mensaje para el asistente</label>
@@ -2763,19 +2794,22 @@ ACT.asAuto = async () => {
 };
 const asJobsDraw = () => {
   $('#as-jobs-body').innerHTML = AS.cfg.jobs.map(j => `<div class="as-job"><div><b>${esc(j.at)}</b> · ${esc(j.date || asDays(j.days))}<p>${esc(j.prompt)}</p></div>
-    <button class="as-btn" data-act="asJobDel" data-arg="${esc(j.id)}" aria-label="Borrar tarea ${esc(j.at)}">${icon('trash')}</button></div>`).join('') || '<p class="as-m note">No hay tareas.</p>';
+    <button class="as-btn" data-act="asJobDel" data-arg="${esc(j.id)}" aria-label="Borrar tarea ${esc(j.at)}">${icon('trash')}</button></div>`).join('') || '<p class="as-m note">Sin tareas. El asistente las ejecuta solo a la hora que digas.</p>';
 };
 ACT.asJobs = () => {
   let d = $('#as-sheet');
   if (!d) {
-    d = document.createElement('dialog'); d.id = 'as-sheet'; d.className = 'as-sheet'; d.setAttribute('aria-label', 'Tareas del asistente');
-    d.innerHTML = `<div class="as-sin"><h2>Tareas</h2><div id="as-jobs-body" style="display:grid;gap:8px"></div>
-      <form id="as-jobform"><h2 style="font-size:19px">Nueva tarea</h2>
+    d = document.createElement('dialog'); d.id = 'as-sheet'; d.className = 'as-sheet'; d.setAttribute('aria-label', 'Ajustes del asistente');
+    d.innerHTML = `<div class="as-sin"><div class="as-shd"><h2>Ajustes</h2><button class="as-btn" data-act="asClose" aria-label="Cerrar">${icon('x')}</button></div>
+      <div id="as-cfg"></div>
+      <h3>Tareas programadas</h3><div id="as-jobs-body" style="display:grid;gap:8px"></div>
+      <details class="gl-opt" id="as-new"><summary>${icon('plus')}Nueva tarea</summary><form id="as-jobform">
         <label>Hora(s)<input name="at" required placeholder="08:30, 13:00" pattern="\\s*\\d{1,2}:\\d{2}(\\s*[, ]\\s*\\d{1,2}:\\d{2})*\\s*" inputmode="numeric"></label>
         <fieldset><legend>Días (ninguno = todos)</legend>${AS_DAYS.map((l, i) => `<label class="as-day"><input type="checkbox" name="d" value="${i}"><span>${l}</span></label>`).join('')}</fieldset>
         <label>Solo un día (opcional)<input name="date" type="date"></label>
         <label>Qué debe hacer<textarea name="prompt" required rows="2" placeholder="Resume mis correos importantes"></textarea></label>
-        <div class="as-acts"><button class="as-btn pri">${icon('plus')}Añadir</button><button type="button" class="as-btn" data-act="asClose">Cerrar</button></div></form></div>`;
+        <div class="as-acts"><button class="as-btn pri">${icon('plus')}Añadir</button></div></form></details>
+      <div id="as-runlink"></div></div>`;
     d.onclick = e => { if (e.target == d) d.close(); };
     d.querySelector('form').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.target);
       const at = f.get('at').split(/[,\s]+/).filter(Boolean).map(h => h.padStart(5, '0')).join(',');
@@ -2784,7 +2818,7 @@ ACT.asJobs = () => {
       await asJobsSave([...AS.cfg.jobs, j]) && e.target.reset(); };
     main.append(d);
   }
-  asJobsDraw(); d.showModal();
+  asHead(); asJobsDraw(); d.showModal();
 };
 ACT.asClose = () => $('#as-sheet')?.close();
 ACT.asJobDel = id => asJobsSave(AS.cfg.jobs.filter(j => j.id != id));
