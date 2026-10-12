@@ -4,7 +4,7 @@
 Each step runs `claude -p` using your logged-in CLI (subscription auth).
 Run: python3 server.py  ->  http://localhost:8787
 """
-import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shutil, socket, subprocess, sys, threading, time, uuid
+import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shlex, shutil, socket, subprocess, sys, tempfile, threading, time, uuid
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -36,7 +36,43 @@ BRAIN_TOOLS = [
          "message": {"type": "string", "description": "Why, when declining"}}}},
     {"name": "stop_session", "description": "Stop a session's process. A later message resumes it.",
      "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": ID}}},
+    {"name": "set_job", "description": "Add or replace a scheduled job or a one-off reminder. At its time you get its prompt as a "
+     "[Job <id>] message; your reply reaches the user as a notice (reply exactly NOTHING to stay silent). Returns all jobs.",
+     "inputSchema": {"type": "object", "required": ["at", "prompt"], "properties": {
+         "id": {"type": "string", "description": "Id of the job to replace (default: a new job)"},
+         "at": {"type": "string", "description": "Local time(s) HH:MM, comma-separated: 08:30 or 09:00,11:00"},
+         "days": {"type": "array", "items": {"type": "integer"}, "description": "Weekdays, 0 = Monday … 6 = Sunday (default: every day)"},
+         "date": {"type": "string", "description": "YYYY-MM-DD for a one-off reminder: runs once that day, then it is removed"},
+         "prompt": {"type": "string", "description": "What to do or remind the user of"}}}},
+    {"name": "remove_job", "description": "Remove a scheduled job or reminder. Returns the remaining jobs.",
+     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}}}},
+    {"name": "list_jobs", "description": "Your scheduled jobs and reminders.", "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "send_file", "description": "Send the user a small text file (.txt, .csv or .md) as an attachment in their chat. For other "
+     "types (PDF, images, Office) have a session write the file into your uploads folder.",
+     "inputSchema": {"type": "object", "required": ["name", "content"], "properties": {"name": {"type": "string"}, "content": {"type": "string"}}}},
+    {"name": "goal_report", "description": "Report on your Goal. verdict \"done\" when you believe every acceptance criterion is met and all "
+     "checks pass: an independent verifier then checks it and any failures come back to you as a [Goal] message. verdict \"blocked\" "
+     "only when you can't go on without the user (a missing credential or access): say what you need in summary.",
+     "inputSchema": {"type": "object", "required": ["verdict", "summary"], "properties": {
+         "verdict": {"type": "string", "enum": ["done", "blocked"]}, "summary": {"type": "string"},
+         "failing": {"type": "array", "items": {"type": "string"}, "description": "What is still not working, if anything"}}}},
+    {"name": "goal_create", "description": "Create a Goal: an autonomous loop that works on a project folder until an independent verifier passes it. "
+     "Returns the intake questions to relay to the user (takes ~30 s); then goal_answer and goal_start.",
+     "inputSchema": {"type": "object", "required": ["name", "folder", "objective"], "properties": {
+         "name": {"type": "string"}, "folder": {"type": "string", "description": "Absolute project folder"},
+         "objective": {"type": "string", "description": "What to build or check, with every link the user gave"},
+         "schedule": {"type": "object", "description": "Recurring runs: {at: \"HH:MM\", days?: [0-6, 0 = Monday]}"}}}},
+    {"name": "goal_answer", "description": "Save the user's answers to a Goal's intake questions (question id -> answer); the Goal becomes ready.",
+     "inputSchema": {"type": "object", "required": ["id", "answers"], "properties": {
+         "id": {"type": "string"}, "answers": {"type": "object", "additionalProperties": {"type": "string"}},
+         "acceptance": {"type": "array", "items": {"type": "string"}, "description": "Replaces the proposed acceptance criteria"}}}},
+    {"name": "goal_start", "description": "Start a ready Goal. It works alone and the user is notified when it is done, failed or blocked.",
+     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}}}},
+    {"name": "goal_message", "description": "Pass the user's answer to a blocked Goal (it resumes), or an extra instruction to a running one.",
+     "inputSchema": {"type": "object", "required": ["id", "text"], "properties": {"id": {"type": "string"}, "text": {"type": "string"}}}},
+    {"name": "goal_list", "description": "The user's Goals: status, iteration, questions, last report.", "inputSchema": {"type": "object", "properties": {}}},
 ]
+ASSIST_TOOLS = {"set_job", "remove_job", "list_jobs", "send_file", "goal_create", "goal_answer", "goal_start", "goal_message", "goal_list"}
 
 
 def brain_mcp():
@@ -64,7 +100,8 @@ def brain_mcp():
             res = {"protocolVersion": prm.get("protocolVersion") or "2024-11-05", "capabilities": {"tools": {}},
                    "serverInfo": {"name": "flows", "version": "1"}}
         elif m == "tools/list":
-            res = {"tools": BRAIN_TOOLS}
+            res = {"tools": [t for t in BRAIN_TOOLS if (os.environ.get("FLOWS_ASSISTANT") or t["name"] not in ASSIST_TOOLS)
+                             and (os.environ.get("FLOWS_GOAL") or t["name"] != "goal_report")]}
         elif m == "tools/call":
             text, err = call(prm.get("name"), prm.get("arguments") or {})
             res = {"content": [{"type": "text", "text": text}], "isError": err}
@@ -88,6 +125,22 @@ MULTI = USERS_FILE.exists()
 if MULTI:
     os.umask(0o077)  # runs, sessions, workflows: readable by the server user only
 RUNS = DATA / "runs"
+
+
+def write_atomic(path, text):
+    """Write via a temp file + rename, so a crash mid-save leaves the old file, never an empty one."""
+    path = Path(path)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    with open(tmp, "w") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    try:
+        os.chmod(tmp, path.stat().st_mode & 0o7777)  # keep the old file's permissions
+    except FileNotFoundError:
+        pass
+    os.replace(tmp, path)
+
 RUNS.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD = 20 << 20
 MAX_IMAGE = 3_750_000  # the API refuses images over 5 MB of base64; bigger ones go by path
@@ -237,7 +290,7 @@ def usage_file(owner):
 
 def save_usage(owner):
     usage_file(owner).parent.mkdir(exist_ok=True)
-    usage_file(owner).write_text(json.dumps(use(owner)))
+    write_atomic(usage_file(owner), json.dumps(use(owner)))
 
 
 def note_usage(ev, owner):
@@ -297,6 +350,21 @@ BRAIN = """You are the Second Brain of this project: you run it end to end by co
 - Ask the user (AskUserQuestion) only for decisions that are really theirs: taste, scope, money, credentials, anything irreversible or outward-facing.
 - Don't do the implementation or the checking yourself: you have no terminal or editor. Every file or image you read stays in your context and is re-read on each of your turns, so never Read images or files over ~200 lines; ask a session for a short report instead.
 - At the end verify the whole thing works and report to the user briefly. Answer in the user's language. Keep it tight."""
+ASSISTANT = """You are Flows Asistente, the user's personal assistant. They reach you by chat (web or WhatsApp): reply in at most 3 short plain lines (more only if they ask for detail), in the language they write in (they mix Spanish, English and Catalan).
+- Their Gmail, Google Calendar, Google Drive and Trello are connected; load those tools with ToolSearch ("gmail", "calendar", "drive", "trello") before saying you can't reach them. Reading is free. Sending or forwarding mail, creating or deleting events, Trello writes, publishing, deploying and anything destructive go through an approval the user gives on their phone: just call the tool (don't ask in text first) and say in a line what you did.
+- Code or project work: start a Flows session with the `flows` MCP tools (ToolSearch "flows") in the right project folder (see ~/.claude/flows-projects/*.md) with a self-contained brief. [Flows] messages tell you when a session finishes or asks: pass the outcome on in a line or two.
+- Reminders and routines: the `flows` tools set_job, remove_job, list_jobs ("apúntame a las 15 X" = set_job with today's date, at 15:00). [Job <id>] messages are jobs firing: do the job and reply with what the user should know, or exactly NOTHING if nothing needs them.
+- You have no terminal or editor: file and code work goes to sessions. Don't read big files.
+- Files for the user: `send_file` for small text/CSV/Markdown; for PDFs, images or Office files have a session write the file into your uploads folder (path in the session's system note). Files the user sends arrive as "Attached files: <path>" (and "[voz]" marks a transcribed voice note, so expect transcription slips).
+- Goals ("develop project X until it's done", "nightly QA of X"): goal_create with the folder and everything the user gave, relay its intake questions, then goal_answer and goal_start. A Goal works alone and its done/failed/blocked notices reach the user by themselves; goal_message passes their answer to a blocked one; goal_list.
+- "/auto on" lets you act without approvals, "/auto off" goes back to asking."""
+# What the assistant may use without an approval (also inherited by the sessions it starts).
+READONLY = ",".join(["Read,Glob,Grep,WebSearch,WebFetch,ToolSearch"] + [f"mcp__claude_ai_{k}__{t}" for k, ts in {
+    "Gmail": "search_threads get_thread get_message list_labels list_drafts get_draft create_draft update_draft",
+    "Google_Calendar": "list_events get_event list_calendars search_events suggest_time",
+    "Google_Drive": "search_files read_file_content download_file_content get_file_metadata get_file_permissions list_recent_files",
+    "Trello": "trelloReadBoard trelloReadCard trelloReadChecklist trelloReadInbox trelloReadList trelloReadMember trelloReadPlanner "
+              "trelloReadWorkspace trelloSearch"}.items() for t in ts.split()])
 CHILD = ("This session is part of a project coordinated by the Second Brain: your AskUserQuestion questions go to it. "
          "Ask it about decisions, contracts with other sessions or anything unclear. When you finish, end with a concise "
          "report of what you did, how you verified it and open issues.")
@@ -320,7 +388,7 @@ def sub_models_rule(policy):
 def save_run(r):
     if r.get("deleted"):  # a finishing process must not bring a deleted run back
         return
-    (RUNS / f"{r['id']}.json").write_text(json.dumps(r))
+    write_atomic((RUNS / f"{r['id']}.json"), json.dumps(r))
 
 
 def wf_file(owner):
@@ -333,7 +401,7 @@ def load_wfs(owner):
 
 def save_wfs(w, owner):
     wf_file(owner).parent.mkdir(exist_ok=True)
-    wf_file(owner).write_text(json.dumps(w, indent=2))
+    write_atomic(wf_file(owner), json.dumps(w, indent=2))
 
 
 # Claude Code subagents: ~/.claude/agents/<name>.md, YAML frontmatter + directives. Often symlinks into
@@ -498,7 +566,7 @@ def wp_flag(owner, cwd):
 def wp_set(owner, cwd, on):
     f = project_file(owner, project_of(workdir(owner, cwd))).with_suffix(".json")
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps({"wordpress": bool(on)}))
+    write_atomic(f, json.dumps({"wordpress": bool(on)}))
 
 
 def run_project(r):
@@ -578,9 +646,10 @@ def outbox(r):
                      key=lambda f: f.stat().st_mtime)
         files = [{"name": f.name, "image": bool(image_type(f.open("rb").read(12)))} for f in new]
     except OSError:
-        return
+        return []
     if files:
         r["events"].append({"type": "attach", "files": files, "ts": time.time()})
+    return files
 
 
 def image_type(raw):
@@ -745,12 +814,18 @@ def spawn(r):
         cmd += ["--mcp-config", json.dumps({"mcpServers": {"flows": {  # a second --mcp-config (Playwright) adds up
             "command": sys.executable or "python3", "args": [str((ROOT / "server.py").resolve()), "brain-mcp"]}}})]
         lead = BRAIN.format(n=c.get("agents") or 3)
-        cmd += ["--disallowedTools", "Bash,Edit,Write,NotebookEdit"]  # it coordinates; sessions do the work
+        if r.get("assistant"):  # it asks the user in its replies; AskUserQuestion would block WhatsApp
+            lead = ASSISTANT + profile(r.get("owner"))
+            extra["FLOWS_ASSISTANT"] = "1"
+        if r.get("goal"):  # autonomous: nobody answers AskUserQuestion; goal_report "blocked" is its way to the user
+            lead += "\n\n" + GOAL_RULES
+            extra["FLOWS_GOAL"] = "1"
+        cmd += ["--disallowedTools", "Bash,Edit,Write,NotebookEdit" + (",AskUserQuestion" if r.get("assistant") or r.get("goal") else "")]  # it coordinates; sessions do the work
     else:
         lead = ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))) + ("\n\n" + CHILD if r.get("parent") else "")
     out = udir(r.get("owner"), "uploads", r["id"], make=True)
     note += (f"\n\nTo send the user a file in the chat, write it into {out}/ (plain filename, no subfolders). "
-             "It appears as a downloadable attachment under your message when your turn ends.")
+             "It appears as a downloadable attachment under your message when your turn ends." + (" You can't write files yourself: use send_file, or tell a session to." if r.get("assistant") else ""))
     if package(r.get("owner")) == "dev" and run_project(r):
         f, pj = project_file(r.get("owner"), r["project"]), r["project"]
         if not r.get("owner") and not f.exists():  # multi-user: their own claude creates it, so they own it
@@ -801,6 +876,17 @@ def pump(r, p):
                     r["status"] = "asking"
                 save_run(r)
             q = r["pending"][ev["request_id"]]
+            if goal_of(r) and q["tool"] != "AskUserQuestion":  # a Goal runs unattended: allow, except outward actions
+                no = goal_denies(q["tool"], q["input"], G[goal_of(r)]["slug"])
+                answer(r, {"id": q["id"], "allow": not no, "message": no}, by="goal")
+                continue
+            a = assistant_of(r)
+            if a and q["tool"] != "AskUserQuestion":
+                if st(a.get("owner"))["auto"]:
+                    answer(r, {"id": q["id"], "allow": True}, by="auto")
+                    continue
+                post(a.get("owner"), "approval", ("" if a is r else r["name"] + ": ") + f"{q['tool']} "
+                     + json.dumps(q["input"], ensure_ascii=False)[:800], approval_id=q["id"])
             if q["tool"] == "AskUserQuestion" and tell_brain(r, f"asks you (question_id {q['id']}):\n"
                     f"{json.dumps(q['input'].get('questions'), ensure_ascii=False)}\nAnswer it with answer_question. "
                     "If it is genuinely the user's decision, ask the user with AskUserQuestion first."):
@@ -808,7 +894,7 @@ def pump(r, p):
             notify(r, "; ".join(x.get("question", "") for x in q["input"].get("questions") or []) if q["tool"] == "AskUserQuestion"
                    else f"Allow {q['tool']}?")
             continue
-        done = None
+        done = said = made = None
         with lock:
             was = r["status"]
             r["events"].append(ev)
@@ -817,7 +903,11 @@ def pump(r, p):
             if t == "system" and sub == "init":
                 r["session_id"] = ev.get("session_id")
             if t == "result":
-                outbox(r)
+                made = outbox(r)
+                said = r.get("assistant") and str(ev.get("result") or "").strip()
+                job = next((e.get("from") or "" for e in reversed(r["events"]) if e.get("type") == "input"), "").startswith("job:")
+                if said and job and said.strip(" .").upper() == "NOTHING":
+                    said = None
                 note_auth(ev, r.get("owner"))
                 if hit_limit(ev, r.get("owner")):
                     r["waiting"] = True  # the queue worker sends "continue" once the limit resets
@@ -836,6 +926,10 @@ def pump(r, p):
                 done = last_text(r, 1200)
         if done is not None:
             tell_brain(r, "finished its turn:\n" + done)
+        if said:
+            post(r.get("owner"), "notice" if job else "reply", said)
+        for f in (made or []) if r.get("assistant") else []:
+            wa_file(r, f["name"])
     p.wait()
     with lock:
         if procs.get(r["id"]) is p:
@@ -856,6 +950,8 @@ def tell_brain(r, text):
     """Pass a child session's question or turn end to its Second Brain, if it still exists. In a thread: send() may
     spawn the brain and wait, and must never block the child's pump or run under `lock`."""
     b = r.get("parent") and runs.get(r["parent"])
+    if b and b.get("goal") and G.get(b["goal"], {}).get("status") not in ("running", "verifying", "blocked"):
+        return b  # a stopped or finished goal: don't respawn its brain
     if b:
         threading.Thread(target=send, args=(b, f"[Flows] Session \"{r['name']}\" ({r['id']}) {text}"), kwargs={"src": r["id"]}, daemon=True).start()
     return b
@@ -939,6 +1035,9 @@ def answer(r, body, by=None):
         if r["status"] == "asking" and not r["pending"]:
             r["status"] = "working"
     write(p, {"type": "control_response", "response": {"subtype": "success", "request_id": body["id"], "response": resp}})
+    a = assistant_of(r)
+    if a and q["tool"] != "AskUserQuestion":  # lets every client of the assistant drop or grey out the approval
+        post(a.get("owner"), "resolved", "", approval_id=body["id"], allow=bool(body.get("allow")))
 
 
 def set_model(r, model):
@@ -975,7 +1074,7 @@ def configure(r, body):
         return "after-turn"
 
 
-def start_session(body, owner, brain=None):
+def start_session(body, owner, brain=None, assistant=False, src=None, goal=None):
     """brain: the Second Brain run starting this session as its child. The child gets the brain's permissions;
     only the folder (still inside the owner's home) and the model can differ."""
     text = body.get("message", "").strip()
@@ -994,10 +1093,15 @@ def start_session(body, owner, brain=None):
         r["brain"] = True
     if brain:
         r["parent"] = brain["id"]
+    if assistant:
+        r["assistant"] = True
+    if goal:
+        r["goal"] = goal
+        G[goal]["run"] = r["id"]  # before its first message: it may call goal_report at once
     files = save_files(r, body.get("files"))
     with lock:
         runs[r["id"]] = r
-    send(r, text, files=files)
+    send(r, text, files=files, src=src)
     return r["id"]
 
 
@@ -1043,6 +1147,9 @@ def brain_api(b, tool, a):
     """The Second Brain's tools (brain_mcp calls them as /api/brain/<tool>): only ever on its own child sessions.
     Returns the text the brain reads. KeyError: not one of its sessions; ValueError: refused."""
     if tool == "start_session":
+        g = G.get(b.get("goal") or "")
+        if b.get("goal") and not (g and g["run"] == b["id"] and g["status"] == "running"):
+            raise ValueError("This goal is no longer running.")
         n = b["config"].get("agents") or 3
         with lock:
             live = sum(1 for r in runs.values() if r.get("parent") == b["id"] and r["status"] in ("working", "asking"))
@@ -1058,6 +1165,20 @@ def brain_api(b, tool, a):
                      "questions": [{"question_id": q["id"], "tool": q["tool"], "input": json.dumps(q["input"], ensure_ascii=False)[:300]} for q in (r.get("pending") or {}).values()],
                      "last_message": last_text(r, 300)} for r in runs.values() if r.get("parent") == b["id"]]
         return json.dumps(kids, ensure_ascii=False, indent=1) if kids else "No sessions yet."
+    if tool in ("set_job", "remove_job", "list_jobs") and b.get("assistant"):
+        o = b.get("owner")
+        if tool != "list_jobs":
+            set_jobs(o, [j for j in st(o)["jobs"] if j["id"] != a.get("id")] + ([a] if tool == "set_job" else []))
+        return json.dumps(st(o)["jobs"], ensure_ascii=False)
+    if tool == "goal_report" and b.get("goal"):
+        return goal_reported(b["goal"], b["id"], a)
+    if tool.startswith("goal_") and b.get("assistant"):
+        return goal_tool(b.get("owner"), tool, a)
+    if tool == "send_file" and b.get("assistant"):
+        raw = str(a.get("content") or "").encode()[:1 << 20]
+        if not wa_ok(str(a.get("name")), raw) or Path(str(a.get("name"))).suffix.lower() not in (".txt", ".csv", ".md"):
+            raise ValueError("send_file takes a .txt, .csv or .md name and its text")
+        return "Saved; it is sent to the user when your turn ends: " + save_files(runs[b["id"]], [{"name": a["name"], "data": base64.b64encode(raw).decode()}])[0]["name"]
     r = runs.get(str(a.get("id")))
     if not r or r.get("parent") != b["id"]:
         raise KeyError(a.get("id"))
@@ -1094,7 +1215,7 @@ try:  # the only non-stdlib piece; without it phones just don't get push
     if "vapid" not in push:
         push["vapid"] = ec.generate_private_key(ec.SECP256R1()).private_bytes(
             serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
-        PUSH_FILE.write_text(json.dumps(push))
+        write_atomic(PUSH_FILE, json.dumps(push))
     VAPID = serialization.load_pem_private_key(push["vapid"].encode(), None)
 except ImportError:
     VAPID = None
@@ -1165,7 +1286,7 @@ def push_one(sub, payload):
     except Exception as e:
         if getattr(e, "code", None) in (404, 410):  # the phone unsubscribed or the browser dropped it
             push["subs"].pop(sub["endpoint"], None)
-            PUSH_FILE.write_text(json.dumps(push))
+            write_atomic(PUSH_FILE, json.dumps(push))
         else:
             print("push:", e)
 
@@ -1191,7 +1312,7 @@ RESUME = "Continue where you left off. (Resumed automatically after the usage li
 
 
 def save_queue():
-    QUEUE_FILE.write_text(json.dumps(queue))
+    write_atomic(QUEUE_FILE, json.dumps(queue))
 
 
 def own(rid, user):
@@ -1276,6 +1397,477 @@ def good_morning():
         enqueue({"kind": "session", "name": "Buenos días", "message": "¡Buenos días, Claude!"}, o)
 
 
+# ---------- Flows Asistente: one Second Brain per user, reachable from any channel (web, WhatsApp bridge) ----------
+# data/assistant.json: {token, owner, users: {owner or "": {run, auto, jobs, outbox, n}}}. The bridge sends
+# `Authorization: Bearer <token>` and acts as `owner`.
+# shortcut: one bridge token, for the single user (or the "owner" set by hand in multi-user); per-user tokens when needed.
+AFILE = DATA / "assistant.json"
+A = json.loads(AFILE.read_text()) if AFILE.exists() else {}
+acond = threading.Condition()  # guards A; outbox long-polls wait on it
+alock = threading.Lock()  # one assistant spawn at a time
+twlock = threading.Lock()  # one transcription at a time (RAM)
+HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d(,([01]\d|2[0-3]):[0-5]\d)*")
+BRIEF = ("Daily brief, exactly 5 short lines (this overrides the 3-line limit): 1) today's Google Calendar events with times, 2) the important "
+         "unread Gmail (sender and subject), 3) the Flows sessions waiting for the user or failed (list the Flows sessions), then 4-5) the "
+         "one or two things that matter most today. Reading only, no approvals.")
+OLD_BRIEFS = ("Daily brief: today's Google Calendar, the important unread Gmail, and the unticked items in "
+              "~/.claude/projects/*/memory/pending-tasks.md. A few short lines.",)
+DEFAULT_JOBS = [
+    {"id": "brief", "at": "08:30", "days": [0, 1, 2, 3, 4], "prompt": BRIEF},
+    {"id": "heartbeat", "at": "09:00,11:00,13:00,15:00,17:00,19:00", "prompt": "Heartbeat: does anything need the user now? An urgent "
+     "unread email, an event in the next 2 hours, one of your Flows sessions waiting or failed. Say it in a line or two, else reply exactly NOTHING."},
+]
+
+
+def save_a():
+    write_atomic(AFILE, json.dumps(A, ensure_ascii=False))
+    os.chmod(AFILE, 0o600)
+
+
+def clean_job(j):
+    """Validate a job from the UI, the bridge or the assistant: {id, at: "HH:MM[,HH:MM…]", days?: [0-6], date?, prompt}."""
+    at = re.sub(r"\s", "", str(j.get("at") or ""))
+    if not HHMM.fullmatch(at) or not str(j.get("prompt") or "").strip():
+        raise ValueError("A job needs `at` (HH:MM, or several comma-separated) and a `prompt`")
+    if j.get("date") and not re.fullmatch(r"\d{4}-\d\d-\d\d", str(j["date"])):
+        raise ValueError("`date` is YYYY-MM-DD")
+    out = {"id": re.sub(r"[^\w-]", "", str(j.get("id") or ""))[:40] or uuid.uuid4().hex[:6], "at": at, "prompt": str(j["prompt"])[:4000],
+           "last": str(j.get("last") or time.strftime("%Y-%m-%d %H:%M"))}  # times already past today don't fire right away
+    if j.get("days") is not None:
+        out["days"] = sorted({int(d) for d in j["days"] if 0 <= int(d) <= 6})
+    if j.get("date"):
+        out["date"] = str(j["date"])
+    return out
+
+
+# Files that may cross WhatsApp in either direction: extension -> magic prefixes (None: plain text, no NUL bytes).
+WA_TYPES = {".jpg": (b"\xff\xd8\xff",), ".jpeg": (b"\xff\xd8\xff",), ".png": (b"\x89PNG",), ".gif": (b"GIF8",), ".webp": (b"RIFF",),
+            ".pdf": (b"%PDF",), ".docx": (b"PK",), ".xlsx": (b"PK",), ".pptx": (b"PK",), ".txt": None, ".csv": None, ".md": None}
+WA_MAX = 16 << 20  # WhatsApp itself caps documents far higher; this keeps the bridge's memory small
+VOICE_MAX = 8 << 20
+VOICE_MAGIC = (b"OggS", b"ID3", b"RIFF", b"\xff\xfb", b"\xff\xf3")  # ogg/opus voice notes, mp3, wav; m4a has "ftyp" at 4
+
+
+def wa_ok(name, raw):
+    magic = WA_TYPES.get(Path(name).suffix.lower(), False)
+    if magic is False or len(raw) > WA_MAX:
+        return False
+    return b"\0" not in raw[:4096] if magic is None else raw.startswith(magic)
+
+
+def wa_file(r, name):
+    """Hand a file the assistant wrote to its uploads folder to the channels (the bridge sends it to WhatsApp)."""
+    f = udir(r.get("owner"), "uploads", r["id"]) / name
+    try:
+        if f.is_file() and f.stat().st_size <= WA_MAX and wa_ok(name, f.read_bytes()):
+            post(r.get("owner"), "file", name, path=str(f))
+    except OSError:
+        pass
+
+
+def transcribe(raw):
+    """Voice note -> text in a throwaway process, so the model's RAM is freed as soon as it is done.
+    FLOWS_TRANSCRIBE overrides the command (it gets the audio file path as its last argument)."""
+    if not (raw.startswith(VOICE_MAGIC) or raw[4:8] == b"ftyp") or len(raw) > VOICE_MAX:
+        raise ValueError("Unsupported or too large voice note")
+    venv = DATA / "whisper-venv/bin/python"
+    cmd = shlex.split(os.environ.get("FLOWS_TRANSCRIBE") or f"{venv if venv.exists() else sys.executable} {ROOT / 'scripts/transcribe.py'}")
+    with tempfile.NamedTemporaryFile(suffix=".audio") as t, twlock:
+        t.write(raw)
+        t.flush()
+        try:
+            out = subprocess.run(cmd + [t.name], capture_output=True, text=True, timeout=300)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            raise ValueError(f"Could not transcribe the voice note: {e}")
+    if out.returncode or not out.stdout.strip():
+        raise ValueError("Could not transcribe the voice note")
+    return out.stdout.strip()[:4000]
+
+
+def st(owner):
+    """The owner's assistant state, created with the default jobs on first use."""
+    with acond:
+        s = A.setdefault("users", {}).get(owner or "")
+        if s is None:
+            s = A["users"][owner or ""] = {"run": None, "auto": False, "outbox": [], "n": 0, "jobs": [clean_job(j) for j in DEFAULT_JOBS]}
+            save_a()
+        return s
+
+
+def set_jobs(owner, jobs):
+    jobs = [clean_job(j) for j in jobs]
+    with acond:
+        st(owner)["jobs"] = jobs
+        save_a()
+
+
+def post(owner, kind, text, **kw):
+    """Add to the owner's outbox ("reply", "notice", "approval", "resolved") and wake the long-polls. Notices also go to Web Push."""
+    s = st(owner)
+    with acond:
+        s["n"] += 1
+        s["outbox"] = s["outbox"][-199:] + [{"id": s["n"], "type": kind, "text": text, "ts": time.time(), **kw}]
+        save_a()
+        acond.notify_all()
+    if kind == "notice":
+        notify(runs.get(s["run"] or "") or {"id": "", "name": "Asistente", "owner": owner}, text)
+
+
+def assistant_of(r):
+    """The assistant run that r is, or that started r."""
+    for x in (r, runs.get(r.get("parent") or "")):
+        if x and x.get("assistant"):
+            return x
+
+
+def profile(owner):
+    try:
+        return "\n\nWhat you know about the user:\n" + (claude_dir(owner) / "flows-assistant" / "profile.md").read_text()[:8000]
+    except OSError:
+        return ""
+
+
+def assistant_send(owner, text, src=None):
+    """Send to the owner's assistant, starting it the first time (or after it was deleted). Reaped ones resume in send()."""
+    s = st(owner)
+    with alock:
+        r = runs.get(s["run"] or "")
+        if r:
+            return send(r, text, src=src)
+        rid = start_session({"message": text, "brain": True, "name": "Asistente", "permission_mode": "acceptEdits",
+                             "allowed_tools": READONLY}, owner, assistant=True, src=src)
+        with acond:
+            s["run"] = rid
+            save_a()
+
+
+def job_slot(j, now):
+    """The "YYYY-MM-DD HH:MM" slot job (or goal schedule) j is due for now, or None (not today, or that slot already ran)."""
+    day = time.strftime("%Y-%m-%d", now)
+    slot = f"{day} " + max((t for t in j["at"].split(",") if t <= time.strftime("%H:%M", now)), default="")
+    return slot if j.get("date", day) == day and now.tm_wday in j.get("days", range(7)) and slot[-1] != " " and j["last"] < slot else None
+
+
+def run_jobs(now=None):
+    """Each job fires once per HH:MM slot on its days (or its date: one-off), as a [Job] message to the assistant."""
+    now = now or time.localtime()
+    day, due = time.strftime("%Y-%m-%d", now), []
+    with acond:
+        for o, s in A.get("users", {}).items():
+            for j in list(s["jobs"]):
+                slot = job_slot(j, now)
+                if j.get("date", day) < day:
+                    s["jobs"].remove(j)  # a reminder whose day went by while Flows was off
+                elif slot:
+                    j["last"] = slot
+                    if j.get("date"):
+                        s["jobs"].remove(j)
+                    due.append((o or None, j))
+        if due:
+            save_a()
+    for o, j in due:
+        assistant_send(o, f"[Job {j['id']}] {j['prompt']}", src="job:" + j["id"])
+
+
+if not A.get("token"):
+    A["token"] = secrets.token_urlsafe(32)
+    save_a()
+for _s in A.get("users", {}).values():  # the first default brief didn't cover Flows sessions
+    for _j in _s["jobs"]:
+        if _j["id"] == "brief" and _j["prompt"] in OLD_BRIEFS:
+            _j["prompt"] = BRIEF
+            save_a()
+if not MULTI:
+    st(None)
+
+
+# ---------- Goals: autonomous loops that work until an independent verifier passes them ----------
+# data/goals.json: {id: goal}. Intake (one-shot claude) asks the user what it needs once; then a Second Brain run flagged
+# `goal` works alone, calls goal_report when done, a fresh one-shot verifier checks it, failures go back as the next
+# iteration until it passes or max_iter / max_hours run out. done/failed/blocked -> assistant notice (WhatsApp + Web Push).
+GFILE = DATA / "goals.json"
+G = json.loads(GFILE.read_text()) if GFILE.exists() else {}
+glock = threading.RLock()
+for _g in G.values():
+    if _g["status"] == "verifying":  # the verifier died with the server: the idle nudge has the brain report again
+        _g["status"] = "running"
+GOAL_RULES = """This is an autonomous Goal: the user is away and won't answer questions. Work to the end on your own.
+- Git: all work goes on the goal branch named in the [Goal] message (create it from the current branch if it doesn't exist). Sessions may edit, install dependencies, run tests, commit on that branch and push it, only as `git push -u origin <goal branch>`. Never merge into main, deploy, publish, or message or email anyone: say so in every session's brief.
+- Plan, then run sessions. Quality is part of done: sessions add or update unit and integration tests, run the linters and the project's quality standards, and write and run Playwright front-end tests for any UI. Answer your sessions' questions yourself.
+- When you believe every acceptance criterion is met and all checks pass, call the flows tool goal_report with verdict "done" and end your turn. An independent verifier then checks the work; its failures come back as a [Goal] message: fix them and report again.
+- Only if you truly can't continue without the user (a missing credential or access), call goal_report with verdict "blocked" saying exactly what you need, and end your turn. Their reply comes as a [User] message."""
+INTAKE = """You prepare an autonomous coding Goal that will then run with no more questions to the user.
+Folder: {folder}
+Objective: {objective}
+Look at the folder briefly (README, package files, test and lint config, git remote) to see what exists. Then output ONLY a JSON object:
+{{"questions": [{{"id": "q1", "q": "the question", "hint": "an example, or where to find it"}}], "acceptance": ["criterion"]}}
+questions: only what you can't find yourself and the work really needs (design or Figma URL, backend repo or API base URL and docs, credentials and env vars, how to run the app, test and lint commands if unclear, anything ambiguous in the objective). At most 8, short, in the objective's language.
+acceptance: 3 to 8 concrete, checkable criteria, including that the tests and lint pass, and the Playwright front-end tests when there is a UI."""
+VERIFY = """You are an independent verifier. An agent says the Goal below is done: check it yourself and trust nothing it claims. Don't edit, commit or push anything.
+Folder: {folder} (the work is on git branch {branch})
+{brief}
+The agent's report: {summary}
+Run the project's test suites, the linters and the Playwright tests if there are any, and check every acceptance criterion. Then output ONLY a JSON object:
+{{"verdict": "pass" or "fail", "summary": "one or two lines", "failing": ["each unmet criterion or failing check, short and specific"]}}"""
+# shortcut: a regex over the command, not a sandbox; a determined agent can get around it. Upgrade to a real egress/git-hook guard if goals run untrusted code.
+GOAL_DENY = re.compile(r"\bgit\b[^;&|]*\s(checkout|switch|branch\s+-[fDM])\s+(-\S+\s+)*(main|master)\b|\b(gh\s+pr\s+merge|npm\s+publish|yarn\s+publish|pnpm\s+publish|"
+                       r"twine\s+upload|docker\s+push|kubectl\s+(apply|delete)|helm\s+(install|upgrade)|terraform\s+(apply|destroy)|vercel|netlify\s+deploy|"
+                       r"firebase\s+deploy|fly\s+deploy|wrangler\s+(deploy|publish)|cap\s+deploy|ssh|scp|sftp|sendmail|mailx?)\b|rsync\b[^;&|]*:")
+
+
+def goal_denies(tool, inp, slug):
+    """Why an unattended Goal session may not use this tool with this input, or None."""
+    cmd = str(inp.get("command") or "")
+    # every push must be exactly `git push [-u] <remote> goal/<slug>` (no refspec onto another branch, no force)
+    pushes = re.findall(r"\bgit\b[^;&|]*?\spush\b[^;&|]*", cmd)
+    ok = re.compile(r"git\s+push(\s+(-u|--set-upstream))?\s+[\w.-]+\s+(HEAD:)?(refs/heads/)?goal/" + re.escape(slug) + r"\s*")
+    if tool == "Bash" and (GOAL_DENY.search(cmd) or not all(ok.fullmatch(x) for x in pushes)):
+        return "Not allowed in a Goal: no deploys, publishing, remote shells, merges into main, or pushes other than `git push -u origin <the goal branch>`. Report it in goal_report instead."
+    if tool.startswith("mcp__claude_ai_") and tool not in READONLY.split(","):
+        return "Not allowed in a Goal: it must not message, email or change anything outside the project."
+    return None
+
+
+def save_g():
+    write_atomic(GFILE, json.dumps(G, ensure_ascii=False))
+    os.chmod(GFILE, 0o600)  # intake answers may hold credentials
+
+
+def goal_of(r):
+    """The Goal id of r, or of the brain that started r."""
+    for x in (r, runs.get(r.get("parent") or "")):
+        if x and x.get("goal"):
+            return x["goal"]
+
+
+# shortcut: prefix deny rules; Bash can still write files (tests must be able to), so "read-only" means no edit tools and no
+# git writes or deploys. Upgrade to a throwaway worktree for the verifier if it ever changes what it checks.
+ONESHOT_DENY = "Edit,Write,NotebookEdit,AskUserQuestion," + ",".join(f"Bash({c}:*)" for c in (
+    "git push", "git commit", "git merge", "git rebase", "git reset", "git checkout", "git switch", "git stash", "git tag",
+    "gh", "npm publish", "vercel", "netlify", "firebase", "ssh", "scp", "rsync"))
+
+
+def oneshot(owner, cwd, prompt, model, tools, timeout):
+    """A fresh `claude -p` that must answer with a JSON object; it can't edit files."""
+    cmd = ["claude", "-p", "--output-format", "json", "--model", model, "--allowedTools", tools, "--disallowedTools", ONESHOT_DENY]
+    p = launch(owner, cmd, workdir(owner, cwd))
+    try:
+        out, _ = p.communicate(prompt, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        p.wait()
+        raise ValueError("timed out")
+    try:
+        res = json.loads(out.strip().splitlines()[-1])
+        return json.loads(re.search(r"\{.*\}", str(res.get("result") or ""), re.S).group(0))
+    except (ValueError, IndexError, AttributeError):
+        raise ValueError("no JSON in its answer: " + out.strip()[-300:])
+
+
+def clean_schedule(s):
+    """{at: "HH:MM[,…]", days?: [0-6]} like an assistant job, or None."""
+    if not s:
+        return None
+    return {k: v for k, v in clean_job({**s, "prompt": "-"}).items() if k in ("at", "days", "last")}
+
+
+def goal_get(owner, gid):
+    g = G[gid]
+    if g.get("owner") != owner:
+        raise KeyError(gid)
+    return g
+
+
+def goal_brief(g):
+    return ("Objective: " + g["objective"] + "\nContext from the user:\n"
+            + ("\n".join(f"- {q['q']}: {g['answers'].get(q['id'], '(no answer)')}" for q in g["questions"]) or "(none)")
+            + "\nAcceptance criteria:\n" + "\n".join("- " + a for a in g["acceptance"]))
+
+
+def goal_create(owner, body):
+    name, objective = str(body.get("name") or "").strip()[:60], str(body.get("objective") or "").strip()[:8000]
+    folder = str(workdir(owner, body.get("folder")))
+    if not name or not objective or not body.get("folder"):
+        raise ValueError("A goal needs name, folder and objective")
+    if not os.path.isdir(folder):
+        raise ValueError(f"No such folder: {folder}")
+    g = {"id": uuid.uuid4().hex[:8], "owner": owner, "name": name, "slug": re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "goal",
+         "folder": folder, "objective": objective, "schedule": clean_schedule(body.get("schedule")), "status": "intake",
+         "questions": [], "answers": {}, "acceptance": [], "iteration": 0, "max_iter": 5, "max_hours": 8, "run": None,
+         "started": None, "ended": None, "history": [], "report": "", "last": None, "created": time.time()}
+    try:
+        j = oneshot(owner, folder, INTAKE.format(folder=folder, objective=objective), "haiku", "Read,Glob,Grep", 100)
+        g["questions"] = [{"id": str(q.get("id") or f"q{i}"), "q": str(q.get("q") or ""), "hint": str(q.get("hint") or "")}
+                          for i, q in enumerate(j.get("questions") or [], 1) if q.get("q")][:8]
+        g["acceptance"] = [str(a) for a in j.get("acceptance") or []][:8]
+    except (ValueError, OSError, AttributeError, TypeError) as e:  # the user can still answer with what they know and write the criteria
+        g["report"] = f"Intake failed ({e}); add the context and acceptance criteria yourself."
+    with glock:
+        G[g["id"]] = g
+        save_g()
+    return g
+
+
+def goal_answers(g, body):
+    with glock:
+        if g["status"] in ("running", "verifying"):
+            raise ValueError("The goal is running: send a message instead")
+        g["answers"].update({str(k): str(v)[:4000] for k, v in (body.get("answers") or {}).items()})
+        if body.get("acceptance") is not None:
+            g["acceptance"] = [str(a) for a in body["acceptance"] if str(a).strip()][:20]
+        g["status"] = "ready"
+        save_g()
+    return g
+
+
+def goal_start(g):
+    with glock:
+        if g["status"] in ("intake", "running", "verifying"):
+            raise ValueError("Answer the intake questions first" if g["status"] == "intake" else "The goal is already running")
+        g.update(status="running", iteration=1, started=time.time(), ended=None, history=[], report="")
+        save_g()
+    msg = (f"[Goal] {g['name']}\nFolder: {g['folder']}\nBranch: goal/{g['slug']}\n{goal_brief(g)}\n"
+           f"Limits: {g['max_iter']} verification rounds or {g['max_hours']} h in total. Start now.")
+    start_session({"message": msg, "brain": True, "name": "Goal: " + g["name"], "cwd": g["folder"], "permission_mode": "acceptEdits",
+                   "allowed_tools": "Read,Glob,Grep,WebSearch,WebFetch,ToolSearch"}, g.get("owner"), goal=g["id"])
+    with glock:
+        save_g()
+    return g
+
+
+def goal_kill(g):
+    """Stop the goal's brain and its sessions."""
+    for r in [r for r in list(runs.values()) if g["run"] and g["run"] in (r["id"], r.get("parent"))]:
+        stop_session(r)
+
+
+def goal_finish(g, status, line):
+    """done/failed/blocked: record it and tell the user in 3 short lines (notice -> WhatsApp bridge + Web Push)."""
+    with glock:  # the status changes last: whoever sees it can already find the notice and the stopped sessions
+        if g["status"] not in ("running", "verifying"):  # e.g. the time limit and the verifier at once, or stopped meanwhile
+            return
+        h = (time.time() - (g["started"] or time.time())) / 3600
+        g["report"] = "\n".join([f"Goal {g['name']}: {status.upper()} · {g['iteration']} iteration{'s' * (g['iteration'] != 1)} · {h:.1f} h",
+                                 f"Branch goal/{g['slug']}", line[:300]])
+        g["last"] = {"status": status, "ts": time.time(), "report": g["report"]}
+        if status != "blocked":
+            goal_kill(g)
+            g["ended"] = time.time()
+        post(g.get("owner"), "notice", g["report"], goal=g["id"])
+        g["status"] = status
+        save_g()
+
+
+def goal_reported(gid, rid, a):
+    """The goal brain's goal_report. done -> independent verifier in a thread; blocked -> wait for the user."""
+    g = G.get(gid)
+    if not g or g["run"] != rid or g["status"] != "running":
+        raise ValueError("This goal isn't running (stopped, finished or already verifying)")
+    summary, failing = str(a.get("summary") or "")[:2000], [str(x)[:300] for x in a.get("failing") or []][:20]
+    if a.get("verdict") == "blocked":
+        goal_finish(g, "blocked", "Needs: " + summary)
+        return "Recorded: the user is notified. End your turn; their answer comes as a [User] message."
+    with glock:
+        g["status"] = "verifying"
+        save_g()
+    threading.Thread(target=goal_verify, args=(g, summary), daemon=True).start()
+    return "Recorded: an independent verifier is checking now. End your turn; its result comes as a [Goal] message if anything fails."
+
+
+def goal_verify(g, summary):
+    n = g["iteration"]
+    try:
+        v = oneshot(g.get("owner"), g["folder"], VERIFY.format(folder=g["folder"], branch="goal/" + g["slug"], brief=goal_brief(g), summary=summary),
+                    "sonnet", "Read,Glob,Grep,Bash", 3600)
+        ok, why, failing = v.get("verdict") == "pass", str(v.get("summary") or "")[:1000], [str(x)[:300] for x in v.get("failing") or []][:20]
+    except (ValueError, OSError) as e:
+        ok, why, failing = False, "The verifier didn't finish", [f"verifier error: {e}"[:300]]
+    with glock:
+        if g["status"] != "verifying" or g["iteration"] != n:  # stopped or deleted meanwhile
+            return
+        g["history"].append({"n": n, "verdict": "pass" if ok else "fail", "summary": why, "failing": failing, "ts": time.time()})
+        out = time.time() - g["started"] > g["max_hours"] * 3600
+        if not ok and n < g["max_iter"] and not out:
+            g["iteration"], g["status"] = n + 1, "running"
+        save_g()
+    if ok:
+        return goal_finish(g, "done", why)
+    if g["status"] != "running":
+        return goal_finish(g, "failed", "Pending: " + "; ".join(failing[:3]) if failing else why)
+    send(runs[g["run"]], f"[Goal] Iteration {n + 1} of {g['max_iter']}. The independent verifier says: {why}\nFailing:\n"
+         + "\n".join("- " + x for x in failing) + "\nFix these, re-run the checks, then call goal_report again.")
+
+
+def goal_message(g, text):
+    text = str(text or "").strip()
+    if not text:
+        raise ValueError("Empty message")
+    with glock:
+        if g["status"] not in ("blocked", "running", "verifying"):
+            raise ValueError("The goal isn't running: start it first")
+        if g["status"] == "blocked":
+            g["status"] = "running"
+        save_g()
+    send(runs[g["run"]], "[User] " + text)
+    return g
+
+
+def goal_stop(g):
+    with glock:
+        if g["status"] in ("running", "verifying", "blocked"):
+            g.update(status="stopped", ended=time.time())
+            save_g()
+    goal_kill(g)
+    return g
+
+
+def goal_tick(now=None):
+    """Worker: limits, a nudge for a brain idle with nothing running, and scheduled runs."""
+    now = now or time.localtime()
+    fire, nudge, over = [], [], []
+    with glock:
+        for g in G.values():
+            r = runs.get(g["run"] or "")
+            if g["status"] in ("running", "verifying") and (time.time() - g["started"] > g["max_hours"] * 3600 or g["run"] and not r):
+                over.append(g)
+            elif g["status"] == "running" and r and r["status"] in ("idle", "stopped") and not r.get("waiting") and time.time() - r["events"][-1]["ts"] > 600 \
+                    and not any(x.get("parent") == r["id"] and x["status"] in ("working", "asking") for x in runs.values()):
+                nudge.append(r)
+            sch = g.get("schedule")
+            slot = sch and job_slot(sch, now)
+            if slot:
+                sch["last"] = slot
+                if g["status"] not in ("intake", "running", "verifying", "blocked"):  # recurring: reuse the intake answers
+                    fire.append(g)
+        if fire:
+            save_g()
+    for g in over:
+        last = (g["history"] or [{}])[-1].get("failing") or []
+        goal_finish(g, "failed", f"Out of time ({g['max_hours']} h)." + (" Pending: " + "; ".join(last[:3]) if last else ""))
+    for r in nudge:
+        threading.Thread(target=send, args=(r, "[Goal] Nothing is running. Continue toward the objective, or call goal_report if it is done or you are blocked."), daemon=True).start()
+    for g in fire:
+        goal_start(g)
+
+
+def goal_tool(owner, tool, a):
+    """The assistant's goal_* tools (WhatsApp): same as the API."""
+    if tool == "goal_list":
+        with glock:
+            return json.dumps([{k: g[k] for k in ("id", "name", "folder", "status", "iteration", "questions", "schedule", "report")}
+                               for g in G.values() if g.get("owner") == owner], ensure_ascii=False)
+    g = goal_create(owner, a) if tool == "goal_create" else goal_get(owner, str(a.get("id")))
+    if tool == "goal_answer":
+        goal_answers(g, a)
+    elif tool == "goal_start":
+        goal_start(g)
+    elif tool == "goal_message":
+        goal_message(g, a.get("text"))
+    elif tool != "goal_create":
+        raise KeyError(tool)
+    return json.dumps({k: g[k] for k in ("id", "name", "status", "questions", "acceptance", "report")}, ensure_ascii=False)
+
+
 # ---------- plan del día (Trello) ----------
 # The day starts at 6am: that's when today's plan is drawn up. After that it's re-read every
 # minute, so a card that lands on any board shows up (marked "new") without waiting for tomorrow.
@@ -1322,7 +1914,7 @@ def plan_tick():
     if plan.get("day") != str(day):
         plan.update(day=str(day), planned_at=time.time())
     plan.update(tasks=plan_tasks(boards, day, plan["planned_at"]), checked=time.time(), error="")
-    PLAN_FILE.write_text(json.dumps(plan))
+    write_atomic(PLAN_FILE, json.dumps(plan))
 
 
 def plan_worker():
@@ -1334,10 +1926,27 @@ def plan_worker():
         time.sleep(60)
 
 
+IDLE_SECS = 60 * int(os.environ.get("FLOWS_IDLE_MIN", "20"))
+
+
+def reap_idle():
+    """Each live session holds ~0.5-1.5 GB (claude + MCP servers + Playwright Chrome); dozens of idle ones froze the PC.
+    End the process after IDLE_SECS idle; the session stays idle and the next message resumes it."""
+    now = time.time()
+    with lock:
+        for rid, p in list(procs.items()):
+            r = runs.get(rid)
+            if r and r["status"] == "idle" and p not in restarting and now - ((r["events"] or [{}])[-1].get("ts") or now) > IDLE_SECS:
+                restart(r, p)
+
+
 def worker():
     while True:
         try:
             good_morning()
+            run_jobs()
+            goal_tick()
+            reap_idle()
             tick()
         except Exception as e:
             print("queue:", e)
@@ -1359,7 +1968,7 @@ CODE_TTL, CODE_TRIES, DEVICE_DAYS = 300, 5, 90
 
 
 def save_remote():
-    REMOTE_FILE.write_text(json.dumps(remote, indent=1))
+    write_atomic(REMOTE_FILE, json.dumps(remote, indent=1))
     os.chmod(REMOTE_FILE, 0o600)
 
 
@@ -1523,7 +2132,7 @@ SESSION_DAYS, FAIL_WINDOW = 30, 900
 
 
 def save_logins():
-    SESS_FILE.write_text(json.dumps(logins))
+    write_atomic(SESS_FILE, json.dumps(logins))
     os.chmod(SESS_FILE, 0o600)
 
 
@@ -1678,6 +2287,18 @@ class H(BaseHTTPRequestHandler):
         p = self.path.split("?")[0].strip("/").split("/")
         m = self.command
         u = self.user = None
+        if p[:2] == ["api", "assistant"] and self.headers.get("Authorization", "").startswith("Bearer "):
+            # the WhatsApp bridge, a local process: laptop listener only
+            if self.remote or not hmac.compare_digest(self.headers["Authorization"][7:].strip(), A["token"]):
+                return self.send(403, {"error": "forbidden"})
+            try:
+                return self.assistant(m, p, body, A.get("owner"))
+            except KeyError:
+                return self.send(404, {"error": "not found"})
+            except (ValueError, TypeError) as e:
+                return self.send(400, {"error": str(e)})
+            except Exception as e:
+                return self.send(500, {"error": str(e)})
         tok = self.headers.get("X-Brain")
         if tok is not None or p[:2] == ["api", "brain"]:
             # A Second Brain's MCP server (brain_mcp): its token signs it in as the brain, for its own /api/brain only.
@@ -1853,7 +2474,7 @@ class H(BaseHTTPRequestHandler):
                             push["subs"].pop(ep, None)
                     else:
                         push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40], "owner": u}
-                    PUSH_FILE.write_text(json.dumps(push))
+                    write_atomic(PUSH_FILE, json.dumps(push))
                     return self.send(200, {"ok": True})
             if m == "GET" and p == ["api", "usage"]:
                 return self.send(200, use(u))
@@ -1895,6 +2516,10 @@ class H(BaseHTTPRequestHandler):
                     if m == "DELETE" and len(p) == 3:
                         delete_run(own(p[2], u)["id"])
                         return self.send(200, {"ok": True})
+            if p[:2] == ["api", "assistant"]:
+                return self.assistant(m, p, body, u)
+            if p[:2] == ["api", "goals"]:
+                return self.goals(m, p, body, u)
             if p[:2] == ["api", "sessions"] and m == "POST":
                 if len(p) == 2:
                     return self.send(200, {"id": start_session(body, u)})
@@ -1929,6 +2554,95 @@ class H(BaseHTTPRequestHandler):
         except Exception as e:
             self.send(500, {"error": str(e)})
 
+    def assistant(self, m, p, body, u):
+        """/api/assistant/*: message, outbox (long-poll), approve, settings. Same for the web UI and the bridge."""
+        if package(u) != "dev":
+            return self.send(403, {"error": "The assistant is only in the dev package"})
+        s = st(u)
+        if m == "POST" and p[2:] == ["message"]:
+            text, ch = str(body.get("text") or "").strip(), str(body.get("channel") or "web")
+            if body.get("audio"):  # voice note (base64): the assistant gets the transcript
+                text = "[voz] " + transcribe(base64.b64decode(body["audio"]))
+            files = []
+            if body.get("files"):
+                r = runs.get(s["run"] or "")
+                if not r:
+                    raise ValueError("Send a text message first so the assistant has a chat to attach files to")
+                for f in body["files"][:5]:
+                    raw = base64.b64decode(f.get("data") or "")
+                    if not wa_ok(str(f.get("name")), raw):
+                        raise ValueError(f"{Path(str(f.get('name'))).name}: file type or size not accepted")
+                files = save_files(r, body["files"][:5])
+                text = text or "(sin texto)"
+            if not text:
+                raise ValueError("Empty message")
+            auto = re.fullmatch(r"/auto\s+(on|off)", text, re.I)
+            if auto:
+                with acond:
+                    s["auto"] = auto[1].lower() == "on"
+                    save_a()
+                post(u, "notice", "Full auto: I act without asking." if s["auto"] else "Confirm mode: I ask before sending, deleting or publishing.")
+            else:
+                msg = text if ch == "web" else f"[{ch}{' ' + str(body['from']) if body.get('from') else ''}] {text}"
+                if files:
+                    send(runs[s["run"]], msg, files=files)
+                else:
+                    assistant_send(u, msg)
+            return self.send(200, {"ok": True, **({"text": text} if body.get("audio") else {})})
+        if m == "GET" and p[2:] == ["outbox"]:
+            q = parse_qs(self.path.partition("?")[2])
+            since = int(q.get("since", ["0"])[0])
+            with acond:
+                acond.wait_for(lambda: s["outbox"] and s["outbox"][-1]["id"] > since, min(60.0, float(q.get("wait", ["25"])[0])))
+                out = [x for x in s["outbox"] if x["id"] > since]
+            return self.send(200, out)
+        if m == "POST" and p[2:] == ["approve"]:
+            aid = str(body.get("approval_id") or "")
+            with lock:
+                r = next((x for x in runs.values() if aid in (x.get("pending") or {}) and x.get("owner") == u and assistant_of(x)), None)
+            if not r:
+                raise ValueError("No such pending approval (already answered?)")
+            answer(r, {"id": aid, "allow": bool(body.get("allow")), "message": body.get("message")})
+            return self.send(200, {"ok": True})
+        if p[2:] == ["settings"]:
+            if m == "POST" and "jobs" in body:
+                set_jobs(u, body["jobs"])
+            if m == "POST" and "auto" in body:
+                with acond:
+                    s["auto"] = bool(body["auto"])
+                    save_a()
+            return self.send(200, {"auto": s["auto"], "jobs": s["jobs"], "run": s["run"]})
+        raise KeyError(p)
+
+    def goals(self, m, p, body, u):
+        """/api/goals[/<id>[/answers|start|stop|message|schedule]]"""
+        if package(u) != "dev":
+            return self.send(403, {"error": "Goals are only in the dev package"})
+        if len(p) == 2:
+            if m == "POST":
+                return self.send(200, goal_create(u, body))
+            with glock:
+                return self.send(200, sorted((g for g in G.values() if g.get("owner") == u), key=lambda g: g["created"], reverse=True))
+        g = goal_get(u, p[2])
+        if m == "GET" and len(p) == 3:
+            return self.send(200, g)
+        if m == "DELETE" and len(p) == 3:
+            goal_stop(g)
+            with glock:
+                G.pop(g["id"], None)
+                save_g()
+            return self.send(200, {"ok": True})
+        act = {"answers": lambda: goal_answers(g, body), "start": lambda: goal_start(g), "stop": lambda: goal_stop(g),
+               "message": lambda: goal_message(g, body.get("text"))}
+        if m == "POST" and p[3:] == ["schedule"]:
+            with glock:
+                g["schedule"] = clean_schedule(body.get("schedule"))
+                save_g()
+            return self.send(200, g)
+        if m == "POST" and len(p) == 4 and p[3] in act:
+            return self.send(200, act[p[3]]())
+        raise KeyError(p)
+
     do_GET = do_POST = do_PUT = do_DELETE = route
 
 
@@ -1956,7 +2670,7 @@ def admin_cli(cmd, name, *rest):
         if len(pw) < 10 or pw != getpass.getpass("Again: "):
             raise SystemExit("Passwords must match and be at least 10 characters")
         us[name]["pw"] = hash_pw(pw)  # a new salt also ends their open sessions
-    USERS_FILE.write_text(json.dumps(us, indent=1))
+    write_atomic(USERS_FILE, json.dumps(us, indent=1))
     os.chmod(USERS_FILE, 0o600)
     print("Saved. Restart Flows if this created data/users.json (turns on multi-user mode).")
 
