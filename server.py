@@ -9,7 +9,7 @@ from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 from urllib.request import Request, urlopen
 
 ID = {"type": "string", "description": "The session id"}
@@ -1954,6 +1954,90 @@ def worker():
         time.sleep(20)
 
 
+# ---------- kanban ----------
+# Boards of the owner; coworkers reach ONE board through /k/<token> (the token is their only credential).
+KFILE, KDIR = DATA / "kanban.json", DATA / "kanban"
+K = json.loads(KFILE.read_text()) if KFILE.exists() else {"boards": {}, "cards": {}}
+klock = threading.RLock()
+PRIOS = ("baja", "media", "alta", "urgente")
+KB_MAX_FILE, KB_MAX_FILES = 10 << 20, 20
+
+
+def save_k():
+    write_atomic(KFILE, json.dumps(K, ensure_ascii=False))
+    os.chmod(KFILE, 0o600)  # holds the share tokens
+
+
+def kb_text(v, n, what, required=False):
+    s = str(v if v is not None else "").strip()
+    if len(s) > n or (required and not s):
+        raise ValueError(f"{what}: {'required, ' if required else ''}max {n} characters")
+    return s
+
+
+def kb_cols(b, cols):
+    """New column list from [{id?, name}] (or plain names); a removed column must be empty."""
+    if not isinstance(cols, list) or not 1 <= len(cols) <= 20:
+        raise ValueError("columns: 1 to 20")
+    old = {c["id"] for c in b.get("columns", [])}
+    out = []
+    for c in cols:
+        c = c if isinstance(c, dict) else {"name": c}
+        cid = c.get("id") or secrets.token_urlsafe(6)
+        if c.get("id") and cid not in old:
+            raise ValueError(f"columns: unknown id {cid}")
+        out.append({"id": cid, "name": kb_text(c.get("name"), 60, "column name", True)})
+    gone = old - {c["id"] for c in out}
+    if any(c["board"] == b["id"] and c["col"] in gone for c in K["cards"].values()):
+        raise ValueError("Move the cards out of a column before removing it")
+    return out
+
+
+def kb_card(b, c, body):
+    """Validate and apply card fields from an untrusted body onto c."""
+    if "title" in body:
+        c["title"] = kb_text(body["title"], 200, "title", True)
+    if "desc" in body:
+        c["desc"] = kb_text(body["desc"], 10000, "desc")
+    if "due" in body:
+        due = str(body["due"] or "")
+        if due and not re.fullmatch(r"\d{4}-\d\d-\d\d", due):
+            raise ValueError("due: YYYY-MM-DD")
+        if due:
+            time.strptime(due, "%Y-%m-%d")  # ValueError if it's not a real date
+        c["due"] = due
+    if "prio" in body:
+        if body["prio"] not in PRIOS:
+            raise ValueError(f"prio: one of {', '.join(PRIOS)}")
+        c["prio"] = body["prio"]
+    if "col" in body:
+        if body["col"] not in [x["id"] for x in b["columns"]]:
+            raise ValueError("col: no such column")
+        if body["col"] != c.get("col") and "pos" not in body:  # moved without a place: to the end
+            c["pos"] = max([x["pos"] for x in K["cards"].values() if x["board"] == b["id"] and x["col"] == body["col"]], default=0) + 1
+        c["col"] = body["col"]
+    if "pos" in body:
+        pos = float(str(body["pos"]))
+        if pos != pos or abs(pos) > 1e12:
+            raise ValueError("pos: a number")
+        c["pos"] = pos
+    c["updated"] = time.time()
+    return c
+
+
+def kb_view(b, guest):
+    idx = {c["id"]: i for i, c in enumerate(b["columns"])}
+    cards = sorted((c for c in K["cards"].values() if c["board"] == b["id"]), key=lambda c: (idx.get(c["col"], 99), c["pos"]))
+    return {"board": {k: b[k] for k in ("id", "name", "columns")}, "cards": cards, "guest": guest}
+
+
+def kb_fname(name):
+    s = re.sub(r"[^\w .()-]", "_", Path(str(name or "")).name).strip(" .")[:120]
+    if not s:
+        raise ValueError("name: a file name")
+    return s
+
+
 # ---------- phone access ----------
 # Trust comes from the socket, never from headers: the 127.0.0.1:PORT listener is the laptop.
 # Phone traffic arrives on separate listeners (Wi-Fi IP, and a tunnel-only port) whose handler
@@ -1963,6 +2047,7 @@ remote = json.loads(REMOTE_FILE.read_text()) if REMOTE_FILE.exists() else {}
 remote.setdefault("devices", {})  # sha256(token) -> {name, created, last}
 TUNNEL_PORT = PORT + 2
 TAILNET_PORT = PORT + 1  # phone-only listener that `tailscale serve` forwards to
+PUBLIC_PORT = PORT + 3  # with FLOWS_PUBLIC_URL: a phone listener that a named tunnel forwards to (DEPLOY.md)
 listeners = {}  # "lan" / "tunnel" -> {srv, url, proc?}
 pairing = {}    # the single active code: {code, exp, tries}
 CODE_TTL, CODE_TRIES, DEVICE_DAYS = 300, 5, 90
@@ -2295,9 +2380,13 @@ class H(BaseHTTPRequestHandler):
 
     def route(self):
         n = int(self.headers.get("Content-Length") or 0)
-        body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         p = self.path.split("?")[0].strip("/").split("/")
         m = self.command
+        if p[0] == "k":  # kanban guests: before any login or pairing, and never past their board
+            if n > KB_MAX_FILE * 3 // 2:
+                return self.send(413, {"error": "too large"})
+            return self.guest(m, p, json.loads(self.rfile.read(n) or b"{}") if n else {})
+        body = json.loads(self.rfile.read(n) or b"{}") if n else {}
         u = self.user = None
         if p[:2] == ["api", "assistant"] and self.headers.get("Authorization", "").startswith("Bearer "):
             # the WhatsApp bridge, a local process: laptop listener only
@@ -2532,6 +2621,10 @@ class H(BaseHTTPRequestHandler):
                 return self.assistant(m, p, body, u)
             if p[:2] == ["api", "goals"]:
                 return self.goals(m, p, body, u)
+            if p[:2] == ["api", "kanban"]:
+                return self.kanban(m, p, body, u)
+            if m == "GET" and p == ["kanban.html"]:  # the owner's view of a board: ?b=<id>
+                return self.send(200, (ROOT / "kanban.html").read_bytes(), "text/html; charset=utf-8")
             if p[:2] == ["api", "sessions"] and m == "POST":
                 if len(p) == 2:
                     return self.send(200, {"id": start_session(body, u)})
@@ -2559,7 +2652,7 @@ class H(BaseHTTPRequestHandler):
                     stop_session(r)
                     return self.send(200, {"ok": True})
             self.send(404, {"error": "not found"})
-        except KeyError:
+        except (KeyError, FileNotFoundError):
             self.send(404, {"error": "not found"})
         except ValueError as e:  # too-large or malformed upload
             self.send(400, {"error": str(e)})
@@ -2655,7 +2748,132 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, act[p[3]]())
         raise KeyError(p)
 
-    do_GET = do_POST = do_PUT = do_DELETE = route
+    def kanban(self, m, p, body, u):
+        """/api/kanban/boards[/<id>[/token | board API]], /api/kanban/share (the owner's side)."""
+        if package(u) != "dev":
+            return self.send(403, {"error": "The kanban is only in the dev package"})
+        if p[2:] == ["share"]:
+            if m == "POST":
+                if u and not load_users()[u].get("admin"):
+                    return self.send(403, {"error": "Only an admin can turn the tunnel on or off"})
+                set_tunnel(bool(body.get("on")))
+            t = listeners.get("tunnel")
+            return self.send(200, {"url": os.environ.get("FLOWS_PUBLIC_URL") or (t or {}).get("url"), "tunnel": bool(t)})
+        with klock:
+            if p[2:] == ["boards"] and m == "GET":
+                mine = sorted((b for b in K["boards"].values() if b["owner"] == (u or "")), key=lambda b: b["created"])
+                return self.send(200, [{**{k: b[k] for k in ("id", "name", "columns", "token")},
+                                        "count": sum(c["board"] == b["id"] for c in K["cards"].values())} for b in mine])
+            if p[2:] == ["boards"] and m == "POST":
+                b = {"id": secrets.token_urlsafe(9), "name": kb_text(body.get("name"), 80, "name", True), "owner": u or "",
+                     "token": secrets.token_urlsafe(24), "created": time.time()}
+                b["columns"] = kb_cols(b, body.get("columns") or ["Por hacer", "En curso", "Hecho"])
+                K["boards"][b["id"]] = b
+                save_k()
+                return self.send(200, b)
+            if p[2:3] != ["boards"] or len(p) < 4:
+                raise KeyError(p)
+            b = K["boards"][p[3]]
+            if b["owner"] != (u or ""):
+                raise KeyError(p)
+            if len(p) == 4 and m == "PATCH":
+                if "name" in body:
+                    b["name"] = kb_text(body["name"], 80, "name", True)
+                if "columns" in body:
+                    b["columns"] = kb_cols(b, body["columns"])
+                save_k()
+                return self.send(200, b)
+            if len(p) == 4 and m == "DELETE":
+                for cid in [c["id"] for c in K["cards"].values() if c["board"] == b["id"]]:
+                    del K["cards"][cid]
+                del K["boards"][b["id"]]
+                save_k()
+                shutil.rmtree(KDIR / b["id"], ignore_errors=True)
+                return self.send(200, {"ok": True})
+            if p[4:] == ["token"] and m == "POST":
+                b["token"] = secrets.token_urlsafe(24)
+                save_k()
+                return self.send(200, {"token": b["token"]})
+            return self.kanban_board(m, p[4:], body, b, False, u or "")
+
+    def kanban_board(self, m, rest, body, b, guest, by=""):
+        """The board API, the same for the owner and for a guest (who can't delete). Caller holds klock."""
+        if not rest and m == "GET":
+            return self.send(200, kb_view(b, guest))
+        if rest == ["cards"] and m == "POST":
+            col = body.get("col") or b["columns"][0]["id"]
+            c = {"id": secrets.token_urlsafe(9), "board": b["id"], "title": "", "desc": "", "due": "", "prio": "media", "files": [],
+                 "by": kb_text(body.get("by") or by, 60, "by"), "created": time.time()}
+            kb_card(b, c, {"title": "", **body, "col": col})  # title "" fails as required unless the body has one
+            K["cards"][c["id"]] = c
+            save_k()
+            return self.send(200, c)
+        if rest[:1] != ["cards"] or len(rest) < 2:
+            raise KeyError(rest)
+        c = K["cards"][rest[1]]
+        if c["board"] != b["id"]:
+            raise KeyError(rest)
+        d = KDIR / b["id"] / c["id"]
+        if len(rest) == 2 and m == "PATCH":
+            kb_card(b, c, {k: body[k] for k in ("title", "desc", "due", "prio", "col", "pos") if k in body})
+            save_k()
+            return self.send(200, c)
+        if guest and m == "DELETE":
+            return self.send(403, {"error": "Only the board's owner can delete"})
+        if len(rest) == 2 and m == "DELETE":
+            del K["cards"][c["id"]]
+            save_k()
+            shutil.rmtree(d, ignore_errors=True)
+            return self.send(200, {"ok": True})
+        if rest[2:] == ["files"] and m == "POST":
+            name, raw = kb_fname(body.get("name")), base64.b64decode(str(body.get("data") or ""), validate=True)
+            if len(raw) > KB_MAX_FILE:
+                raise ValueError("File too large (max 10 MB)")
+            if len(c["files"]) >= KB_MAX_FILES and name not in [f["name"] for f in c["files"]]:
+                raise ValueError(f"Max {KB_MAX_FILES} files per card")
+            d.mkdir(parents=True, exist_ok=True)
+            (d / name).write_bytes(raw)
+            c["files"] = [f for f in c["files"] if f["name"] != name] + [{"name": name, "size": len(raw)}]
+            c["updated"] = time.time()
+            save_k()
+            return self.send(200, c)
+        if len(rest) == 4 and rest[2] == "files":
+            name = unquote(rest[3])
+            if name not in [f["name"] for f in c["files"]]:  # only names we stored (already sanitized): no traversal
+                raise KeyError(name)
+            if m == "GET":
+                return self.send(200, (d / name).read_bytes(), "application/octet-stream", [
+                    ("Content-Disposition", f"attachment; filename*=UTF-8''{quote(name)}"), ("X-Content-Type-Options", "nosniff")])
+            if m == "DELETE":
+                c["files"] = [f for f in c["files"] if f["name"] != name]
+                save_k()
+                (d / name).unlink(missing_ok=True)
+                return self.send(200, c)
+        raise KeyError(rest)
+
+    def guest(self, m, p, body):
+        """/k/<token> (the page) and /k/<token>/api/... : one board, no pairing or login. Bad token: 404."""
+        if not self.remote and self.headers.get("Host", "").split(":")[0] not in HOSTS:
+            return self.send(403, {"error": "bad host"})
+        if m != "GET" and self.headers.get("X-Flow") != "1":
+            return self.send(403, {"error": "missing X-Flow header"})
+        try:
+            with klock:
+                b = next((b for b in K["boards"].values() if len(p) > 1 and hmac.compare_digest(b["token"], p[1])), None)
+                if not b:
+                    raise KeyError(p)
+                if len(p) == 2 and m == "GET":
+                    f = ROOT / "kanban.html"
+                    return self.send(200, f.read_bytes(), "text/html; charset=utf-8", [("Referrer-Policy", "no-referrer")])
+                if p[2:3] != ["api"]:
+                    raise KeyError(p)
+                return self.kanban_board(m, p[3:], body, b, True)
+        except (KeyError, FileNotFoundError):
+            self.send(404, {"error": "not found"})
+        except (ValueError, TypeError, AttributeError) as e:
+            self.send(400, {"error": str(e)})
+
+    do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = route
 
 
 class RH(H):
@@ -2705,6 +2923,9 @@ if __name__ == "__main__":
     if remote.get("tailnet"):
         listeners["tailnet"] = {"srv": serve(("127.0.0.1", TAILNET_PORT), RH)}  # tailscaled keeps its serve config
         print(f"Tailscale phone listener on 127.0.0.1:{TAILNET_PORT}")
+    if os.environ.get("FLOWS_PUBLIC_URL"):
+        listeners["public"] = {"srv": serve(("127.0.0.1", PUBLIC_PORT), RH)}
+        print(f"Public listener (named tunnel) on 127.0.0.1:{PUBLIC_PORT}")
 
     def lan_when_ready():  # at boot the Wi-Fi may come up after us: keep trying
         while remote.get("lan") and "lan" not in listeners:

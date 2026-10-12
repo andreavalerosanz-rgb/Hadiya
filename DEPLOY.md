@@ -61,6 +61,11 @@ Only ever expose Flows through TLS. Pick one:
 
 Don't open port 8787 in the firewall. Sign-ins are rate-limited (5 failures per name and 50 overall per 15 minutes), and sessions last 30 days.
 
+## Kanban: share links
+A board's share link is `<public URL>/k/<token>`. Whoever has it can see, add, edit and move that board's cards and attach files, without pairing or signing in; nothing else in Flows. "New link" makes a new token and the old link stops working.
+- **Quick tunnel** (default, nothing to set up): the share switch turns on the Phone-access Cloudflare tunnel. Its `*.trycloudflare.com` address changes every time it starts, so links sent before a restart stop working: send them again.
+- **Stable URL**: a named Cloudflare tunnel. `cloudflared tunnel login`, `cloudflared tunnel create flows-kanban`, `cloudflared tunnel route dns flows-kanban kanban.example.com`, then run it to `http://127.0.0.1:8790` (Flows port + 3) as a service: `cloudflared tunnel run --url http://127.0.0.1:8790 flows-kanban`. Start Flows with `FLOWS_PUBLIC_URL=https://kanban.example.com`: it opens that port as a phone listener (pairing still guards everything except `/k/`) and the share links use that URL. Never point a tunnel at 8787 itself.
+
 ## Packages (`dev`, `admin`)
 A package decides what someone's agents can reach. The server enforces it on every `claude` it starts, whatever the UI sent.
 - `dev` (default): everything, as before.
