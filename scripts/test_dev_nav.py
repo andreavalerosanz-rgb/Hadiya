@@ -22,7 +22,7 @@ RUNS = [{"id": f"20261012-1{i}0000-aaaa", "kind": "session", "name": n, "status"
         for i, (n, st) in enumerate([("Rediseño de la tienda: catálogo y ficha de producto", "working"), ("Factura de octubre", "idle"), ("Copia de seguridad", "stopped")])]
 
 MAIN = [("Inicio", ""), ("Plan", "#plan"), ("Asistente", "#assistant"), ("Goals", "#goals")]
-MORE = [("Agentes", "#agents"), ("Proyectos", "#projects"), ("Guía", "#guide"), ("Plantillas", "#templates"), ("Teléfono", "#phone")]
+MORE = [("Kanban", "#kanban"), ("Agentes", "#agents"), ("Proyectos", "#projects"), ("Guía", "#guide"), ("Plantillas", "#templates"), ("Teléfono", "#phone")]
 SMALL = """sel => [...document.querySelectorAll(sel)].filter(e => e.offsetParent || e.closest('dialog[open]')).flatMap(e => {
   const r = e.getBoundingClientRect(), out = [];
   if (r.width && r.height && Math.min(r.width, r.height) < 48) out.push(`${e.tagName}.${e.className} '${e.textContent.trim().slice(0, 20)}' ${Math.round(r.width)}x${Math.round(r.height)}`);

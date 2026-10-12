@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dev package sweep: every page (home, session, plan, assistant, goals, Más pages) at 390 (iPhone) and 1440 has Barlow, paper
+"""Dev package sweep: every page (home, session, plan, assistant, goals, kanban, Más pages) at 390 (iPhone) and 1440 has Barlow, paper
 background, no horizontal overflow, visible text >=16px and buttons/links/inputs >=48px. Exit 0 = ok.
 Run: /tmp/pwenv/bin/python scripts/test_dev_sweep.py"""
 import os, shutil, socket, subprocess, sys, tempfile, time
@@ -19,7 +19,7 @@ srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=su
 SID = "20261012-120000-aaaa"
 RUN = {"id": SID, "kind": "session", "name": "Rediseño", "status": "idle", "started": time.time() - 900, "ended": None, "cost": 0.1, "project": "/tmp",
        "parent": None, "pending": {}, "subs": [], "last": "Hecho."}
-PAGES = ["", "#session/" + SID, "#plan", "#assistant", "#goals", "#agents", "#projects", "#guide", "#templates", "#phone"]
+PAGES = ["", "#session/" + SID, "#plan", "#assistant", "#goals", "#kanban", "#agents", "#projects", "#guide", "#templates", "#phone"]
 CHECK = """() => {
   const vis = e => e.offsetParent && e.getBoundingClientRect().width > 1 && e.getBoundingClientRect().height > 1 && !e.closest('dialog:not([open])');
   const d = e => `${e.tagName}.${e.className}'${e.textContent.trim().slice(0, 18)}'`;
