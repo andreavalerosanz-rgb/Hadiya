@@ -1262,22 +1262,45 @@ main:has(.as){padding-bottom:0}
 .as{min-height:100dvh;display:flex;flex-direction:column;max-width:760px;margin:0 auto;padding:0 16px;font:16px/1.5 var(--body)}
 .as-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:16px 0 10px}
 .as-head h1{margin:0;font:700 30px/1.05 var(--cond);letter-spacing:.02em;text-transform:uppercase;margin-right:auto}
-.as-btn{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:transparent;color:var(--edge);cursor:pointer;font:600 15px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+.as-btn{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:transparent;color:var(--edge);cursor:pointer;font:600 16px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
 .as-btn:hover{border-color:var(--mute)}
 .as-btn:disabled{opacity:.45;cursor:not-allowed}
 .as-btn.pri{background:var(--flag);border-color:var(--flag);color:var(--ink)}
 .as-sw[aria-checked=true]{border-color:var(--flag);background:repeating-linear-gradient(135deg,var(--flag) 0 6px,var(--flag-deep) 6px 12px);color:var(--ink)}
-.as-warn{margin:0 0 8px;padding:10px 12px;border:1px solid var(--flag);border-radius:var(--r-m);color:var(--flag-soft);font-size:15px}
+.as-warn{margin:0 0 8px;padding:10px 12px;border:1px solid var(--flag);border-radius:var(--r-m);color:var(--flag-soft);font-size:16px}
 .as-list{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0 16px;min-width:0}
 .as-m{max-width:88%;padding:10px 14px;border-radius:var(--r-l);overflow-wrap:anywhere;min-width:0}
 .as-m p{margin:0 0 .5em}.as-m p:last-child{margin:0}.as-m ul,.as-m ol{margin:.3em 0;padding-left:1.3em}
 .as-m pre{background:var(--ground);color:var(--edge);border-color:var(--line);max-width:100%}
-.as-m.me{align-self:flex-end;background:var(--flag);color:var(--ink);white-space:pre-wrap;border-bottom-right-radius:var(--r-s)}
+.as-m.me{align-self:flex-end;background:var(--tint-3);border:1px solid var(--tint-line);color:var(--edge);white-space:pre-wrap;border-bottom-right-radius:var(--r-s)}
 .as-m.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:var(--r-s)}
 .as-m.note,.as-m.ask{align-self:stretch;max-width:none;background:transparent;border:1px dashed var(--line);color:var(--mute);font-size:16px}
 .as-m.ask{border:1px solid var(--mute);color:var(--edge)}
-.as-m small{display:block;margin-top:4px;font:600 12px/1.2 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
-.as-m.me small{color:var(--ink)}
+.as-card.note,.as-card.ask,.as-steps{align-self:stretch;padding:12px 14px;border:1px solid var(--line);border-left:4px solid var(--mute);border-radius:var(--r-m);background:var(--panel);color:var(--edge)}
+.as-card.ask{border-left-color:var(--flag)}
+.as-ch{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px}.as-ch small{margin:0 0 0 auto}
+.as-st{display:flex;gap:6px;flex-wrap:wrap}
+.as-steps>summary{display:flex;align-items:center;gap:10px;min-height:48px;margin:-12px -14px;padding:0 14px;cursor:pointer;list-style:none;font-size:16px}
+.as-steps>summary::-webkit-details-marker{display:none}
+.as-steps>summary::after{content:'';width:8px;height:8px;margin-left:auto;border:solid var(--mute);border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .15s}
+.as-steps[open]>summary::after{transform:rotate(-135deg)}.as-steps[open]>summary{margin-bottom:4px}
+.as-steps .tl{margin-top:12px}.as-steps .tl b{font:600 16px/1.3 var(--body)}.as-steps .tl small{display:block;color:var(--mute);font-size:16px;overflow-wrap:anywhere}
+/* status chip (Plan tasks, Asistente status/approvals/steps) and a vertical timeline (Plan sections, Asistente steps) */
+.stc{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--pill);background:var(--char);color:var(--ink-mute);font:600 16px/1.4 var(--body);letter-spacing:0;text-transform:none;white-space:nowrap}
+.stc[data-s=overdue],.stc[data-s=deny]{background:#fde4e1;color:#9f1d12}
+.stc[data-s=today],.stc[data-s=pending],.stc[data-s=auto]{background:var(--flag);color:#1a1a1a}
+.stc[data-s=doing],.stc[data-s=working]{background:#ffe9df;color:#9a3412}
+.stc[data-s=done],.stc[data-s=allow]{background:#e3eee5;color:#22543a}
+.tl{list-style:none;margin:0;padding:0;display:grid;gap:10px;min-width:0}
+.tl>li{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;align-items:start;min-width:0}
+.tl>li::before{content:'';position:absolute;left:79px;top:0;bottom:-10px;border-left:2px solid var(--spool)}.tl>li:last-child::before{bottom:auto;height:24px}
+.tl>li::after{content:'';position:absolute;left:75px;top:18px;width:10px;height:10px;border-radius:50%;background:var(--ground);border:2px solid var(--mute)}
+.tl>li[data-g=overdue]::after{border-color:#9f1d12;background:#9f1d12}.tl>li[data-g=today]::after,.tl>li[data-g=doing]::after{border-color:var(--flag);background:var(--flag)}
+.tl>li>div,.tl>li>a{margin-left:12px;min-width:0}
+.tl-at{padding-top:10px;text-align:right;color:var(--mute);font:600 16px/1.3 var(--cond);letter-spacing:.04em}.tl-at .i{width:18px;height:18px}
+.as-steps .tl>li{grid-template-columns:28px minmax(0,1fr)}.as-steps .tl>li::before{left:35px}.as-steps .tl>li::after{left:31px;top:8px}.as-steps .tl-at{padding-top:0}
+.as-m small{display:block;margin-top:4px;font:500 16px/1.2 var(--cond);letter-spacing:.04em;color:var(--mute)}
+.as-m.me small{color:var(--mute)}
 .as-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .as-form{position:sticky;bottom:0;display:flex;gap:8px;align-items:flex-end;padding:10px 0 calc(12px + env(safe-area-inset-bottom));background:var(--ground);border-top:1px solid var(--line)}
 .as-form textarea{flex:1;min-width:0;min-height:48px;max-height:30dvh;resize:none;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);font:16px/1.4 var(--body);field-sizing:content}
@@ -1290,7 +1313,7 @@ main:has(.as){padding-bottom:0}
 .as-job{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel)}
 .as-job>div{flex:1;min-width:0;overflow-wrap:anywhere}
 .as-job b{font:700 17px/1.2 var(--cond);letter-spacing:.04em}
-.as-job p{margin:2px 0 0;color:var(--mute);font-size:15px}
+.as-job p{margin:2px 0 0;color:var(--mute);font-size:16px}
 .as-sin form{display:grid;gap:8px}
 .as-sin label{display:block;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
 .as-sin input:not([type=checkbox]),.as-sin textarea{display:block;width:100%;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);font:16px/1.4 var(--body)}
@@ -1305,28 +1328,29 @@ main:has(.as){padding-bottom:0}
 .as-shd .as-btn{min-width:48px;padding:0;justify-content:center}
 .as-sin h3{margin:8px 0 0;font:700 16px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
 .as-opt{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel)}
-.as-opt>div{flex:1;min-width:0}.as-opt b{font:700 17px/1.2 var(--cond);letter-spacing:.04em;text-transform:uppercase}.as-opt p{margin:2px 0 0;color:var(--mute);font-size:15px}
+.as-opt>div{flex:1;min-width:0}.as-opt b{font:700 17px/1.2 var(--cond);letter-spacing:.04em;text-transform:uppercase}.as-opt p{margin:2px 0 0;color:var(--mute);font-size:16px}
 #as-new summary{gap:8px}#as-new form{margin-top:8px}
 #as-jobform fieldset{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}#as-jobform legend{grid-column:1/-1}.as-sin label.as-day{display:inline-flex;min-width:0}
 .pl{max-width:760px;margin:0 auto;padding:0 16px 48px;font:16px/1.5 var(--body)}
-.pl-sub{margin:-4px 0 0;color:var(--mute);font-size:15px}
+.pl-sub{margin:-4px 0 0;color:var(--mute);font-size:16px}
 .pl-none{margin:28px 0;color:var(--mute)}
 .pl-g{margin-top:28px}
 .pl-g h2{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font:700 19px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase}
 .pl-g h2 span{color:var(--mute);font-weight:600}
-.pl-g[aria-label=Vencidas] h2 span{color:var(--flag-soft)}
-details.pl-g>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;list-style:none;cursor:pointer}
+details.pl-g>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;margin-bottom:8px;list-style:none;cursor:pointer;border-radius:var(--r-s)}
+details.pl-g>summary:focus-visible{outline:2px solid var(--flag);outline-offset:2px}
 details.pl-g>summary::-webkit-details-marker{display:none}
-details.pl-g>summary h2{margin:0;color:var(--mute)}
+details.pl-g>summary h2{margin:0}details.pl-g:not([open])>summary h2{color:var(--mute)}
 details.pl-g>summary::after{content:'';width:8px;height:8px;margin-right:8px;border:solid var(--mute);border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .15s}
 details.pl-g[open]>summary::after{transform:rotate(-135deg)}
 details.pl-g>summary:hover h2{color:var(--edge)}
-.pl-row{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 16px;min-height:48px;padding:11px 4px;border-top:1px solid var(--spool);color:var(--edge);text-decoration:none}
-.pl-row:hover{background:var(--char)}
-.pl-row span{flex:1 1 300px;min-width:0;overflow-wrap:anywhere;font-size:17px}
-.pl-row small{color:var(--mute);font:500 14px/1.3 var(--cond);letter-spacing:.06em;text-transform:uppercase}
-.pl-row[data-g=overdue] small{color:var(--flag-soft)}
-.pl-new{margin-right:8px;color:var(--flag-text);font:700 13px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase}
+.pl-row{display:flex;flex-direction:column;gap:6px;min-height:48px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);text-decoration:none}
+.pl-row:hover{border-color:var(--mute)}.pl-row:focus-visible{outline:2px solid var(--flag);outline-offset:2px}
+.pl-row>span{min-width:0;overflow-wrap:anywhere;font:500 17px/1.35 var(--body)}
+.pl-row small{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;color:var(--mute);font-size:16px;overflow-wrap:anywhere;min-width:0}
+.pl-row[data-g=done]>span{color:var(--mute);text-decoration:line-through}
+@media (max-width:820px){.tl>li{grid-template-columns:56px minmax(0,1fr)}.tl>li::before{left:63px}.tl>li::after{left:59px}}
+.pl-new{margin-right:8px;color:var(--flag-text);font:700 16px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase}
 /* ---------- goals (dev) ---------- */
 .gl{max-width:760px;margin:0 auto;padding:0 16px 48px;font:16px/1.5 var(--body);display:grid;gap:12px;min-width:0}
 .gl-list{display:grid;gap:8px}
@@ -2792,22 +2816,26 @@ ACT.stopSess = async () => { if (!confirm('Stop this session? Running subagents 
 
 /* ============ plan de hoy (Trello) ============ */
 // The server draws up the plan at 6am and re-reads Trello every minute; this page just re-polls it.
+const PL_CHIP = {overdue: 'Vencida', today: 'Hoy', doing: 'En curso', week: 'Planificada', done: 'Hecha'}, PL_OPEN = {};
 async function planPage() {
   const g = pollGen, pl = await api('plan').catch(e => ({error: e.message}));
   if (g != pollGen) return;
   const hm = t => new Date(t * 1000).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
   const when = d => new Date(d).toLocaleDateString('es', {weekday: 'short', day: 'numeric', month: 'short'});
-  const tasks = pl.tasks || [], of = k => tasks.filter(t => t.group == k);
-  // Section headings carry the status, so rows hold only the name and one meta line; next week waits behind a disclosure.
-  const row = t => `<a class="pl-row" data-g="${esc(t.group)}" href="${esc(t.url)}" target="_blank" rel="noopener"><span>${t.new ? '<b class="pl-new">Nueva</b>' : ''}${esc(t.name)}</span><small>${esc(t.board)} · ${esc(t.list)}${t.due ? ' · ' + when(t.due) : ''}</small></a>`;
-  const today = [['overdue', 'Vencidas'], ['today', 'Para hoy'], ['doing', 'En curso']].map(([k, label]) => (ts => ts.length ? `<section class="pl-g" aria-label="${label}"><h2>${label} <span>${ts.length}</span></h2>${ts.map(row).join('')}</section>` : '')(of(k))).join('');
-  const week = of('week'), wasOpen = $('#pl-week')?.open;
+  const tasks = pl.tasks || [], of = (...k) => tasks.filter(t => k.includes(t.group));
+  // Each section is a timeline of task cards (marker = due time or day, chip = status); open state survives the 30 s redraw.
+  for (const d of main.querySelectorAll('details.pl-g')) PL_OPEN[d.id] = d.open;
+  const at = t => t.group == 'overdue' ? when(t.due) : t.group == 'week' ? when(t.due) : t.due ? hm(Date.parse(t.due) / 1000) : t.group == 'doing' ? 'Ya' : 'Hoy';
+  const step = t => `<li data-g="${esc(t.group)}"><span class="tl-at">${at(t)}</span><a class="pl-row" data-g="${esc(t.group)}" href="${esc(t.url)}" target="_blank" rel="noopener">
+    <span>${t.new ? '<b class="pl-new">Nueva</b>' : ''}${esc(t.name)}</span><small><b class="stc" data-s="${esc(t.group)}">${PL_CHIP[t.group] || esc(t.group)}</b>${esc(t.board)} · ${esc(t.list)}</small></a></li>`;
+  const sec = (id, label, ts, open) => ts.length ? `<details class="pl-g" id="${id}"${PL_OPEN[id] ?? open ? ' open' : ''}><summary><h2>${label} <span>${ts.length}</span></h2></summary><ol class="tl">${ts.map(step).join('')}</ol></details>` : '';
+  const today = of('overdue', 'today', 'doing');
   main.innerHTML = `<div class="pl">
     <header class="as-head"><h1>Plan de hoy</h1></header>
     <p class="pl-sub"${pl.day ? ` title="Planificado ${new Date(pl.planned_at * 1000).toLocaleDateString('es', {weekday: 'long', day: 'numeric', month: 'long'})} a las ${hm(pl.planned_at)}"` : ''}>Lo que vence o está en curso en tus tableros de Trello${pl.day ? ` · revisado ${hm(pl.checked)}` : ''}</p>
     ${pl.error ? `<p class="alert" role="status">${icon('help')}<span><b>No se pudo leer Trello:</b> ${esc(pl.error)}</span></p>` : ''}
-    ${today || (pl.day ? '<p class="pl-none">Nada pendiente para hoy.</p>' : '<p class="pl-none">Aún no se ha leído Trello.</p>')}
-    ${week.length ? `<details class="pl-g" id="pl-week"${wasOpen ? ' open' : ''}><summary><h2>Próximos 7 días <span>${week.length}</span></h2></summary>${week.map(row).join('')}</details>` : ''}</div>`;
+    ${sec('pl-today', 'Hoy', today, true) || (pl.day ? '<p class="pl-none">Nada pendiente para hoy.</p>' : '<p class="pl-none">Aún no se ha leído Trello.</p>')}
+    ${sec('pl-done', 'Hechas hoy', of('done'), false)}${sec('pl-week', 'Próximos 7 días', of('week'), false)}</div>`;
   timer = setTimeout(planPage, 30000);
 }
 
@@ -2824,23 +2852,53 @@ function asDraw() {
   const list = $('#as-list'); if (!list) return;
   const ans = asLoad('ans', {}), mine = asLoad('mine', []);
   const done = Object.fromEntries(AS.items.filter(x => x.type == 'resolved').map(x => [x.approval_id, x.allow ? 'allow' : 'deny']));
-  const all = [...mine.map(m => ({...m, type: 'me'})), ...AS.items.filter(x => !['resolved', 'file'].includes(x.type))].sort((a, b) => a.ts - b.ts);
+  const steps = asSteps();
+  const all = [...mine.map(m => ({...m, type: 'me'})), ...AS.items.filter(x => !['resolved', 'file'].includes(x.type)), ...steps ? [steps] : []].sort((a, b) => a.ts - b.ts);
   const near = innerHeight + scrollY >= document.documentElement.scrollHeight - 160;
-  const card = x => x.type == 'me' ? `<div class="as-m me">${esc(x.text)}<small>${asHm(x.ts)}</small></div>`
-    : x.type == 'notice' ? `<div class="as-m note" role="status">${md(x.text)}<small>Aviso · ${asHm(x.ts)}</small></div>`
-    : x.type == 'approval' ? `<div class="as-m ask" role="group" aria-label="Pide permiso"><b>Pide permiso</b>${md(x.text)}
-        ${(a => a ? `<small>${a == 'allow' ? 'Permitido' : 'Denegado'}</small>`
-          : `<div class="as-acts"><button class="as-btn pri" data-act="asApprove" data-arg="${esc(x.approval_id)}:1">Permitir</button><button class="as-btn" data-act="asApprove" data-arg="${esc(x.approval_id)}:0">Denegar</button></div>`)(done[x.approval_id] || ans[x.approval_id])}</div>`
-    : `<div class="as-m bot">${md(x.text)}<small>${asHm(x.ts)}</small></div>`;
+  AS.stepsOpen = $('#as-steps')?.open ?? AS.stepsOpen;
+  const chip = (s, t) => `<b class="stc" data-s="${s}">${t}</b>`;
+  const card = x => x.type == 'me' ? `<div class="as-m me" aria-label="Tú">${esc(x.text)}<small>${asHm(x.ts)}</small></div>`
+    : x.type == 'steps' ? `<details class="as-card as-steps" id="as-steps"${AS.stepsOpen ? ' open' : ''}><summary>${x.live ? chip('working', 'Trabajando') : chip('done', 'Hecho')}<span>${x.tools.length} ${x.tools.length == 1 ? 'paso' : 'pasos'}${x.job ? ' · tarea programada' : ''}</span></summary>
+        <ol class="tl">${x.tools.map(u => (([ic, n], a) => `<li><span class="tl-at">${icon(ic)}</span><div><b>${esc(n)}</b>${a ? `<small>${esc(String(a).slice(0, 140))}</small>` : ''}</div></li>`)(TOOLNAME(u.name), toolArg(u.input))).join('')}</ol></details>`
+    : x.type == 'notice' ? `<div class="as-m as-card note" role="status"><div class="as-ch">${chip('note', x.goal ? 'Goal' : 'Aviso')}<small>${asHm(x.ts)}</small></div>${md(x.text)}</div>`
+    : x.type == 'approval' ? (a => `<div class="as-m as-card ask" role="group" aria-label="Pide permiso"><div class="as-ch">${chip(a || 'pending', a == 'allow' ? 'Permitido' : a == 'deny' ? 'Denegado' : 'Pendiente')}<b>Pide permiso</b><small>${asHm(x.ts)}</small></div>${md(x.text)}
+        ${a ? '' : `<div class="as-acts"><button class="as-btn pri" data-act="asApprove" data-arg="${esc(x.approval_id)}:1">Permitir</button><button class="as-btn" data-act="asApprove" data-arg="${esc(x.approval_id)}:0">Denegar</button></div>`}</div>`)(done[x.approval_id] || ans[x.approval_id])
+    : `<div class="as-m bot" aria-label="Asistente">${md(x.text)}<small>${asHm(x.ts)}</small></div>`;
   list.innerHTML = all.map(card).join('') || '<p class="as-m note">Tu asistente para correo, calendario y sesiones de Flows. Prueba «qué tengo hoy».</p>';
-  $('#as-wait').hidden = !AS.wait;
+  $('#as-wait').hidden = !AS.wait || !!steps?.live;
+  asStatus();
   if (near || AS.stick) { AS.stick = false; scrollTo(0, document.documentElement.scrollHeight); }
+}
+// The latest turn's tool calls, read from the assistant's run: shown as one collapsible steps card right after the message that started it.
+function asSteps() {
+  const ev = AS.ev || [], i = ev.findLastIndex(e => e.type == 'input'); if (i < 0) return null;
+  const tools = ev.slice(i).flatMap(e => e.type == 'assistant' && Array.isArray(e.message?.content) ? e.message.content.filter(c => c.type == 'tool_use') : []);
+  const live = AS.runSt == 'working';
+  return tools.length || live ? {type: 'steps', ts: (ev[i].ts || now()) + .001, tools, live, job: (ev[i].from || '').startsWith('job:')} : null;
+}
+function asStatus() {
+  const el = $('#as-st'); if (!el) return;
+  const busy = AS.wait || AS.runSt == 'working';
+  el.innerHTML = `<b class="stc" data-s="${busy ? 'working' : 'idle'}">${busy ? 'Trabajando' : 'Listo'}</b>${AS.cfg.auto ? '<b class="stc" data-s="auto">Full auto</b>' : ''}`;
+}
+async function asRunPoll(g) {  // run status + events since the last poll (the first call only reads the tail)
+  for (let first = true; g == pollGen; first = false) {
+    const id = AS.cfg.run;
+    if (id && !document.hidden) try {
+      if (first) { const t = await api(`runs/${id}?since=999999999`); AS.evN = Math.max(0, (t.total || 0) - 120); AS.ev = []; }
+      const r = await api(`runs/${id}?since=${AS.evN}`); if (g != pollGen) return;
+      const changed = r.events?.length || r.status != AS.runSt;
+      AS.ev = [...AS.ev, ...r.events || []].slice(-300); AS.evN = r.total ?? AS.evN; AS.runSt = r.status;
+      if (changed) asDraw();
+    } catch {}
+    await new Promise(r => { AS.kick = r; setTimeout(r, AS.wait || AS.runSt == 'working' ? 3000 : 10000); });  // a send kicks it early
+  }
 }
 function asHead() {  // one header button; Full auto, scheduled tasks and the debug session live in the Ajustes sheet
   const c = AS.cfg;
-  $('#as-head').innerHTML = `<h1>Asistente</h1>
+  $('#as-head').innerHTML = `<h1>Asistente</h1><span class="as-st" id="as-st" role="status" aria-label="Estado del asistente"></span>
     <button class="as-btn" data-act="asJobs" aria-haspopup="dialog">${icon('gear')}Ajustes</button>`;
-  $('#as-warn').hidden = !c.auto;
+  $('#as-warn').hidden = !c.auto; asStatus();
   const s = $('#as-cfg'); if (!s) return;
   s.innerHTML = `<div class="as-opt"><div><b>Full auto</b><p>Actúa sin pedirte permiso, también para enviar correos o editar.</p></div>
       <button class="as-btn as-sw" role="switch" aria-checked="${!!c.auto}" data-act="asAuto">${c.auto ? 'Activado' : 'Desactivado'}</button></div>`;
@@ -2856,15 +2914,15 @@ async function assistantPage() {
     <form class="as-form" id="as-form"><label class="sr" for="as-msg">Mensaje para el asistente</label>
       <textarea id="as-msg" rows="1" placeholder="Escribe al asistente…" enterkeyhint="send"></textarea>
       <button class="as-btn pri" aria-label="Enviar">${icon('send')}</button></form></div>`;
-  AS.items = []; AS.since = 0; AS.wait = false; AS.stick = true;
+  AS.items = []; AS.since = 0; AS.wait = false; AS.stick = true; AS.ev = []; AS.runSt = '';
   const f = $('#as-form'), t = $('#as-msg');
   f.onsubmit = async e => { e.preventDefault(); const text = t.value.trim(); if (!text) return; t.value = '';
     const mine = [...asLoad('mine', []), {text, ts: now()}].slice(-200); asSave('mine', mine);
-    AS.wait = true; AS.stick = true; asDraw();
+    AS.wait = true; AS.stick = true; asDraw(); setTimeout(() => AS.kick?.(), 800);
     try { await api('assistant/message', {method: 'POST', body: JSON.stringify({text, channel: 'web'})}); if (text.startsWith('/auto')) asCfg(); }
     catch (er) { AS.wait = false; asDraw(); toast('No se pudo enviar: ' + er.message, true); } };
   t.onkeydown = e => { if (e.key == 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) f.requestSubmit() || e.preventDefault(); };
-  await asCfg();
+  await asCfg(); asRunPoll(g);
   AS.ac?.abort(); AS.ac = new AbortController();
   let loaded = false;
   while (g == pollGen) {

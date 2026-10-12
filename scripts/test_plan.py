@@ -13,6 +13,7 @@ boards = [{"name": "B", "lists": [{"id": "t", "name": "To Do"}, {"id": "g", "nam
     card("vencida", "2026-10-01T10:00:00Z"),
     card("hecha", "2026-10-05T10:00:00Z", ok=True),
     card("en lista hecho", "2026-10-05T10:00:00Z", lst="d"),
+    card("hecha ayer", "2026-10-04T10:00:00Z", ok=True),
     card("en curso", lst="g"),
     card("empezada", start="2026-10-04T08:00:00Z"),
     card("semana", "2026-10-09T15:00:00Z"),
@@ -20,5 +21,6 @@ boards = [{"name": "B", "lists": [{"id": "t", "name": "To Do"}, {"id": "g", "nam
     card("sin fecha")]}]
 got = {t["name"]: (t["group"], t["new"]) for t in s.plan_tasks(boards, date(2026, 10, 5), 1e9)}
 assert got == {"hoy-nueva": ("today", True), "vencida": ("overdue", False), "en curso": ("doing", False),
-               "empezada": ("doing", False), "semana": ("week", False)}, got
+               "empezada": ("doing", False), "semana": ("week", False),
+               "hecha": ("done", False), "en lista hecho": ("done", False)}, got
 print("ok")
