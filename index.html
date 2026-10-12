@@ -1105,6 +1105,86 @@ body.adm .toast.err{background:var(--p-ink);color:#fff}
   body.adm .dfoot>.a-always{justify-content:center;text-align:center}
   .a-marks li{grid-template-columns:130px minmax(0,1fr)}
 }
+/* ---------- asistente (dev): chat page, composer sticks to the bottom ---------- */
+main:has(.as){padding-bottom:0}
+.as{min-height:100dvh;display:flex;flex-direction:column;max-width:760px;margin:0 auto;padding:0 16px;font:16px/1.5 var(--body)}
+.as-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:16px 0 10px}
+.as-head h1{margin:0;font:700 30px/1.05 var(--cond);letter-spacing:.02em;text-transform:uppercase;margin-right:auto}
+.as-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:transparent;color:var(--edge);cursor:pointer;font:600 15px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+.as-btn:hover{border-color:var(--mute)}
+.as-btn:disabled{opacity:.45;cursor:not-allowed}
+.as-btn.pri{background:var(--flag);border-color:var(--flag);color:var(--ink)}
+.as-sw[aria-checked=true]{border-color:var(--flag);background:repeating-linear-gradient(135deg,var(--flag) 0 6px,var(--flag-deep) 6px 12px);color:var(--ink)}
+.as-warn{margin:0 0 8px;padding:10px 12px;border:1px solid var(--flag);border-radius:var(--r-m);color:var(--flag-soft);font-size:15px}
+.as-list{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0 16px;min-width:0}
+.as-m{max-width:88%;padding:10px 14px;border-radius:var(--r-l);overflow-wrap:anywhere;min-width:0}
+.as-m p{margin:0 0 .5em}.as-m p:last-child{margin:0}.as-m ul,.as-m ol{margin:.3em 0;padding-left:1.3em}
+.as-m pre{background:var(--ink);color:var(--edge);border-color:var(--line);max-width:100%}
+.as-m.me{align-self:flex-end;background:var(--flag);color:var(--ink);white-space:pre-wrap;border-bottom-right-radius:var(--r-s)}
+.as-m.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:var(--r-s)}
+.as-m.note,.as-m.ask{align-self:stretch;max-width:none;background:transparent;border:1px dashed var(--line);color:var(--mute);font-size:15px}
+.as-m.ask{border:1px solid var(--mute);color:var(--edge)}
+.as-m small{display:block;margin-top:4px;font:600 12px/1.2 var(--cond);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.as-m.me small{color:var(--ink)}
+.as-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.as-form{position:sticky;bottom:0;display:flex;gap:8px;align-items:flex-end;padding:10px 0 calc(12px + env(safe-area-inset-bottom));background:var(--ink);border-top:1px solid var(--line)}
+.as-form textarea{flex:1;min-width:0;min-height:48px;max-height:30dvh;resize:none;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);font:16px/1.4 var(--body);field-sizing:content}
+.as-form textarea:focus{outline:0;border-color:var(--mute);box-shadow:0 0 0 3px rgba(255,90,31,.3)}
+.as-form .as-btn{min-width:48px;min-height:48px;justify-content:center}
+.as-sheet{width:min(560px,100vw);max-width:100vw;max-height:90dvh;margin:auto;padding:0;border:1px solid var(--line);border-radius:var(--r-l);background:var(--char);color:var(--edge)}
+.as-sheet::backdrop{background:rgba(0,0,0,.6)}
+.as-sin{padding:16px;display:grid;gap:12px;min-width:0}
+.as-sin h2{margin:0;font:700 24px/1.1 var(--cond);letter-spacing:.04em;text-transform:uppercase}
+.as-job{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel)}
+.as-job>div{flex:1;min-width:0;overflow-wrap:anywhere}
+.as-job b{font:700 17px/1.2 var(--cond);letter-spacing:.04em}
+.as-job p{margin:2px 0 0;color:var(--mute);font-size:15px}
+.as-sin form{display:grid;gap:8px}
+.as-sin label{display:block;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.as-sin input:not([type=checkbox]),.as-sin textarea{display:block;width:100%;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);font:16px/1.4 var(--body)}
+.as-sin fieldset{border:0;margin:0;padding:0;min-width:0;display:flex;flex-wrap:wrap;gap:6px}
+.as-sin legend{padding:0;margin-bottom:4px;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.as-day{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border:1px solid var(--line);border-radius:var(--r-s);cursor:pointer;font:600 15px/1 var(--cond);margin:0!important;color:var(--edge)!important}
+.as-day:has(input:checked){background:var(--edge);color:var(--ink)!important}
+.as-day:has(input:focus-visible){outline:2px solid var(--flag);outline-offset:2px}
+.as-day input{position:absolute;opacity:0;width:1px;height:1px;min-height:0!important}
+@media (max-width:820px){.as-m{max-width:94%}.as-head h1{font-size:26px}}
+/* ---------- goals (dev) ---------- */
+.gl{max-width:760px;margin:0 auto;padding:0 16px 48px;font:16px/1.5 var(--body);display:grid;gap:12px;min-width:0}
+.gl-list{display:grid;gap:8px}
+.gl-row{display:flex;flex-direction:column;gap:8px;padding:12px 14px;min-height:44px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);text-decoration:none;min-width:0}
+.gl-row:hover{border-color:var(--mute)}
+.gl-t{display:grid;gap:2px;min-width:0}.gl-t b{font:700 19px/1.2 var(--cond);letter-spacing:.03em;overflow-wrap:anywhere}
+.gl small,.gl-t small{color:var(--mute);font-size:14px;overflow-wrap:anywhere}
+.gl-t small .i,.gl-sub .i,.gl-sch .i{width:14px;height:14px;margin-right:4px;vertical-align:-2px}
+.gl-meta{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;color:var(--mute);font-size:14px}
+.gl-pill{display:inline-block;padding:3px 10px;border:1px solid var(--line);border-radius:var(--pill);font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.gl-pill[data-s=running],.gl-pill[data-s=verifying]{border-color:var(--flag);color:var(--flag-soft)}
+.gl-pill[data-s=blocked]{background:var(--flag);border-color:var(--flag);color:var(--ink)}
+.gl-pill[data-s=done]{background:var(--edge);border-color:var(--edge);color:var(--ink)}
+.gl-pill[data-s=failed]{border-style:dashed;color:var(--edge)}
+.gl-sub{margin:0;color:var(--mute);overflow-wrap:anywhere;font:14px/1.4 var(--mono)}
+.gl-facts{display:flex;flex-wrap:wrap;gap:8px 24px;margin:0}.gl-facts div{min-width:0}
+.gl-facts dt{font:600 12px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}.gl-facts dd{margin:0}
+.gl h2{margin:0 0 6px;font:700 20px/1.1 var(--cond);letter-spacing:.05em;text-transform:uppercase}
+.gl-sec{display:block;min-width:0}.gl-obj{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.gl-f{display:grid;gap:12px;min-width:0}
+.gl-f label{display:block;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.gl-f label small{display:block;margin-top:2px;font:14px/1.3 var(--body);letter-spacing:0;text-transform:none}
+.gl-f input:not([type=checkbox]),.gl-f textarea,.gl-acc input{display:block;width:100%;min-width:0;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--edge);font:16px/1.4 var(--body)}
+.gl-f input:focus,.gl-f textarea:focus,.gl-acc input:focus{outline:0;border-color:var(--mute);box-shadow:0 0 0 3px rgba(255,90,31,.3)}
+.gl-f fieldset{border:0;margin:8px 0 0;padding:0;min-width:0;display:flex;flex-wrap:wrap;gap:6px}
+.gl-f legend{padding:0;margin-bottom:4px;font:600 13px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.gl-opt summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--mute)}
+.gl-acc{display:flex;gap:8px;align-items:center;margin-bottom:8px}.gl-acc .as-btn{min-width:44px;justify-content:center;margin-top:4px}
+.gl-blk{padding:12px;border:1px solid var(--flag);border-radius:var(--r-m)}
+.gl-hist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.gl-h{padding:10px 12px;border:1px solid var(--line);border-left:4px solid var(--edge);border-radius:var(--r-m);background:var(--panel);overflow-wrap:anywhere}
+.gl-h.fail{border-left-color:var(--flag)}.gl-h b{font:700 16px/1.2 var(--cond);letter-spacing:.05em;text-transform:uppercase;margin-right:8px}
+.gl-h p{margin:4px 0 0}.gl-h ul{margin:4px 0 0;padding-left:1.2em;color:var(--mute)}
+.gl-rep{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);overflow-wrap:anywhere}
+.gl-rep pre{max-width:100%;overflow:auto}
+@media (min-width:821px){.gl-row{flex-direction:row;align-items:center;justify-content:space-between}.gl-t{flex:1}}
 </style>
 </head>
 <body>
@@ -1440,6 +1520,8 @@ async function refresh() {
     <div class="rack-body" id="rack-body">
     <a class="item" title="Home" href="#" ${!kind ? 'aria-current="page"' : ''}>${icon('home')}<span>Home</span></a>
     <a class="item" title="Plan de hoy" href="#plan"${kind == 'plan' ? 'aria-current="page"' : ''}>${icon('cal')}<span>Plan de hoy</span></a>
+    <a class="item" title="Asistente" href="#assistant"${kind == 'assistant' ? 'aria-current="page"' : ''}>${icon('talk')}<span>Asistente</span></a>
+    <a class="item" title="Goals" href="#goals"${kind == 'goals' ? 'aria-current="page"' : ''}>${icon('flag')}<span>Goals</span></a>
     <a class="item" title="Agentes" href="#agents"${kind == 'agents' ? 'aria-current="page"' : ''}>${icon('team')}<span>Agentes</span></a>
     <a class="item" title="Proyectos" href="#projects"${kind == 'projects' ? 'aria-current="page"' : ''}>${icon('list')}<span>Proyectos</span></a>
     <a class="item" title="How to use Flows" href="#guide"${kind == 'guide' ? 'aria-current="page"' : ''}>${icon('help')}<span>How to use Flows</span></a>
@@ -1621,7 +1703,7 @@ async function route() {
   const leavingEditor = draft && dirty && !location.hash.startsWith('#wf/' + draft.id);
   if (leavingEditor && !confirm('This workflow has unsaved changes. Leave without saving?')) { skipRoute = true; location.hash = lastHash; return; }
   lastHash = location.hash;
-  clearTimeout(timer); pollGen++; lastSig = ''; runSel = null; draft = null; dirty = false; ins = null; askOpen = null; att = [];
+  clearTimeout(timer); pollGen++; AS.ac?.abort(); lastSig = ''; runSel = null; draft = null; dirty = false; ins = null; askOpen = null; att = [];
   $('#decide')?.close?.();
   await refresh();
   const [kind, id, agent] = location.hash.slice(1).split('/');
@@ -1635,6 +1717,8 @@ async function route() {
   else if (kind == 'guide') guide();
   else if (kind == 'phone') phonePage();
   else if (kind == 'plan') planPage();
+  else if (kind == 'assistant') assistantPage();
+  else if (kind == 'goals') id == 'new' ? goalNew() : id ? goalPage(id) : goalsPage();
   else if (kind == 'agents') id ? agentEditor(id == 'new' ? '' : id) : agentsPage();
   else if (kind == 'projects') id ? projectPage(id) : projectsPage();
   else home(kind == 'templates');
@@ -2304,7 +2388,7 @@ function drawSession() {
     <div class="setacts">
       <button class="btn-q" data-act="togglePerms" aria-expanded="${!!sess.perms}" aria-controls="s-perms">${icon('shield')}Permissions</button>
       <button class="btn-q" data-act="pin" data-arg="${r.id}" aria-pressed="${!!r.pinned}" title="${r.pinned ? 'Remove from Pinned' : 'Keep it at the top of the sidebar and on Home'}">${icon('pin')}${r.pinned ? 'Unpin' : 'Pin'}</button>
-      <button class="btn-q" data-act="crSquadHere" title="Revisión CR-Squad en esta sesión: escribe antes un archivo, carpeta o PR en el cuadro de mensaje (vacío = cambios actuales)">${icon('team')}CR-Squad</button>
+      <button class="btn-q" data-act="codeReviewHere" title="Code review en esta sesión: escribe antes un archivo, carpeta o PR en el cuadro de mensaje (vacío = cambios actuales)">${icon('team')}Code review</button>
       <button class="btn-q" data-act="rename" data-arg="${r.id}">Rename</button>
       <button class="btn-q" data-act="del" data-arg="run:${r.id}">${icon('trash')}Delete</button>
     </div></div>`);
@@ -2509,10 +2593,10 @@ ACT.sendMsg = async () => {
   forceStick = true;
   if (await send(text, null, null, await packFiles())) { m.value = ''; m.style.height = ''; att = []; drawAtts(); }
 };
-ACT.crSquadHere = async () => {
+ACT.codeReviewHere = async () => {
   const m = $('#msg'), t = m.value.trim();
   forceStick = true; sess.set = false; $('#s-menu')?.classList.remove('open'); $('.setbtn')?.setAttribute('aria-expanded', false);
-  if (await send('/cr-squad' + (t ? ' ' + t : ''))) { m.value = ''; m.style.height = ''; }
+  if (await send('/code-review-skill' + (t ? ' ' + t : ''))) { m.value = ''; m.style.height = ''; }
 };
 ACT.queueMsg = async () => {
   const m = $('#msg'), text = m.value.trim(); if (!text && !att.length) return m.focus();
@@ -2562,6 +2646,227 @@ async function planPage() {
       || (pl.day ? '<section class="recent"><p class="none">Nada pendiente para hoy.</p></section>' : '')}`;
   timer = setTimeout(planPage, 30000);
 }
+
+/* ============ asistente: web chat for Flows Asistente (/api/assistant/*) ============ */
+// The outbox only holds the assistant's items; what you send and which approvals you answered stay in localStorage.
+const AS = {items: [], since: 0, wait: false, cfg: {auto: false, jobs: [], run: ''}, ac: null};
+const asLoad = (k, d) => { try { return JSON.parse(localStorage.getItem('flows.as.' + k)) ?? d; } catch { return d; } };
+const asSave = (k, v) => { try { localStorage.setItem('flows.as.' + k, JSON.stringify(v)); } catch {} };
+const asHm = t => new Date(t * 1000).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
+const AS_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const asDays = d => !d?.length || d.length == 7 ? 'Todos los días' : d.join() == '0,1,2,3,4' ? 'L–V' : d.map(i => AS_DAYS[i]).join(' ');
+
+function asDraw() {
+  const list = $('#as-list'); if (!list) return;
+  const ans = asLoad('ans', {}), mine = asLoad('mine', []);
+  const done = Object.fromEntries(AS.items.filter(x => x.type == 'resolved').map(x => [x.approval_id, x.allow ? 'allow' : 'deny']));
+  const all = [...mine.map(m => ({...m, type: 'me'})), ...AS.items.filter(x => !['resolved', 'file'].includes(x.type))].sort((a, b) => a.ts - b.ts);
+  const near = innerHeight + scrollY >= document.documentElement.scrollHeight - 160;
+  const card = x => x.type == 'me' ? `<div class="as-m me">${esc(x.text)}<small>${asHm(x.ts)}</small></div>`
+    : x.type == 'notice' ? `<div class="as-m note" role="status">${md(x.text)}<small>Aviso · ${asHm(x.ts)}</small></div>`
+    : x.type == 'approval' ? `<div class="as-m ask" role="group" aria-label="Pide permiso"><b>Pide permiso</b>${md(x.text)}
+        ${(a => a ? `<small>${a == 'allow' ? 'Permitido' : 'Denegado'}</small>`
+          : `<div class="as-acts"><button class="as-btn pri" data-act="asApprove" data-arg="${esc(x.approval_id)}:1">Permitir</button><button class="as-btn" data-act="asApprove" data-arg="${esc(x.approval_id)}:0">Denegar</button></div>`)(done[x.approval_id] || ans[x.approval_id])}</div>`
+    : `<div class="as-m bot">${md(x.text)}<small>${asHm(x.ts)}</small></div>`;
+  list.innerHTML = all.map(card).join('') || '<p class="as-m note">Escribe algo para empezar. Prueba «qué tengo hoy».</p>';
+  $('#as-wait').hidden = !AS.wait;
+  if (near || AS.stick) { AS.stick = false; scrollTo(0, document.documentElement.scrollHeight); }
+}
+function asHead() {
+  const c = AS.cfg;
+  $('#as-head').innerHTML = `<h1>Asistente</h1>
+    <button class="as-btn as-sw" role="switch" aria-checked="${!!c.auto}" data-act="asAuto">${icon('bolt')}Full auto ${c.auto ? 'activado' : 'desactivado'}</button>
+    <button class="as-btn" data-act="asJobs">${icon('clock')}Tareas · ${c.jobs.length}</button>
+    ${c.run ? `<a class="as-btn" href="#session/${esc(c.run)}" title="Abrir la sesión del asistente, para depurar">${icon('brain')}Sesión</a>` : ''}`;
+  $('#as-warn').hidden = !c.auto;
+}
+async function assistantPage() {
+  const g = pollGen;
+  main.innerHTML = `<div class="as">
+    <header class="as-head" id="as-head"></header>
+    <p class="as-warn" id="as-warn" role="status" hidden><b>Full auto activado:</b> actúa sin pedirte permiso, también para enviar correos o editar. Desactívalo con «Full auto» o escribe /auto off.</p>
+    <div class="as-list" id="as-list" aria-live="polite" aria-label="Conversación"></div>
+    <p class="as-m note" id="as-wait" role="status" hidden>Pensando…</p>
+    <form class="as-form" id="as-form"><label class="sr" for="as-msg">Mensaje para el asistente</label>
+      <textarea id="as-msg" rows="1" placeholder="Escribe al asistente…" enterkeyhint="send"></textarea>
+      <button class="as-btn pri" aria-label="Enviar">${icon('send')}</button></form></div>`;
+  AS.items = []; AS.since = 0; AS.wait = false; AS.stick = true;
+  const f = $('#as-form'), t = $('#as-msg');
+  f.onsubmit = async e => { e.preventDefault(); const text = t.value.trim(); if (!text) return; t.value = '';
+    const mine = [...asLoad('mine', []), {text, ts: now()}].slice(-200); asSave('mine', mine);
+    AS.wait = true; AS.stick = true; asDraw();
+    try { await api('assistant/message', {method: 'POST', body: JSON.stringify({text, channel: 'web'})}); if (text.startsWith('/auto')) asCfg(); }
+    catch (er) { AS.wait = false; asDraw(); toast('No se pudo enviar: ' + er.message, true); } };
+  t.onkeydown = e => { if (e.key == 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) f.requestSubmit() || e.preventDefault(); };
+  await asCfg();
+  AS.ac?.abort(); AS.ac = new AbortController();
+  let loaded = false;
+  while (g == pollGen) {
+    try {
+      const got = await api(`assistant/outbox?since=${AS.since}&wait=${loaded ? 25 : 0}`, {signal: AS.ac.signal});
+      if (g != pollGen) return;
+      for (const x of got) { AS.since = Math.max(AS.since, x.id); if (!AS.items.some(y => y.id == x.id)) AS.items.push(x); AS.wait = false; }
+      if (got.length || !loaded) asDraw();
+      loaded = true;  // the first call returns the history at once; after that, long-poll
+    } catch (e) { if (g != pollGen || e.name == 'AbortError') return; await new Promise(r => setTimeout(r, 4000)); }
+  }
+}
+async function asCfg() {
+  try { AS.cfg = await api('assistant/settings'); } catch (e) { toast('Asistente no disponible: ' + e.message, true); }
+  asHead(); $('#as-jobs-body') && asJobsDraw();
+}
+ACT.asApprove = async arg => {
+  const [id, allow] = [arg.slice(0, -2), arg.endsWith(':1')], ans = asLoad('ans', {});
+  try { await api('assistant/approve', {method: 'POST', body: JSON.stringify({approval_id: id, allow})}); ans[id] = allow ? 'allow' : 'deny'; AS.wait = true; }
+  catch (e) { ans[id] = 'deny'; toast(e.message.includes('answered') ? 'Ya estaba respondida' : 'No se pudo: ' + e.message, true); }
+  asSave('ans', ans); asDraw();
+};
+ACT.asAuto = async () => {
+  const on = !AS.cfg.auto;
+  if (on && !confirm('Full auto: el asistente actuará sin pedirte permiso, incluido enviar correos y editar archivos. ¿Activarlo?')) return;
+  try { AS.cfg = await api('assistant/settings', {method: 'POST', body: JSON.stringify({auto: on})}); } catch (e) { return toast('No se pudo: ' + e.message, true); }
+  asHead();
+};
+const asJobsDraw = () => {
+  $('#as-jobs-body').innerHTML = AS.cfg.jobs.map(j => `<div class="as-job"><div><b>${esc(j.at)}</b> · ${esc(j.date || asDays(j.days))}<p>${esc(j.prompt)}</p></div>
+    <button class="as-btn" data-act="asJobDel" data-arg="${esc(j.id)}" aria-label="Borrar tarea ${esc(j.at)}">${icon('trash')}</button></div>`).join('') || '<p class="as-m note">No hay tareas.</p>';
+};
+ACT.asJobs = () => {
+  let d = $('#as-sheet');
+  if (!d) {
+    d = document.createElement('dialog'); d.id = 'as-sheet'; d.className = 'as-sheet'; d.setAttribute('aria-label', 'Tareas del asistente');
+    d.innerHTML = `<div class="as-sin"><h2>Tareas</h2><div id="as-jobs-body" style="display:grid;gap:8px"></div>
+      <form id="as-jobform"><h2 style="font-size:19px">Nueva tarea</h2>
+        <label>Hora(s)<input name="at" required placeholder="08:30, 13:00" pattern="\\s*\\d{1,2}:\\d{2}(\\s*[, ]\\s*\\d{1,2}:\\d{2})*\\s*" inputmode="numeric"></label>
+        <fieldset><legend>Días (ninguno = todos)</legend>${AS_DAYS.map((l, i) => `<label class="as-day"><input type="checkbox" name="d" value="${i}"><span>${l}</span></label>`).join('')}</fieldset>
+        <label>Solo un día (opcional)<input name="date" type="date"></label>
+        <label>Qué debe hacer<textarea name="prompt" required rows="2" placeholder="Resume mis correos importantes"></textarea></label>
+        <div class="as-acts"><button class="as-btn pri">${icon('plus')}Añadir</button><button type="button" class="as-btn" data-act="asClose">Cerrar</button></div></form></div>`;
+    d.onclick = e => { if (e.target == d) d.close(); };
+    d.querySelector('form').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.target);
+      const at = f.get('at').split(/[,\s]+/).filter(Boolean).map(h => h.padStart(5, '0')).join(',');
+      const j = {id: 'w' + Date.now().toString(36), at, prompt: f.get('prompt').trim(), ...(f.get('date') ? {date: f.get('date')} : {}),
+        ...(f.getAll('d').length ? {days: f.getAll('d').map(Number)} : {})};
+      await asJobsSave([...AS.cfg.jobs, j]) && e.target.reset(); };
+    main.append(d);
+  }
+  asJobsDraw(); d.showModal();
+};
+ACT.asClose = () => $('#as-sheet')?.close();
+ACT.asJobDel = id => asJobsSave(AS.cfg.jobs.filter(j => j.id != id));
+async function asJobsSave(jobs) {
+  try { AS.cfg = await api('assistant/settings', {method: 'POST', body: JSON.stringify({jobs})}); } catch (e) { toast('No se pudo guardar: ' + e.message, true); return false; }
+  asHead(); asJobsDraw(); return true;
+}
+
+/* ============ goals: autonomous self-validating loops (/api/goals*) ============ */
+// #goals = list, #goals/new = form, #goals/<id> = intake / detail. Polls every 5 s while a goal is running or verifying.
+const GL_ST = {intake: 'Preguntas', ready: 'Listo', running: 'Trabajando', verifying: 'Verificando', done: 'Hecho', failed: 'Fallido', blocked: 'Bloqueado', stopped: 'Parado'};
+const glLive = s => s == 'running' || s == 'verifying';
+const glElapsed = g => { if (!g.started) return '–'; const m = Math.max(0, ((g.ended || now()) - g.started) / 60 | 0); return m < 60 ? m + ' min' : (m / 60 | 0) + ' h ' + m % 60 + ' min'; };
+const glSchedTxt = s => s ? `${s.at} · ${asDays(s.days)}` : '';
+const glPill = g => `<span class="gl-pill" data-s="${esc(g.status)}">${GL_ST[g.status] || esc(g.status)}</span>`;
+const glSchedFields = s => `<label>Hora (vacío = sin repetir)<input type="time" name="at" value="${esc(s?.at || '')}"></label>
+  <fieldset><legend>Días (ninguno = todos)</legend>${AS_DAYS.map((l, i) => `<label class="as-day"><input type="checkbox" name="d" value="${i}" ${s?.days?.includes(i) ? 'checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`;
+const glSchedRead = f => { const fd = new FormData(f), at = fd.get('at'); return at ? {at, ...(fd.getAll('d').length ? {days: fd.getAll('d').map(Number)} : {})} : null; };
+const glPost = (id, what, body) => api(`goals/${id}/${what}`, {method: 'POST', body: JSON.stringify(body || {})});
+async function glPoll(g, load, draw) {  // redraw only when something changed; stop when nothing is live
+  let sig = '';
+  for (;;) {
+    await new Promise(r => setTimeout(r, 5000));
+    if (g != pollGen) return;
+    if (document.hidden) continue;
+    let d; try { d = await load(); } catch { continue; }
+    if (g != pollGen) return;
+    const s = JSON.stringify(d); if (s != sig) { sig = s; draw(d); }
+    if (![].concat(d).some(x => glLive(x.status))) return;
+  }
+}
+const glRow = g => `<a class="gl-row" href="#goals/${esc(g.id)}">
+  <span class="gl-t"><b>${esc(g.name)}</b><small>${icon('folder')}${esc(g.folder)}</small></span>
+  <span class="gl-meta">${glPill(g)}<span>${g.iteration || 0}/${g.max_iter || 5}</span><span>${glElapsed(g)}</span>${g.schedule ? `<span class="gl-sch">${icon('clock')}${esc(glSchedTxt(g.schedule))}</span>` : ''}</span></a>`;
+async function goalsPage() {
+  const g = pollGen;
+  main.innerHTML = `<div class="gl"><header class="as-head"><h1>Goals</h1><a class="as-btn pri" href="#goals/new">${icon('plus')}Nuevo goal</a></header><div class="gl-list" id="gl-list" aria-live="polite"><p class="none">Cargando…</p></div></div>`;
+  const draw = l => $('#gl-list') && ($('#gl-list').innerHTML = l.map(glRow).join('') || '<p class="as-m note">Aún no hay goals. Crea uno: describes el objetivo y Flows trabaja solo hasta cumplirlo.</p>');
+  let l; try { l = await api('goals'); } catch (e) { return $('#gl-list') && ($('#gl-list').innerHTML = `<p class="as-m note">Goals no disponible: ${esc(e.message)}</p>`); }
+  if (g != pollGen) return;
+  draw(l); glPoll(g, () => api('goals'), draw);
+}
+function goalNew() {
+  main.innerHTML = `<div class="gl"><header class="as-head"><h1>Nuevo goal</h1><a class="as-btn" href="#goals">Cancelar</a></header>
+    <form class="gl-f" id="gl-new"><label>Nombre<input name="name" required maxlength="80" placeholder="Desarrollar Sonora"></label>
+      <label>Carpeta del proyecto<input name="folder" required list="projects" value="${esc(DEFAULT_PROJECTS[0])}" style="font-family:var(--mono);font-size:14px"></label>
+      <label>Objetivo<textarea name="objective" required rows="6" placeholder="Qué quieres conseguir, con enlaces (Figma, backend…) y lo que ya existe"></textarea></label>
+      <details class="gl-opt"><summary>Repetir con horario (opcional)</summary>${glSchedFields()}</details>
+      <p class="none" id="gl-busy" role="status" hidden>Flows está preparando las preguntas… puede tardar ~30 s.</p>
+      <div class="as-acts"><button class="as-btn pri" id="gl-go">${icon('send')}Crear</button></div></form></div>`;
+  $('#gl-new').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.target), sched = glSchedRead(e.target), btn = $('#gl-go');
+    btn.disabled = true; $('#gl-busy').hidden = false; e.target.setAttribute('aria-busy', 'true');
+    try { const g = await api('goals', {method: 'POST', body: JSON.stringify({name: f.get('name').trim(), folder: f.get('folder').trim(), objective: f.get('objective').trim(), ...(sched ? {schedule: sched} : {})})}); location.hash = '#goals/' + g.id; }
+    catch (er) { btn.disabled = false; $('#gl-busy').hidden = true; e.target.removeAttribute('aria-busy'); toast('No se pudo crear: ' + er.message, true); } };
+}
+async function goalPage(id) {
+  const g = pollGen; let goal;
+  try { goal = await api('goals/' + id); } catch (e) { main.innerHTML = `<div class="gl"><header class="as-head"><h1>Goal no encontrado</h1><a class="as-btn" href="#goals">Volver</a></header></div>`; return; }
+  if (g != pollGen) return;
+  glShow(goal);
+  if (glLive(goal.status)) glPoll(g, () => api('goals/' + id), glShow);
+}
+const glAcc = (a, i) => `<div class="gl-acc"><input value="${esc(a)}" aria-label="Criterio ${i + 1}"><button type="button" class="as-btn" data-act="glAccDel" aria-label="Quitar criterio ${i + 1}">${icon('x')}</button></div>`;
+let GL_CUR;
+function glShow(goal) {
+  const s = goal.status, el = $('#gl-body'), keep = el && el.dataset.id == goal.id && s == 'blocked' && $('#gl-msg') ? $('#gl-msg').value : '';
+  const hist = (goal.history || []).map(h => `<li class="gl-h ${esc(h.verdict)}"><b>#${h.n} · ${h.verdict == 'pass' ? 'Correcto' : 'Falla'}</b><small>${h.ts ? asHm(h.ts) : ''}</small><p>${esc(h.summary)}</p>${h.failing?.length ? `<ul>${h.failing.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</li>`).join('');
+  const intake = s == 'intake' ? `<form class="gl-f" id="gl-ans"><h2>Antes de empezar</h2>
+      ${(goal.questions || []).map(q => `<label>${esc(q.q)}${q.hint ? `<small>${esc(q.hint)}</small>` : ''}<textarea name="${esc(q.id)}" rows="2">${esc(goal.answers?.[q.id] || '')}</textarea></label>`).join('')}
+      <h2>Criterios de aceptación</h2><div id="gl-accs">${(goal.acceptance || []).map(glAcc).join('')}</div>
+      <div class="as-acts"><button type="button" class="as-btn" data-act="glAccAdd">${icon('plus')}Añadir criterio</button><button class="as-btn pri">${icon('check')}Guardar respuestas</button></div></form>` : '';
+  const ready = s == 'ready' ? `<section class="gl-sec"><h2>Criterios de aceptación</h2><ul>${(goal.acceptance || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+      <div class="as-acts"><button class="as-btn pri" data-act="glStart">${icon('play')}Empezar</button></div></section>` : '';
+  const blocked = s == 'blocked' ? `<form class="gl-f gl-blk" id="gl-say"><h2>Necesita tu ayuda</h2><label>Mensaje para Flows<textarea id="gl-msg" required rows="3"></textarea></label>
+      <div class="as-acts"><button class="as-btn pri">${icon('send')}Enviar</button></div></form>` : '';
+  main.innerHTML = `<div class="gl" id="gl-body" data-id="${esc(goal.id)}"><header class="as-head"><h1>${esc(goal.name)}</h1>${glPill(goal)}<a class="as-btn" href="#goals">Goals</a></header>
+    <p class="gl-sub">${icon('folder')}${esc(goal.folder)}${goal.slug ? ` · ${icon('git')}goal/${esc(goal.slug)}` : ''}</p>
+    <dl class="gl-facts"><div><dt>Iteración</dt><dd>${goal.iteration || 0}/${goal.max_iter || 5}</dd></div><div><dt>Tiempo</dt><dd>${glElapsed(goal)}${goal.max_hours ? ` / ${goal.max_hours} h` : ''}</dd></div>
+      <div><dt>Horario</dt><dd>${esc(glSchedTxt(goal.schedule) || 'Una vez')}</dd></div>${goal.schedule && goal.last ? `<div><dt>Última vez</dt><dd>${GL_ST[goal.last.status] || esc(goal.last.status)} · ${hace(goal.last.ts)}</dd></div>` : ''}</dl>
+    <div class="as-acts">${goal.run ? `<a class="as-btn" href="#session/${esc(goal.run)}">${icon('brain')}Sesión</a>` : ''}
+      ${glLive(s) || s == 'blocked' ? `<button class="as-btn" data-act="glStop">${icon('stop')}Parar</button>` : ''}
+      <button class="as-btn" data-act="glSched">${icon('clock')}Horario</button><button class="as-btn" data-act="glDel">${icon('trash')}Borrar</button></div>
+    ${glLive(s) ? `<p class="none" role="status">${s == 'running' ? 'Trabajando' : 'Verificando'}… se actualiza solo.</p>` : ''}
+    <section class="gl-sec"><h2>Objetivo</h2><p class="gl-obj">${esc(goal.objective)}</p></section>
+    ${intake}${ready}${blocked}
+    ${hist ? `<section class="gl-sec"><h2>Iteraciones</h2><ol class="gl-hist">${hist}</ol></section>` : ''}
+    ${goal.report ? `<section class="gl-sec gl-rep"><h2>Informe final</h2>${md(goal.report)}</section>` : ''}</div>`;
+  GL_CUR = goal;
+  if (keep) $('#gl-msg').value = keep;
+  const ans = $('#gl-ans'); if (ans) ans.onsubmit = async e => { e.preventDefault(); const fd = new FormData(ans), answers = Object.fromEntries((goal.questions || []).map(q => [q.id, fd.get(q.id)]));
+    const acceptance = [...ans.querySelectorAll('.gl-acc input')].map(i => i.value.trim()).filter(Boolean);
+    try { glShow(await glPost(goal.id, 'answers', {answers, acceptance})); } catch (er) { toast('No se pudo guardar: ' + er.message, true); } };
+  const say = $('#gl-say'); if (say) say.onsubmit = async e => { e.preventDefault(); const text = $('#gl-msg').value.trim(); if (!text) return;
+    try { await glPost(goal.id, 'message', {text}); toast('Enviado'); goalPage(goal.id); } catch (er) { toast('No se pudo enviar: ' + er.message, true); } };
+}
+const glAct = what => async () => {
+  try { const goal = await glPost(GL_CUR.id, what), g = ++pollGen; glShow(goal); if (glLive(goal.status)) glPoll(g, () => api('goals/' + goal.id), glShow); }
+  catch (e) { toast('No se pudo: ' + e.message, true); }
+};
+ACT.glStart = glAct('start'); ACT.glStop = glAct('stop');
+ACT.glAccAdd = () => { const b = $('#gl-accs'); b.insertAdjacentHTML('beforeend', glAcc('', b.children.length)); b.lastChild.querySelector('input').focus(); };
+ACT.glAccDel = (_, el) => el.closest('.gl-acc').remove();
+ACT.glDel = async () => {
+  if (!confirm(`¿Borrar el goal «${GL_CUR.name}»?`)) return;
+  try { await api('goals/' + GL_CUR.id, {method: 'DELETE'}); location.hash = '#goals'; } catch (e) { toast('No se pudo borrar: ' + e.message, true); }
+};
+ACT.glSched = () => {
+  $('#gl-sheet')?.remove();
+  const d = document.createElement('dialog'); d.id = 'gl-sheet'; d.className = 'as-sheet'; d.setAttribute('aria-label', 'Horario del goal');
+  d.innerHTML = `<form class="as-sin gl-f"><h2>Horario</h2>${glSchedFields(GL_CUR.schedule)}<div class="as-acts"><button class="as-btn pri">Guardar</button><button type="button" class="as-btn" data-act="glSchedX">Cerrar</button></div></form>`;
+  d.onclick = e => { if (e.target == d) d.close(); };
+  d.querySelector('form').onsubmit = async e => { e.preventDefault();
+    try { const g = await glPost(GL_CUR.id, 'schedule', {schedule: glSchedRead(e.target)}); d.close(); glShow(g); } catch (er) { toast('No se pudo guardar: ' + er.message, true); } };
+  main.append(d); d.showModal();
+};
+ACT.glSchedX = () => $('#gl-sheet')?.close();
 
 /* ============ agentes (Claude Code subagents, ~/.claude/agents) ============ */
 // Dev only. The list is cards; one opens the editor. Saving writes the .md (through its symlink, if any).
