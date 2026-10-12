@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UI check for the Flows Asistente web chat (Playwright, 390 and 1440). Runs server.py from a temp copy on a free port, HOME and data in a temp dir, a fake `claude` on PATH.
+"""UI check for the Flows Asistente web chat and the Plan de hoy page (Playwright, 390 and 1440). Runs server.py from a temp copy on a free port, HOME and data in a temp dir, a fake `claude` on PATH.
 Run: /tmp/pwenv/bin/python scripts/test_assistant_ui.py   [shots dir as argv[1]]"""
 import json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
@@ -51,6 +51,8 @@ srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.D
 
 
 from playwright.sync_api import sync_playwright
+T = lambda n, g, due=None: {"name": n, "url": "https://trello.com/c/" + n, "group": g, "board": "B", "list": "L", "due": due, "new": g == "today"}
+PLAN = {"day": "2026-10-12", "planned_at": time.time() - 3600, "checked": time.time(), "tasks": [T("Presupuesto", "overdue", "2026-10-10T10:00:00Z"), T("Maqueta", "today", "2026-10-12T10:00:00Z"), T("Factura", "week", "2026-10-15T10:00:00Z")]}
 SHOTS = Path(sys.argv[1] if len(sys.argv) > 1 else TMP / "shots"); SHOTS.mkdir(parents=True, exist_ok=True)
 try:
     for _ in range(50):
@@ -83,17 +85,35 @@ try:
             assert pg.locator(".as-m.ask >> nth=-1 >> button").count() == 0; ctx2.close()
             pg.reload(); pg.wait_for_selector(".as-m.me"); assert pg.locator(".as-m.ask >> nth=-1 >> button").count() == 0  # answered state survives
             pg.on("dialog", lambda d: d.accept())
-            pg.click("#as-head [data-act=asAuto]"); pg.wait_for_selector("#as-head .as-sw[aria-checked=true]"); assert pg.is_visible("#as-warn")
-            pg.click("#as-head [data-act=asAuto]"); pg.wait_for_selector("#as-head .as-sw[aria-checked=false]")
-            pg.click("#as-head [data-act=asJobs]"); pg.fill("[name=at]", "7:45"); pg.click(".as-day:has-text(\"L\")"); pg.fill("[name=prompt]", "Resumen de la mañana")
+            assert pg.locator("#as-head button, #as-head a").count() == 1  # one header action: Ajustes
+            pg.click("#as-head [data-act=asJobs]"); pg.wait_for_selector("#as-sheet[open] #as-cfg .as-sw")
+            assert pg.locator("#as-sheet a[href^='#session/']").count() == 1 and not pg.is_visible("#as-jobform")  # new-task form folded
+            pg.click("#as-sheet [data-act=asAuto]"); pg.wait_for_selector("#as-sheet .as-sw[aria-checked=true]"); assert pg.is_visible("#as-warn")
+            pg.click("#as-sheet [data-act=asAuto]"); pg.wait_for_selector("#as-sheet .as-sw[aria-checked=false]")
+            pg.click("#as-new summary"); pg.fill("[name=at]", "7:45"); pg.click(".as-day:has-text(\"L\")"); pg.fill("[name=prompt]", "Resumen de la mañana")
             pg.click("#as-jobform button.pri"); pg.wait_for_selector(".as-job:has-text('07:45')")
             pg.screenshot(path=str(SHOTS / f"asistente-tareas-{name}.png"))
             pg.click(".as-job:has-text('07:45') button"); pg.wait_for_selector(".as-job:has-text('07:45')", state="detached")
-            pg.click("#as-sheet [data-act=asClose]")
-            assert pg.locator("#as-head a[href^='#session/']").count() == 1
-            sw = pg.evaluate("[document.documentElement.scrollWidth, screen.width, innerWidth]"); assert sw[0] <= max(sw[1], sw[2]), sw
-            small = pg.evaluate("[...document.querySelectorAll('.as button, .as a, .as textarea')].filter(e => e.offsetParent && (e.offsetHeight < 44)).map(e => e.className + e.offsetHeight)")
+            small = pg.evaluate("[...document.querySelectorAll('#as-sheet button, #as-sheet a, #as-sheet summary, #as-sheet input:not([type=checkbox]), .as-day')].filter(e => e.offsetParent && e.offsetHeight < 48).map(e => e.className + e.offsetHeight)")
             assert not small, small
+            pg.click("#as-sheet [data-act=asClose]")
+            sw = pg.evaluate("[document.documentElement.scrollWidth, screen.width, innerWidth]"); assert sw[0] <= max(sw[1], sw[2]), sw
+            small = pg.evaluate("[...document.querySelectorAll('.as button, .as a, .as textarea')].filter(e => e.offsetParent && (e.offsetHeight < 48)).map(e => e.className + e.offsetHeight)")
+            assert not small, small
+            assert pg.evaluate("Math.min(...[...document.querySelectorAll('.as-m p, .as-form textarea')].map(e => parseFloat(getComputedStyle(e).fontSize)))") >= 16
+            # Plan de hoy: today's groups open, next week folded, one meta line per row
+            pg.route("**/api/plan", lambda r: r.fulfill(json=PLAN))
+            pg.goto(url.replace("#assistant", "#plan")); pg.wait_for_selector(".pl-row")
+            assert pg.locator(".pl-g h2").evaluate_all("l => l.map(e => e.textContent)") == ["Vencidas 1", "Para hoy 1", "Próximos 7 días 1"]
+            assert not pg.is_visible(".pl-row:has-text('Factura')") and pg.locator(".pl-row small").first.inner_text().count("·") == 2
+            pg.click("#pl-week summary"); assert pg.is_visible(".pl-row:has-text('Factura')")
+            pg.screenshot(path=str(SHOTS / f"plan-{name}.png"), full_page=True)
+            sw = pg.evaluate("[document.documentElement.scrollWidth, screen.width, innerWidth]"); assert sw[0] <= max(sw[1], sw[2]), sw
+            small = pg.evaluate("[...document.querySelectorAll('.pl a, .pl summary')].filter(e => e.offsetHeight < 48).map(e => e.className + e.offsetHeight)")
+            assert not small, small
+            assert pg.evaluate("Math.min(...[...document.querySelectorAll('.pl-row span, .pl-sub')].map(e => parseFloat(getComputedStyle(e).fontSize)))") >= 15
+            pg.unroute("**/api/plan"); pg.route("**/api/plan", lambda r: r.fulfill(json={**PLAN, "tasks": []}))
+            pg.reload(); pg.wait_for_selector(".pl-none:has-text('Nada pendiente')")
             assert not errs, errs
             ctx.close()
         b.close()
