@@ -2109,11 +2109,11 @@ PAIR_HTML = b"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0d0d;color:#ecebe7;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
 main{width:100%;max-width:380px;background:#f4f2ee;color:#0d0d0d;border-radius:3px;overflow:hidden}
 .band{background:#ff5a1f;padding:14px 20px;font:700 22px/1.1 "Arial Narrow",system-ui;letter-spacing:.06em;text-transform:uppercase}
-form{padding:18px 20px 22px}label{display:block;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#57534d;margin:12px 0 6px}
+form{padding:18px 20px 22px}label{display:block;font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#57534d;margin:12px 0 6px}
 input{width:100%;box-sizing:border-box;border:1px solid #cfcac2;border-radius:3px;padding:11px 12px;font:inherit;background:#fff}
 #code{font:700 30px/1 ui-monospace,monospace;letter-spacing:.35em;text-align:center}
-button{margin-top:18px;width:100%;border:0;border-radius:3px;background:#ff5a1f;color:#0d0d0d;padding:13px;font:700 17px/1 system-ui;letter-spacing:.08em;text-transform:uppercase}
-p{margin:0 0 4px;font-size:14px;color:#57534d}#err{color:#c2410c;min-height:1.4em;margin-top:10px}</style></head><body><main>
+button{margin-top:18px;width:100%;border:0;border-radius:3px;background:#ff5a1f;color:#0d0d0d;padding:13px;min-height:48px;font:700 17px/1 system-ui;letter-spacing:.08em;text-transform:uppercase}
+p{margin:0 0 4px;font-size:16px;color:#57534d}#err{color:#c2410c;min-height:1.4em;margin-top:10px}</style></head><body><main>
 <div class="band">Pair with Flows</div><form id="f"><p>On your computer open Flows, go to <b>Phone access</b> and create a pairing code.</p>
 <label for="code">Pairing code</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
 <label for="name">Name this device</label><input id="name" value="My phone" maxlength="40">
