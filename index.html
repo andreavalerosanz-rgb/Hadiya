@@ -2015,13 +2015,14 @@ function home(toTemplates) {
       ${PKG == 'admin' ? `<button class="btn-s" data-act="fromTemplate" data-arg="blank">${icon('plus')}New workflow</button>` : trims(TEMPLATES.map(t => t.id), 'fromTemplate', Object.fromEntries(TEMPLATES.map(t => [t.id, {...t, blurb: t.steps.map(s => PRESETS[s].name).join(' → ')}])))}
     </section>`};
   const need = r => ['asking', 'idle'].includes(r.status) ? 0 : LIVE.includes(r.status) ? 1 : 2;
-  const list = topSessions().sort((a, b) => need(a) - need(b) || b.started - a.started).slice(0, 12), nNeed = list.filter(r => !need(r)).length, nLive = live.filter(r => need(r) == 1 || r.kind != 'session').length;
+  const pins = pinned(), list = topSessions().filter(r => !r.pinned).sort((a, b) => need(a) - need(b) || b.started - a.started).slice(0, 12), nNeed = [...pins, ...list].filter(r => !need(r)).length, nLive = live.filter(r => need(r) == 1 || r.kind != 'session').length;
   const card = r => `<a class="hcard ${r.status}" href="#session/${r.id}"><span class="hc-t">${r.pinned ? icon('pin') : ''}${r.brain ? icon('brain') : ''}<span>${esc(r.name)}</span></span>
       <span class="hchip ${r.status}">${mark(r.status)}${esc(STATE[r.status]?.[0] || r.status)}</span>
       ${r.last ? `<span class="hc-l">${esc(r.last)}</span>` : ''}<small>${ago(r.started)}${r.project ? ' · ' + esc(r.project.split('/').filter(Boolean).pop()) : ''}</small></a>`;
   main.innerHTML = toTemplates ? `<header class="head"><div><h1>Plantillas</h1><div class="sub">Reusable workflows: pick one, then edit its steps.</div></div></header>${S.templates}` : `
     <header class="head"><div><h1>What are we building?</h1><div class="sub">${nNeed ? `<span class="need">${nNeed} need${nNeed == 1 ? 's' : ''} you</span> · ` : ''}${nLive ? `${nLive} running` : 'Nothing running'}</div></div></header>
     ${S.start}
+    ${pins.length ? `<section class="hcards" aria-labelledby="hp-h"><h2 class="hsec-h" id="hp-h">Pinned</h2>${pins.map(card).join('')}</section>` : ''}
     <section class="hcards" aria-labelledby="hc-h"><h2 class="hsec-h" id="hc-h">Sessions</h2>
       ${list.map(card).join('') || '<p class="none">No sessions yet. Describe a job above and press Start.</p>'}</section>`;
   if ($('#s-msg')) {  // the start form can be hidden
