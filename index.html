@@ -1052,6 +1052,7 @@ p.a-alert{cursor:default}
 .a-comp.yours textarea{border-color:var(--p-mute)}
 .a-comp .a-bar{display:flex;align-items:center;gap:8px;margin-top:8px}
 .a-comp .a-pri{min-width:132px}
+@media(max-width:380px){.a-comp .a-bar .a-btn{padding:0 12px}.a-comp .a-pri{min-width:0}}  /* 360px phones: attach + dictate + send overflowed by 16px */
 body.adm .att{border:1px solid var(--p-line);background:var(--p-card);color:var(--p-ink);border-radius:10px}
 body.adm .att .ic{width:40px;height:40px;color:var(--p-ink)}
 body.adm .drop{outline:2px dashed var(--flag-deep);outline-offset:3px}
