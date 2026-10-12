@@ -128,7 +128,7 @@ srv, P = start(d)
 try:
     assert call(P, "GET", "/api/runs")[0] == 401
     s, page, _ = call(P, "GET", "/")
-    assert s == 200 and b"Sign in" in page
+    assert s == 200 and b"Entrar en Flows" in page
     assert call(P, "POST", "/api/login", {"user": "alice", "password": "correct horse battery"}, flow=False)[0] == 403
     assert call(P, "POST", "/api/login", {"user": "alice", "password": "nope"})[0] == 403
 
@@ -204,7 +204,7 @@ srv, P = start(d)
 try:
     assert call(P, "GET", "/api/runs")[0] == 200
     assert call(P, "GET", "/api/me")[1]["user"] is None
-    assert b"Sign in" not in call(P, "GET", "/")[1]
+    assert b"Entrar en Flows" not in call(P, "GET", "/")[1]
     call(P, "PUT", "/api/workflows/w1", {"name": "Hello", "steps": [{"prompt": "hi"}]})
     rid = call(P, "POST", "/api/workflows/w1/run", {"input": ""})[1]["id"]
     wait(P, rid, None, lambda r: r["status"] == "done")
