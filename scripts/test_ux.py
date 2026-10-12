@@ -105,7 +105,7 @@ def mobile(page, sid, dev, others):
     for h in ROUTES + ["#wf/" + w for w in list(get("/api/workflows"))[:1]]:
         page.goto(f"{BASE}/{h}"); page.wait_for_timeout(1000); no_overflow(page, f"{dev} {h or 'home'}")
         if not h:
-            page.click(".rack-toggle"); page.wait_for_timeout(300); no_overflow(page, f"{dev} menu open"); page.click(".rack-toggle")
+            page.click(".dnav [data-act=more]"); page.wait_for_timeout(300); no_overflow(page, f"{dev} Más open"); page.click("#more [data-act=moreClose]")
     for s in others:  # long URLs, code, tables, MCP tool names
         page.goto(f"{BASE}/#session/{s}"); page.wait_for_selector(".logbox", timeout=15000); page.wait_for_timeout(800); no_overflow(page, f"{dev} session {s}")
     page.goto(f"{BASE}/#session/{sid}"); page.wait_for_selector(".logbox", timeout=15000); page.wait_for_timeout(500)

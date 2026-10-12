@@ -2177,6 +2177,16 @@ def subs_of(r):
     return list(T.values())
 
 
+def last_line(r):
+    """Last thing the lead said (first line, 140 chars) for the home cards; looks back at most 60 events."""
+    for e in reversed((r.get("events") or [])[-60:]):
+        if e.get("type") == "assistant" and not e.get("parent_tool_use_id"):
+            for x in reversed((e.get("message") or {}).get("content") or []):
+                if isinstance(x, dict) and x.get("type") == "text" and x.get("text", "").strip():
+                    return x["text"].strip().splitlines()[0][:140]
+    return ""
+
+
 def slim(ev):
     """Wire copy of an event: drop base64 image data, cap tool_result text (stored event untouched)."""
     ev = {k: v for k, v in ev.items() if k != "tool_use_result"}  # unused by client, duplicates the result (incl. base64)
@@ -2495,7 +2505,7 @@ class H(BaseHTTPRequestHandler):
                     if m == "GET" and len(p) == 2:
                         skip = ("steps", "workflow", "input", "events", "config")
                         return self.send(200, sorted(
-                            ({**{k: v for k, v in r.items() if k not in skip}, **({"subs": subs_of(r)} if r.get("kind") == "session" else {})}
+                            ({**{k: v for k, v in r.items() if k not in skip}, **({"subs": subs_of(r), "last": last_line(r)} if r.get("kind") == "session" else {})}
                              for r in runs.values() if r.get("owner") == u),
                             key=lambda r: r["started"], reverse=True))
                     if m == "GET" and len(p) == 3:
