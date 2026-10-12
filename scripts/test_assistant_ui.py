@@ -101,11 +101,11 @@ try:
             small = pg.evaluate("[...document.querySelectorAll('.as button, .as a, .as textarea')].filter(e => e.offsetParent && (e.offsetHeight < 48)).map(e => e.className + e.offsetHeight)")
             assert not small, small
             assert pg.evaluate("Math.min(...[...document.querySelectorAll('.as-m p, .as-form textarea')].map(e => parseFloat(getComputedStyle(e).fontSize)))") >= 16
-            # Plan de hoy: today's groups open, next week folded, one meta line per row
+            # Plan de hoy: today's section open (overdue + today), next week folded, one meta line per card
             pg.route("**/api/plan", lambda r: r.fulfill(json=PLAN))
             pg.goto(url.replace("#assistant", "#plan")); pg.wait_for_selector(".pl-row")
-            assert pg.locator(".pl-g h2").evaluate_all("l => l.map(e => e.textContent)") == ["Vencidas 1", "Para hoy 1", "Próximos 7 días 1"]
-            assert not pg.is_visible(".pl-row:has-text('Factura')") and pg.locator(".pl-row small").first.inner_text().count("·") == 2
+            assert pg.locator(".pl-g h2").evaluate_all("l => l.map(e => e.textContent)") == ["Hoy 2", "Próximos 7 días 1"]
+            assert not pg.is_visible(".pl-row:has-text('Factura')") and pg.locator(".pl-row small").first.inner_text().count("·") == 1
             pg.click("#pl-week summary"); assert pg.is_visible(".pl-row:has-text('Factura')")
             pg.screenshot(path=str(SHOTS / f"plan-{name}.png"), full_page=True)
             sw = pg.evaluate("[document.documentElement.scrollWidth, screen.width, innerWidth]"); assert sw[0] <= max(sw[1], sw[2]), sw

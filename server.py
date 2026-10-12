@@ -1893,12 +1893,13 @@ def plan_tasks(boards, day, since):
         lists = {l["id"]: l["name"] for l in b["lists"]}
         for c in b["cards"]:
             ln = lists.get(c["idList"], "")
-            if c["dueComplete"] or DONE_LIST.search(ln):
-                continue
             due, start = local(c["due"]), local(c["start"])
-            group = ("overdue" if due and due.date() < day else "today" if due and due.date() == day
-                     else "doing" if (start and start.date() <= day) or DOING_LIST.search(ln)
-                     else "week" if due and (due.date() - day).days <= 7 else None)
+            if c["dueComplete"] or DONE_LIST.search(ln):  # finished: only today's, for the "Hechas hoy" section
+                group = "done" if due and due.date() == day else None
+            else:
+                group = ("overdue" if due and due.date() < day else "today" if due and due.date() == day
+                         else "doing" if (start and start.date() <= day) or DOING_LIST.search(ln)
+                         else "week" if due and (due.date() - day).days <= 7 else None)
             if group:
                 out.append({"id": c["id"], "name": c["name"], "board": b["name"], "list": ln, "url": c["shortUrl"], "group": group,
                             "due": due and due.isoformat(), "new": int(c["id"][:8], 16) > since})  # a card's id starts with its creation time

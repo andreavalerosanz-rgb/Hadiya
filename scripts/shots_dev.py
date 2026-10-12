@@ -2,9 +2,10 @@
 """Screenshots of the dev package (home, one session, #plan, #assistant) at 390 (iPhone, isMobile) and 1440.
 Runs server.py + index.html from the working tree in a temp copy (own port, HOME, data, fake `claude`); runs, plan and
 assistant outbox are mocked with page.route so every page has content.
-Run: /tmp/pwenv/bin/python scripts/shots_dev.py before|after   -> data/shots/<prefix>-{home,session,plan,assistant}-{390,1440}.png"""
+Run: /tmp/pwenv/bin/python scripts/shots_dev.py before|after [home session plan assistant]   -> data/shots/<prefix>-{home,session,plan,assistant}-{390,1440}.png"""
 import json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
@@ -51,18 +52,29 @@ DETAIL = {**RUNS[0], "events": EV, "config": {"permission_mode": "acceptEdits", 
 T = lambda n, g, due=None: {"name": n, "url": "https://trello.com/c/" + n, "group": g, "board": "Clientes", "list": "Haciendo", "due": due, "new": g == "today"}
 PLAN = {"day": time.strftime("%Y-%m-%d"), "planned_at": NOW - 3600, "checked": NOW, "tasks": [
     T("Presupuesto Sonora", "overdue", "2026-10-10T10:00:00Z"), T("Maqueta home BFS", "today", "2026-10-12T10:00:00Z"),
-    T("Llamar a Dr. Zhang", "today"), T("Factura Matteria", "week", "2026-10-15T10:00:00Z")]}
+    T("Llamar a Dr. Zhang", "doing"), T("Enviar copia a BFS", "done", "2026-10-12T08:00:00Z"), T("Factura Matteria", "week", "2026-10-15T10:00:00Z")]}
 OUTBOX = [{"id": 1, "type": "reply", "text": "Buenos días. Hoy tienes **3 reuniones** y 2 correos importantes.", "ts": NOW - 4000},
           {"id": 2, "type": "notice", "text": "Brief de la mañana: el servidor de BFS respondió bien toda la noche.", "ts": NOW - 3000},
-          {"id": 3, "type": "approval", "text": "Quiero enviar el presupuesto a Sonora por correo. ¿Lo envío?", "ts": NOW - 60, "approval_id": "a1"}]
+          {"id": 3, "type": "approval", "text": "¿Respondo a Matteria que la factura sale el lunes?", "ts": NOW - 2000, "approval_id": "a0"},
+          {"id": 5, "type": "resolved", "approval_id": "a0", "allow": True, "ts": NOW - 1900},
+          {"id": 4, "type": "approval", "text": "Quiero enviar el presupuesto a Sonora por correo. ¿Lo envío?", "ts": NOW - 60, "approval_id": "a1"}]
+
+ASRUN = "20261012-080000-asis"
+ASEV = [{"type": "input", "text": "qué tengo hoy", "ts": NOW - 120},
+        *tool(6, "mcp__claude_ai_Google_Calendar__list_events", {"query": "hoy"}, "3 eventos"),
+        *tool(7, "mcp__claude_ai_Gmail__search_threads", {"query": "is:unread"}, "2 hilos")]
+ASDETAIL = {"id": ASRUN, "status": "working", "events": ASEV, "total": len(ASEV)}
 
 def mock(pg):
+    pg.route("**/api/assistant/settings", lambda r: r.fulfill(json={"auto": False, "jobs": [], "run": ASRUN}))
+    pg.route(f"**/api/runs/{ASRUN}*", lambda r: r.fulfill(json={**ASDETAIL, "events": ASEV[int(r.request.url.partition("since=")[2] or 0):]}))
     pg.route("**/api/runs", lambda r: r.fulfill(json=RUNS))
-    pg.route(f"**/api/runs/{SID}*", lambda r: r.fulfill(json=DETAIL))
+    pg.route(f"**/api/runs/{SID}*", lambda r: r.fulfill(json={**DETAIL, "events": EV[int(parse_qs(urlparse(r.request.url).query).get("since", ["0"])[0]):]}))  # the client appends: send only new events
     pg.route("**/api/plan", lambda r: r.fulfill(json=PLAN))
     pg.route("**/api/assistant/outbox*", lambda r: r.fulfill(json=OUTBOX if "since=0" in r.request.url or "since=" not in r.request.url else []))
 
-PAGES = [("home", "", "main"), ("session", f"#session/{SID}", ".logbox"), ("plan", "#plan", ".pl-row"), ("assistant", "#assistant", "#as-form")]
+PAGES = [("home", "", "main"), ("session", f"#session/{SID}", ".logbox"), ("plan", "#plan", ".pl-row"), ("assistant", "#assistant", ".as-steps")]
+PAGES = [x for x in PAGES if len(sys.argv) < 3 or x[0] in sys.argv[2:]]  # optional page names after the prefix
 try:
     for _ in range(50):
         try: socket.create_connection(("127.0.0.1", P), 0.2).close(); break
