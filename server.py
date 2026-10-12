@@ -2104,24 +2104,25 @@ def new_code():
     return pairing["code"]
 
 
-PAIR_HTML = b"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0d0d0d"><title>Pair with Flows</title><style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0d0d;color:#ecebe7;font:16px/1.5 system-ui,sans-serif;padding:16px;box-sizing:border-box}
-main{width:100%;max-width:380px;background:#f4f2ee;color:#0d0d0d;border-radius:3px;overflow:hidden}
-.band{background:#ff5a1f;padding:14px 20px;font:700 22px/1.1 "Arial Narrow",system-ui;letter-spacing:.06em;text-transform:uppercase}
-form{padding:18px 20px 22px}label{display:block;font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#57534d;margin:12px 0 6px}
-input{width:100%;box-sizing:border-box;border:1px solid #cfcac2;border-radius:3px;padding:11px 12px;font:inherit;background:#fff}
+PAIR_HTML = b"""<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f4f2ee"><title>Emparejar con Flows</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"><style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f2ee;color:#1a1a1a;font:17px/1.5 Barlow,system-ui,sans-serif;padding:16px;box-sizing:border-box}
+main{width:100%;max-width:400px;background:#fff;border:1px solid #dcd7cf;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(26,26,26,.08)}
+.band{background:#ff5a1f;padding:14px 20px;font:700 24px/1.1 "Barlow Condensed","Arial Narrow",system-ui;letter-spacing:.06em;text-transform:uppercase;color:#1a1a1a}
+form{padding:18px 20px 22px}label{display:block;font-size:16px;font-weight:600;color:#57534d;margin:14px 0 6px}
+input{width:100%;box-sizing:border-box;min-height:52px;border:1px solid #cfcac2;border-radius:12px;padding:11px 14px;font:inherit;background:#fff;color:#1a1a1a}
+input:focus{outline:0;border-color:#1a1a1a}
 #code{font:700 30px/1 ui-monospace,monospace;letter-spacing:.35em;text-align:center}
-button{margin-top:18px;width:100%;border:0;border-radius:3px;background:#ff5a1f;color:#0d0d0d;padding:13px;min-height:48px;font:700 17px/1 system-ui;letter-spacing:.08em;text-transform:uppercase}
-p{margin:0 0 4px;font-size:16px;color:#57534d}#err{color:#c2410c;min-height:1.4em;margin-top:10px}</style></head><body><main>
-<div class="band">Pair with Flows</div><form id="f"><p>On your computer open Flows, go to <b>Phone access</b> and create a pairing code.</p>
-<label for="code">Pairing code</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
-<label for="name">Name this device</label><input id="name" value="My phone" maxlength="40">
-<button>Pair this device</button><div id="err" role="alert"></div></form></main><script>
-const f=document.getElementById('f'),c=document.getElementById('code'),m=/code=(\\d{6})/.exec(location.hash);
+button{margin-top:20px;width:100%;border:0;border-radius:12px;background:#ff5a1f;color:#1a1a1a;padding:0 16px;min-height:52px;font:700 20px/1 "Barlow Condensed","Arial Narrow",system-ui;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+p{margin:0 0 4px;font-size:17px;color:#57534d}#err{color:#b3360b;min-height:1.4em;margin-top:12px;font-weight:500}</style></head><body><main>
+<div class="band">Emparejar con Flows</div><form id="f"><p>En tu ordenador abre Flows, ve a <b>Phone access</b> y crea un c&#243;digo de emparejamiento.</p>
+<label for="code">C&#243;digo de emparejamiento</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+<label for="name">Nombre de este dispositivo</label><input id="name" value="Mi m&#243;vil" maxlength="40">
+<button>Emparejar</button><div id="err" role="alert"></div></form></main><script>const f=document.getElementById('f'),c=document.getElementById('code'),m=/code=(\\d{6})/.exec(location.hash);
 if(m){c.value=m[1];history.replaceState(null,'',location.pathname);}
 f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({code:c.value,name:document.getElementById('name').value})});
-const j=await r.json().catch(()=>({}));if(r.ok)location.replace('/');else document.getElementById('err').textContent=j.error||'Could not pair';};
+const j=await r.json().catch(()=>({}));if(r.ok)location.replace('/');else document.getElementById('err').textContent=j.error||'No se pudo emparejar';};
 if(m)f.requestSubmit();</script></body></html>"""
 
 # ---------- multi-user logins: hashed session tokens in data/sessions.json ----------
@@ -2141,12 +2142,12 @@ def locked(k):
     return len(fails[k]) >= (50 if k == "*" else 5)
 
 
-LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Pair with Flows", b"Sign in to Flows") + b"""<main>
-<div class="band">Sign in to Flows</div><form id="f"><label for="u">User</label><input id="u" autocomplete="username" autocapitalize="none" required>
-<label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required>
-<button>Sign in</button><div id="err" role="alert"></div></form></main><script>
+LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Emparejar con Flows", b"Entrar en Flows") + b"""<main>
+<div class="band">Entrar en Flows</div><form id="f"><label for="u">Usuario</label><input id="u" autocomplete="username" autocapitalize="none" required>
+<label for="p">Contrase&#241;a</label><input id="p" type="password" autocomplete="current-password" required>
+<button>Entrar</button><div id="err" role="alert"></div></form></main><script>
 const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({user:f.u.value,password:f.p.value})});
-const j=await r.json().catch(()=>({}));if(r.ok)location.reload();else document.getElementById('err').textContent=j.error||'Could not sign in';};</script></body></html>"""
+const j=await r.json().catch(()=>({}));if(r.ok)location.reload();else document.getElementById('err').textContent=j.error||'No se pudo entrar';};</script></body></html>"""
 
 
 sub_scan = {}  # run id -> (events scanned, {tool_use_id: {id, desc, status}})
@@ -2246,7 +2247,7 @@ class H(BaseHTTPRequestHandler):
                 pairing["tries"] += 1
                 if pairing["tries"] >= CODE_TRIES:
                     pairing.clear()  # too many guesses: the code is burned
-            return self.send(403, {"error": "That code is wrong or expired. Create a new one on your computer."})
+            return self.send(403, {"error": "Ese código no es correcto o ha caducado. Crea uno nuevo en tu ordenador."})
         pairing.clear()
         tok = secrets.token_urlsafe(32)
         remote["devices"][hashlib.sha256(tok.encode()).hexdigest()] = {
@@ -2267,12 +2268,12 @@ class H(BaseHTTPRequestHandler):
     def login(self, body):
         name, pw = str(body.get("user") or ""), str(body.get("password") or "")
         if locked(name) or locked("*"):
-            return self.send(429, {"error": "Too many failed sign-ins. Try again in 15 minutes."})
+            return self.send(429, {"error": "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos."})
         u = load_users().get(name)
         if not check_pw(pw, (u or {}).get("pw") or "x$") or not u:  # hash anyway: no timing hint that a user exists
             for k in (name, "*"):
                 fails[k].append(time.time())
-            return self.send(403, {"error": "Wrong user or password"})
+            return self.send(403, {"error": "Usuario o contraseña incorrectos"})
         tok = secrets.token_urlsafe(32)
         with lock:
             logins.update({k: v for k, v in logins.items() if v["exp"] > time.time()} | {
