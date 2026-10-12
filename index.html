@@ -1387,6 +1387,14 @@ details.pl-g>summary:hover h2{color:var(--edge)}
 .gl-rep{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);overflow-wrap:anywhere}
 .gl-rep pre{max-width:100%;overflow:auto}
 @media (min-width:821px){.gl-row{flex-direction:row;align-items:center;justify-content:space-between}.gl-t{flex:1}}
+/* dev floor: text >=16px and targets >=48px on every dev page (home, rack sessions, Más pages) */
+body:not(.adm) :is(span,b,i,em,small,summary,label,button,a,p,code,.sub,.hint,.cap,.mb){font-size:max(16px,1em)}
+body:not(.adm) .win .mb,body:not(.adm) .rack .mb{font-size:16px}
+body:not(.adm) :is(.rack,.hcards,.window,.pg) :is(input:not([type=checkbox]):not([type=radio]),select,.ic,.btn-p,.btn-s,.btn-q){min-height:48px}
+body:not(.adm) :is(.ic,.btn-s,.btn-q,.btn-p,summary.flabel,.flabel){min-width:48px;min-height:48px}
+body:not(.adm) .stepper button{min-width:48px;min-height:48px}
+body:not(.adm) .win .m,body:not(.adm) .trim .win .m{font-size:16px}
+body:not(.adm) main li>a[href^="#"],body:not(.adm) main p>a[href^="#"]{display:inline-flex;align-items:center;min-height:48px;min-width:48px}
 </style>
 </head>
 <body>
