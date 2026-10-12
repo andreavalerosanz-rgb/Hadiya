@@ -126,8 +126,8 @@ def mobile(page, sid, dev, others):
         check(page, js(page, "!!document.querySelector('details.out[open]')"), f"{dev}: an opened output snapped shut on the live redraw")
     small = js(page, "[...document.querySelectorAll('body *')].filter(e=>e.childNodes.length&&[...e.childNodes].some(n=>n.nodeType==3&&n.textContent.trim())&&e.offsetParent&&parseFloat(getComputedStyle(e).fontSize)<12).length")
     check(page, small == 0, f"{dev}: {small} text elements under 12px")
-    short = js(page, "[...document.querySelectorAll('a[href],button')].filter(e=>e.offsetParent&&e.getBoundingClientRect().height>0&&e.getBoundingClientRect().height<44&&!e.closest('.logbox,pre,.log,[hidden]')).length")
-    check(page, short == 0, f"{dev}: {short} links/buttons under 44px high")
+    short = js(page, "[...document.querySelectorAll('a[href],button')].filter(e=>e.offsetParent&&e.getBoundingClientRect().height>0&&e.getBoundingClientRect().height<44&&!e.closest('.logbox,pre,.log,[hidden]')).map(e=>e.tagName.toLowerCase()+(e.id?'#'+e.id:'')+'.'+String(e.className).trim().split(/\\s+/).join('.')+' '+Math.round(e.getBoundingClientRect().width)+'x'+Math.round(e.getBoundingClientRect().height)+' "'+e.textContent.trim().slice(0,20)+'" href='+e.getAttribute('href'))")
+    check(page, not short, f"{dev}: links/buttons under 44px high: {short}")
     # composer: chips open + long unbroken text
     page.fill("#msg", "https://github.com/" + "a" * 120 + " " + "palabra " * 40); page.click(".composer .plus"); page.wait_for_timeout(300)
     no_overflow(page, f"{dev} composer with chips + long text")
