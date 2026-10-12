@@ -1387,6 +1387,13 @@ details.pl-g>summary:hover h2{color:var(--edge)}
 .gl-rep{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);overflow-wrap:anywhere}
 .gl-rep pre{max-width:100%;overflow:auto}
 @media (min-width:821px){.gl-row{flex-direction:row;align-items:center;justify-content:space-between}.gl-t{flex:1}}
+/* ---------- kanban (dev) ---------- */
+.kb-row{flex-direction:column!important;align-items:stretch!important}
+.kb-acts{display:flex;flex-wrap:wrap;gap:8px}
+.kb-acts .as-btn{justify-content:center}
+#kb-sheet fieldset{display:grid;gap:8px}
+#kb-sheet legend{font-size:16px}
+#kb-sheet .gl-acc .as-btn{min-width:48px;margin-top:4px}
 /* dev floor: text >=16px and targets >=48px on every dev page (home, rack sessions, Más pages) */
 body:not(.adm) :is(span,b,i,em,small,summary,label,button,a,p,code,.sub,.hint,.cap,.mb){font-size:max(16px,1em)}
 body:not(.adm) .win .mb,body:not(.adm) .rack .mb{font-size:16px}
@@ -1740,7 +1747,7 @@ async function refresh() {
       + (r.subs?.length ? `<div class="subs" role="list" aria-label="Subagents in ${esc(r.name)}">${r.subs.map(a => (st => `<a class="item sub1" role="listitem" href="#session/${r.id}/${esc(a.id)}" title="${esc(a.desc)}">${mark(st)}<span>${esc(a.desc)}</span></a>`)(a.status == 'running' && !LIVE.includes(r.status) ? 'stopped' : a.status)).join('')}</div>` : '')).join('') || '<p class="none">No sessions yet</p>'}
     </div>`);
   setHTML('#more', `<div class="more-h"><h2>Más</h2><button class="ic" data-act="moreClose" aria-label="Cerrar">${icon('x')}</button></div>
-    <nav class="more-nav" aria-label="Más secciones">${[['agents', 'team', 'Agentes'], ['projects', 'list', 'Proyectos'], ['guide', 'help', 'Guía'], ['templates', 'reel', 'Plantillas'], ...(isRemote ? [] : [['phone', 'phone', 'Teléfono']])].map(([k, ic, t]) => `<a class="item" href="#${k}" ${kind == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span>${k == 'phone' && phoneOn ? '<small>ON</small>' : ''}</a>`).join('')}
+    <nav class="more-nav" aria-label="Más secciones">${[['kanban', 'bricks', 'Kanban'], ['agents', 'team', 'Agentes'], ['projects', 'list', 'Proyectos'], ['guide', 'help', 'Guía'], ['templates', 'reel', 'Plantillas'], ...(isRemote ? [] : [['phone', 'phone', 'Teléfono']])].map(([k, ic, t]) => `<a class="item" href="#${k}" ${kind == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span>${k == 'phone' && phoneOn ? '<small>ON</small>' : ''}</a>`).join('')}
     ${me.user ? `<button class="item" data-act="logout">${icon('x')}<span>Salir</span><small>${esc(me.user)}</small></button>` : ''}</nav>
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
@@ -1928,6 +1935,7 @@ async function route() {
   else if (kind == 'phone') phonePage();
   else if (kind == 'plan') planPage();
   else if (kind == 'assistant') assistantPage();
+  else if (kind == 'kanban') kanbanPage();
   else if (kind == 'goals') id == 'new' ? goalNew() : id ? goalPage(id) : goalsPage();
   else if (kind == 'agents') id ? agentEditor(id == 'new' ? '' : id) : agentsPage();
   else if (kind == 'projects') id ? projectPage(id) : projectsPage();
@@ -2053,7 +2061,7 @@ function capChips(st, caps, scope) {
       <input type="checkbox" ${{sess: 'data-scap', perm: 'data-pcap'}[scope] || 'data-cap'}="${c.id}" ${st.caps.includes(c.id) ? 'checked' : ''}>
       <span class="box">${icon('check')}</span><span><b>${esc(c.name)}</b><small>${esc(c.note)}</small></span></label>`).join('');
 }
-const MORE_K = ['agents', 'projects', 'guide', 'templates', 'phone', 'wf', 'run'];  // pages that live under Más
+const MORE_K = ['kanban', 'agents', 'projects', 'guide', 'templates', 'phone', 'wf', 'run'];  // pages that live under Más
 ACT.more = () => $('#more').showModal();
 ACT.moreClose = () => $('#more').close();
 $('#more').addEventListener('click', e => { if (e.target.id == 'more' || e.target.closest('a[href]')) e.currentTarget.close(); });  // backdrop or any link closes it
@@ -3103,6 +3111,73 @@ ACT.glSched = () => {
   main.append(d); d.showModal();
 };
 ACT.glSchedX = () => $('#gl-sheet')?.close();
+
+/* ============ kanban (dev): boards list; a board opens kanban.html, shared with coworkers via /k/<token> ============ */
+let KB = [];  // last GET /api/kanban/boards
+const kbB = id => KB.find(b => b.id == id);
+async function kanbanPage() {
+  main.innerHTML = `<div class="gl"><header class="as-head"><h1>Kanban</h1><button class="as-btn pri" data-act="kbEdit">${icon('plus')}Nuevo tablero</button></header>
+    <p class="pl-sub">Tableros de tarjetas para compartir con compañeros: con el enlace solo ven ese tablero.</p><div class="gl-list" id="kb-list" aria-live="polite"><p class="none">Cargando…</p></div></div>`;
+  kbLoad();
+}
+async function kbLoad() {
+  const g = pollGen;
+  try { KB = await api('kanban/boards'); } catch (e) { return $('#kb-list') && ($('#kb-list').innerHTML = `<p class="as-m note">Kanban no disponible: ${esc(e.message)}</p>`); }
+  if (g != pollGen || !$('#kb-list')) return;
+  $('#kb-list').innerHTML = KB.map(b => `<div class="gl-row kb-row"><div class="gl-t"><b>${esc(b.name)}</b><small>${b.count} tarjeta${b.count == 1 ? '' : 's'} · ${b.columns.map(c => esc(c.name)).join(' · ')}</small></div>
+    <div class="kb-acts"><a class="as-btn" href="/kanban.html?b=${encodeURIComponent(b.id)}">Abrir</a><button class="as-btn" data-act="kbShare" data-arg="${esc(b.id)}">Compartir</button>
+    <button class="as-btn" data-act="kbEdit" data-arg="${esc(b.id)}">Editar</button><button class="as-btn" data-act="kbRotate" data-arg="${esc(b.id)}">Nuevo enlace</button>
+    <button class="as-btn" data-act="kbDel" data-arg="${esc(b.id)}" aria-label="Borrar ${esc(b.name)}">${icon('trash')}</button></div></div>`).join('')
+    || '<p class="as-m note">Aún no hay tableros. Crea uno y compártelo: quien tenga el enlace puede crear y mover tarjetas.</p>';
+}
+function kbSheet(label, html) {
+  $('#kb-sheet')?.remove();
+  const d = document.createElement('dialog'); d.id = 'kb-sheet'; d.className = 'as-sheet'; d.setAttribute('aria-label', label);
+  d.innerHTML = `<div class="as-sin gl-f">${html}</div>`; d.onclick = e => { if (e.target == d) d.close(); };
+  main.append(d); d.showModal(); return d;
+}
+const kbCol = (c = {}) => `<div class="gl-acc"><input aria-label="Columna" value="${esc(c.name)}" data-id="${esc(c.id || '')}" required maxlength="40"><button type="button" class="as-btn" data-act="glAccDel" aria-label="Quitar columna">${icon('x')}</button></div>`;
+ACT.kbEdit = id => {
+  const b = id ? kbB(id) : {name: '', columns: ['Por hacer', 'En curso', 'Hecho'].map(name => ({name}))};
+  const d = kbSheet(id ? 'Editar tablero' : 'Nuevo tablero', `<form id="kb-f" class="gl-f"><h2>${id ? 'Editar tablero' : 'Nuevo tablero'}</h2>
+    <label>Nombre<input name="name" required maxlength="80" value="${esc(b.name)}" placeholder="Incidencias web"></label>
+    <fieldset><legend>Columnas (estados)</legend><div id="gl-accs" style="width:100%">${b.columns.map(kbCol).join('')}</div>
+    <button type="button" class="as-btn" data-act="kbColAdd">${icon('plus')}Añadir columna</button></fieldset>
+    <div class="as-acts"><button class="as-btn pri">${id ? 'Guardar' : 'Crear'}</button><button type="button" class="as-btn" data-act="kbX">Cancelar</button></div></form>`);
+  d.querySelector('form').onsubmit = async e => { e.preventDefault();
+    const cols = [...e.target.querySelectorAll('#gl-accs input')].map(i => ({...(i.dataset.id ? {id: i.dataset.id} : {}), name: i.value.trim()})).filter(c => c.name);
+    if (!cols.length) return toast('Hace falta al menos una columna', true);
+    const name = e.target.elements.name.value.trim();
+    try { await api('kanban/boards' + (id ? '/' + id : ''), {method: id ? 'PATCH' : 'POST', body: JSON.stringify({name, columns: id ? cols : cols.map(c => c.name)})}); d.close(); kbLoad(); }
+    catch (er) { toast('No se pudo guardar: ' + er.message, true); } };
+  d.querySelector('input').focus();
+};
+ACT.kbColAdd = () => { const b = $('#gl-accs'); b.insertAdjacentHTML('beforeend', kbCol()); b.lastChild.querySelector('input').focus(); };
+ACT.kbX = () => $('#kb-sheet')?.close();
+ACT.kbDel = async id => {
+  if (!confirm(`¿Borrar el tablero «${kbB(id).name}» con todas sus tarjetas y adjuntos? El enlace compartido deja de funcionar.`)) return;
+  try { await api('kanban/boards/' + id, {method: 'DELETE'}); kbLoad(); } catch (e) { toast('No se pudo borrar: ' + e.message, true); }
+};
+ACT.kbRotate = async id => {
+  if (!confirm('¿Crear un enlace nuevo? El enlace actual deja de funcionar para quien lo tenga.')) return;
+  try { await api(`kanban/boards/${id}/token`, {method: 'POST'}); await kbLoad(); toast('Enlace nuevo creado. Compártelo de nuevo.'); } catch (e) { toast('No se pudo: ' + e.message, true); }
+};
+ACT.kbShare = async id => {
+  const g = pollGen, d = kbSheet('Compartir tablero', `<h2>Compartir «${esc(kbB(id).name)}»</h2><div id="kb-sh" aria-live="polite"><p class="none">Activando el acceso desde fuera…</p></div>
+    <div class="as-acts"><button type="button" class="as-btn" data-act="kbX">Cerrar</button></div>`);
+  const show = h => d.open && ($('#kb-sh').innerHTML = h);
+  try {
+    let s = await api('kanban/share');
+    if (!s.url && !s.tunnel) s = await api('kanban/share', {method: 'POST', body: JSON.stringify({on: true})});
+    for (let i = 0; !s.url && i < 15 && d.open && g == pollGen; i++) { await new Promise(r => setTimeout(r, 2000)); s = await api('kanban/share'); }
+    if (!s.url) return show('<p class="as-m note">El acceso desde fuera no arrancó. Cierra y prueba otra vez en un momento.</p>');
+    const link = s.url.replace(/\/$/, '') + '/k/' + kbB(id).token;
+    show(`<label>Enlace<input id="kb-link" readonly value="${esc(link)}" style="font-family:var(--mono)"></label>
+      <div class="as-acts"><button type="button" class="as-btn pri" data-act="kbCopy">${icon('copy')}Copiar enlace</button></div>
+      <p class="pl-sub">Quien tenga el enlace puede ver y editar este tablero, y nada más de Flows. El enlace cambia cuando Flows se reinicia, salvo que haya una URL fija configurada.</p>`);
+  } catch (e) { show(`<p class="as-m note">No se pudo compartir: ${esc(e.message)}</p>`); }
+};
+ACT.kbCopy = async () => { const i = $('#kb-link'); try { await navigator.clipboard.writeText(i.value); toast('Enlace copiado'); } catch { i.select(); toast('Selecciónalo y cópialo', true); } };
 
 /* ============ agentes (Claude Code subagents, ~/.claude/agents) ============ */
 // Dev only. The list is cards; one opens the editor. Saving writes the .md (through its symlink, if any).
