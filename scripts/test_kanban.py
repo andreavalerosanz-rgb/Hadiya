@@ -10,15 +10,20 @@ from urllib.error import HTTPError
 
 REPO = Path(__file__).resolve().parent.parent
 TMP = Path(tempfile.mkdtemp(prefix="flows-kanban-"))
-ENV = {k: v for k, v in os.environ.items() if k not in ("FLOWS_PACKAGE", "FLOWS_DATA")}
-PAGE = b"<!doctype html><title>kanban</title>"
+BIN = TMP / "bin"
+BIN.mkdir()
+# fake cloudflared: prints a quick-tunnel URL and idles, so the tunnel-only listener runs with nothing public
+(BIN / "cloudflared").write_text("#!/bin/sh\necho 'INF |  https://fake-kanban.trycloudflare.com  |'\nexec sleep 600\n")
+(BIN / "cloudflared").chmod(0o755)
+ENV = {**{k: v for k, v in os.environ.items() if k not in ("FLOWS_PACKAGE", "FLOWS_DATA")}, "PATH": f"{BIN}:{os.environ['PATH']}"}
+PAGE = (REPO / "kanban.html").read_bytes()
 
 
 def copy(name):
     d = TMP / name
     d.mkdir()
     shutil.copy(REPO / "server.py", d / "server.py")
-    (d / "index.html").write_text("index")
+    shutil.copy(REPO / "index.html", d / "index.html")  # real one: the "/" checks prove guests get the pairing page instead
     (d / "kanban.html").write_bytes(PAGE)
     return d
 
@@ -49,9 +54,9 @@ def start(d, port=None):
     raise SystemExit("server did not start")
 
 
-def call(port, method, path, body=None, cookie=None, flow=True, raw=False):
+def call(port, method, path, body=None, cookie=None, flow=True, raw=False, host="127.0.0.1"):
     h = {"Content-Type": "application/json", **({"X-Flow": "1"} if flow else {}), **({"Cookie": cookie} if cookie else {})}
-    req = Request(f"http://127.0.0.1:{port}{path}", data=json.dumps(body).encode() if body is not None else None, method=method, headers=h)
+    req = Request(f"http://{host}:{port}{path}", data=json.dumps(body).encode() if body is not None else None, method=method, headers=h)
     try:
         with urlopen(req, timeout=10) as r:
             data = r.read()
@@ -149,6 +154,32 @@ try:
     for bad in ("/k/nope", "/k/nope/api", "/k/", "/k", f"/k/{b['token']}x/api"):
         assert call(G, "GET", bad)[0] == 404, bad
     assert call(G, "POST", "/k/nope/api/cards", {"title": "x"})[0] == 404
+
+    # the listeners the quick tunnel and Wi-Fi access forward to: guests get their board, nothing else without pairing
+    assert ok(P, "POST", "/api/kanban/share", {"on": True})["tunnel"] is True
+    for _ in range(50):
+        if ok(P, "GET", "/api/kanban/share")["url"]:
+            break
+        time.sleep(0.1)
+    assert ok(P, "GET", "/api/remote")["tunnel"]["url"] == "https://fake-kanban.trycloudflare.com"
+    ok(P, "POST", "/api/remote/lan", {"on": True})
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sk:
+        sk.connect(("10.255.255.255", 1))
+        lan = sk.getsockname()[0]
+    for host, port in (("127.0.0.1", P + 2), (lan, P)):
+        s, page, h = call(port, "GET", K, host=host)
+        assert s == 200 and page == PAGE and "text/html" in h["Content-Type"], (host, port, s)
+        assert call(port, "GET", K + "/api", host=host)[1]["guest"] is True
+        tc = call(port, "POST", K + "/api/cards", {"title": f"via {port}"}, host=host)[1]
+        assert call(port, "PATCH", f"{K}/api/cards/{tc['id']}", {"col": doing}, host=host)[1]["col"] == doing
+        assert call(port, "POST", K + "/api/cards", {"title": "x"}, flow=False, host=host)[0] == 403
+        assert b"kanban" not in call(port, "GET", "/", raw=True, host=host)[1].lower()  # the pairing page, not index.html
+        for path in ("/api/runs", "/api/kanban/boards", f"/kanban.html?b={b['id']}", f"/api/kanban/boards/{b['id']}"):
+            assert call(port, "GET", path, host=host)[0] == 401, (host, port, path)
+        assert call(port, "POST", "/api/kanban/share", {"on": False}, host=host)[0] == 401
+        ok(P, "DELETE", f"{B}/cards/{tc['id']}")
+    ok(P, "POST", "/api/remote/lan", {"on": False})
+    assert ok(P, "POST", "/api/kanban/share", {"on": False}) == {"url": "https://kb.example.com", "tunnel": False}
 
     # owner deletes; rotate kills the old link
     assert ok(P, "DELETE", f"{B}/cards/{gc['id']}/files/foto.jpg")["files"] == []
