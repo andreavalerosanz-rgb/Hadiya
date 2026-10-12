@@ -26,10 +26,10 @@ def run(i, name, status, ago, **kw):
             "cost": 0.42, "session_id": "s-" + i, "project": "/home/andrea/Desktop/flows", "parent": None, "turn_done": status != "working", "pending": {}, "subs": [], **kw}
 SID = "20261012-120000-aaaa"
 ASK = {"q": {"id": "q", "ts": NOW, "tool": "AskUserQuestion", "input": {"questions": [{"header": "Diseño", "question": "¿Qué paleta usamos para la web?", "options": [{"label": "Papel claro"}, {"label": "Oscura"}]}]}}}
-RUNS = [run(SID, "Rediseño de la tienda: catálogo y ficha de producto", "working", 900),
-        run("20261012-110000-bbbb", "Factura de octubre para Matteria", "asking", 3000, pending=ASK),
-        run("20261012-100000-cccc", "Revisar el formulario de contacto", "idle", 7000),
-        run("20261011-090000-dddd", "Copia de seguridad del servidor", "stopped", 90000),
+RUNS = [run(SID, "Rediseño de la tienda: catálogo y ficha de producto", "working", 900, last="Empiezo por la galería de fotos."),
+        run("20261012-110000-bbbb", "Factura de octubre para Matteria", "asking", 3000, pending=ASK, last="¿Qué paleta usamos para la web?"),
+        run("20261012-100000-cccc", "Revisar el formulario de contacto", "idle", 7000, last="Hecho: el formulario valida el correo y envía una copia al cliente."),
+        run("20261011-090000-dddd", "Copia de seguridad del servidor", "stopped", 90000, last="Copia guardada en /backups (2,3 GB)."),
         run("20261010-090000-eeee", "Migrar la base de datos de BFS", "stopped", 180000)]
 def tool(n, name, inp, out):
     return [{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": f"t{n}", "name": name, "input": inp}]}},
