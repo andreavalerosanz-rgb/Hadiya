@@ -18,7 +18,7 @@ srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=su
                        env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "FLOWS_DATA": str(TMP / "app/data")})
 NOW = time.time()
 RUNS = [{"id": f"20261012-1{i}0000-aaaa", "kind": "session", "name": n, "status": st, "started": NOW - 900 * i, "ended": None, "cost": 0.1,
-         "project": "/home/andrea/Desktop/flows", "parent": None, "pending": {}, "subs": [], "last": "Una línea de estado bastante larga para ver si la tarjeta corta bien el texto en el móvil."}
+         "project": "/home/andrea/Desktop/flows", "parent": None, "pending": {}, "subs": [], "pinned": NOW if n == "Copia de seguridad" else None, "last": "Una línea de estado bastante larga para ver si la tarjeta corta bien el texto en el móvil."}
         for i, (n, st) in enumerate([("Rediseño de la tienda: catálogo y ficha de producto", "working"), ("Factura de octubre", "idle"), ("Copia de seguridad", "stopped")])]
 
 MAIN = [("Inicio", ""), ("Plan", "#plan"), ("Asistente", "#assistant"), ("Goals", "#goals")]
@@ -48,6 +48,8 @@ try:
             ctx = b.new_context(**ctxargs); pg = ctx.new_page()
             pg.route("**/api/runs", lambda r: r.fulfill(json=RUNS))
             pg.goto(f"http://127.0.0.1:{P}/"); pg.wait_for_selector(".hcard", timeout=15000)
+            check(pg.locator("#hp-h ~ .hcard").count() == 1 and pg.locator("#hc-h ~ .hcard").count() == 2, f"{size}: pinned section missing or session duplicated")
+            pg.locator("#hp-h ~ .hcard").click(); pg.wait_for_url("**#session/*"); pg.goto(f"http://127.0.0.1:{P}/"); pg.wait_for_selector(".hcard")
             # identity
             st = pg.evaluate("[getComputedStyle(document.body).fontFamily, getComputedStyle(document.body).backgroundColor]")
             check("Barlow" in st[0], f"{size}: body font {st[0]}")
