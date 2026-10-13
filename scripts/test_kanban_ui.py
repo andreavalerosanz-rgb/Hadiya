@@ -12,7 +12,7 @@ from playwright.sync_api import sync_playwright
 REPO = Path(__file__).resolve().parent.parent
 SHOTS = REPO / "data/shots"; SHOTS.mkdir(parents=True, exist_ok=True)
 THEME_SHOTS = Path("/home/andrea/Desktop/flows/data/shots/20261013-090747-3e12"); THEME_SHOTS.mkdir(parents=True, exist_ok=True)
-TMP = Path(tempfile.mkdtemp(prefix="flows-kanban-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-kanban-"))
 (TMP / "bin").mkdir(); (TMP / "home").mkdir(); (TMP / "app").mkdir()
 (TMP / "bin/claude").write_text("#!/bin/sh\nexit 0\n"); (TMP / "bin/claude").chmod(0o755)
 for f in ("server.py", "index.html", "kanban.html"):
@@ -20,7 +20,7 @@ for f in ("server.py", "index.html", "kanban.html"):
 with socket.socket() as s:
     s.bind(("127.0.0.1", 0)); P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "FLOWS_DATA": str(TMP / "app/data")})
+                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "HADIYA_DATA": str(TMP / "app/data")})
 URL = f"http://127.0.0.1:{P}"
 KHTML = (REPO / "kanban.html").read_text()
 CHECK = """() => {
@@ -93,7 +93,7 @@ class Fake:
         if path == "/api/kanban/share":
             if m == "POST": self.tunnel = body["on"]; return js({"url": None, "tunnel": True})
             self.share_gets += 1
-            return js({"url": "https://flows-demo.trycloudflare.com" if getattr(self, "tunnel", False) and self.share_gets > 2 else None, "tunnel": getattr(self, "tunnel", False)})
+            return js({"url": "https://hadiya-demo.trycloudflare.com" if getattr(self, "tunnel", False) and self.share_gets > 2 else None, "tunnel": getattr(self, "tunnel", False)})
         if path == "/api/kanban/boards":
             if m == "GET": return js([self.pub(b) for b in self.boards.values()])
             b = {"id": self.nid(), "name": body["name"], "token": "tok" + self.nid(), "columns": [{"id": self.nid(), "name": n} for n in body.get("columns") or ["Por hacer", "En curso", "Hecho"]]}
@@ -166,7 +166,7 @@ def owner(b, p, size, ca):
     bid = next(iter(fake.boards)); check([c["name"] for c in fake.boards[bid]["columns"]] == ["Por hacer", "En curso", "Hecho", "Revisión"], f"{size}: columns after edit")
     # share: tunnel off -> on -> url after polling
     pg.click(".kb-row [data-act=kbShare]"); pg.wait_for_selector("#kb-link", timeout=15000)
-    check(pg.input_value("#kb-link") == f"https://flows-demo.trycloudflare.com/k/{fake.boards[bid]['token']}", f"{size}: share link {pg.input_value('#kb-link')}")
+    check(pg.input_value("#kb-link") == f"https://hadiya-demo.trycloudflare.com/k/{fake.boards[bid]['token']}", f"{size}: share link {pg.input_value('#kb-link')}")
     check("reinicia" in pg.inner_text("#kb-sheet"), f"{size}: restart note")
     floor(pg, f"{size} share sheet"); pg.screenshot(path=str(SHOTS / f"kanban-share-{size}.png"))
     pg.click("#kb-sheet [data-act=kbX]")
@@ -238,7 +238,7 @@ def guest(b, size, ca):
     pg.goto(f"{URL}/k/tokG"); pg.wait_for_selector("#who[open]")
     floor(pg, f"{size} guest name"); pg.screenshot(path=str(SHOTS / f"kanban-guest-name-{size}.png"))
     pg.fill("#wf [name=name]", "Ana"); pg.click("#wf .btn.pri"); pg.wait_for_selector("#who:not([open])", state="attached")
-    check(pg.locator("a[href*='#'], a[href='/']").count() == 0, f"{size}: guest sees Flows links")
+    check(pg.locator("a[href*='#'], a[href='/']").count() == 0, f"{size}: guest sees Hadiya links")
     check("Tú: Ana" in pg.text_content("header"), f"{size}: guest name in header")
     check("por Luis" in pg.inner_text(".card"), f"{size}: por <by>")
     pg.click(".col:visible [data-new]"); pg.fill("#f [name=title]", "Revisar textos"); pg.click("#save"); pg.wait_for_selector(".card:has-text('Revisar textos')")

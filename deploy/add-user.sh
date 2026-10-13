@@ -29,5 +29,5 @@ cat <<MSG
 Next steps:
   sudo -u $u -i claude auth login
   sudo -u $u -i bash /opt/flows/deploy/setup-token-optimizer.sh   # fewer tokens per session
-  sudo -u flows python3 /opt/flows/server.py adduser <flowsname> $u
+  sudo -u flows python3 /opt/flows/server.py adduser <hadiya name> $u
 MSG

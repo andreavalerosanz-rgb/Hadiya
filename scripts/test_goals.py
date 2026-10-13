@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-goals-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-goals-"))
 BIN, HOME, PROJ = TMP / "bin", TMP / "home", TMP / "home/proj"
 BIN.mkdir()
 PROJ.mkdir(parents=True)
@@ -39,10 +39,10 @@ if "--input-format" not in sys.argv:
                "acceptance": ["tests pass", "lint passes"]}}
     out({{"type": "result", "is_error": False, "result": "Here: " + json.dumps(res)}})
     raise SystemExit
-(T / "argv.log").open("a").write(json.dumps(sys.argv + [os.environ.get("FLOWS_GOAL", "")]) + "\\n")
+(T / "argv.log").open("a").write(json.dumps(sys.argv + [os.environ.get("HADIYA_GOAL", "")]) + "\\n")
 def api(tool, args):
-    req = Request("http://127.0.0.1:" + os.environ["FLOWS_PORT"] + "/api/brain/" + tool, data=json.dumps(args).encode(), method="POST",
-                  headers={{"Content-Type": "application/json", "X-Flow": "1", "X-Brain": os.environ["FLOWS_BRAIN_TOKEN"]}})
+    req = Request("http://127.0.0.1:" + os.environ["HADIYA_PORT"] + "/api/brain/" + tool, data=json.dumps(args).encode(), method="POST",
+                  headers={{"Content-Type": "application/json", "X-Flow": "1", "X-Brain": os.environ["HADIYA_BRAIN_TOKEN"]}})
     return json.loads(urlopen(req).read())["text"]
 def reply(text):
     out({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": text}}]}}}})
@@ -63,7 +63,7 @@ for line in sys.stdin:
             out({{"type": "control_request", "request_id": f"r{{n}}", "request": {{"subtype": "can_use_tool", "tool_name": "Bash", "input": {{"command": cmd}}}}}})
             resp = json.loads(sys.stdin.readline())
             (T / "guard.log").open("a").write(cmd + " => " + resp["response"]["response"]["behavior"] + "\\n")
-    if os.environ.get("FLOWS_ASSISTANT"):  # the assistant (WhatsApp) drives goals with its own tools
+    if os.environ.get("HADIYA_ASSISTANT"):  # the assistant (WhatsApp) drives goals with its own tools
         reply(api("goal_answer", {{"id": text.split()[-1], "answers": {{"figma": "from whatsapp"}}}}) if "ANSWER" in text else api("goal_list", {{}}))
         continue
     blocked = "BLOCKME" in text and not (T / "was-blocked").exists()
@@ -82,7 +82,7 @@ with socket.socket() as s:
     s.bind(("127.0.0.1", 0))
     P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=open(TMP / "server.log", "w"), stderr=subprocess.STDOUT,
-                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "FLOWS_DATA": str(d / "data")})
+                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "HADIYA_DATA": str(d / "data")})
 
 
 def call(method, path, body=None):
@@ -211,10 +211,10 @@ try:
     assert '"status": "ready"' in out[0] and call("GET", f"/api/goals/{w['id']}")[1]["answers"] == {"figma": "from whatsapp"}, out
     def tools(**env):
         p = subprocess.run([sys.executable, str(d / "server.py"), "brain-mcp"], input='{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n',
-                           capture_output=True, text=True, env={**os.environ, "FLOWS_PORT": "1", "FLOWS_BRAIN_TOKEN": "x", **env})
+                           capture_output=True, text=True, env={**os.environ, "HADIYA_PORT": "1", "HADIYA_BRAIN_TOKEN": "x", **env})
         return {t["name"] for t in json.loads(p.stdout)["result"]["tools"]}
-    assert "goal_report" in tools(FLOWS_GOAL="1") and not {"goal_create", "set_job"} & tools(FLOWS_GOAL="1")
-    assert {"goal_create", "goal_list", "set_job"} <= tools(FLOWS_ASSISTANT="1") and "goal_report" not in tools(FLOWS_ASSISTANT="1")
+    assert "goal_report" in tools(HADIYA_GOAL="1") and not {"goal_create", "set_job"} & tools(HADIYA_GOAL="1")
+    assert {"goal_create", "goal_list", "set_job"} <= tools(HADIYA_ASSISTANT="1") and "goal_report" not in tools(HADIYA_ASSISTANT="1")
     assert {x["id"] for x in call("GET", "/api/goals")[1]} == {g["id"], b["id"], w["id"]}
     print("goals OK")
 finally:

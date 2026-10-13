@@ -8,14 +8,14 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-brain-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-brain-"))
 BIN, LOG = TMP / "bin", TMP / "argv.log"
 BIN.mkdir()
 (BIN / "claude").write_text(f"""#!/usr/bin/env python3
 import json, os, sys
 open({str(LOG)!r}, "a").write(json.dumps(sys.argv) + "\\n")
-if os.environ.get("FLOWS_BRAIN_TOKEN"):
-    open({str(TMP / "token")!r}, "w").write(os.environ["FLOWS_BRAIN_TOKEN"] + " " + os.environ["FLOWS_PORT"])
+if os.environ.get("HADIYA_BRAIN_TOKEN"):
+    open({str(TMP / "token")!r}, "w").write(os.environ["HADIYA_BRAIN_TOKEN"] + " " + os.environ["HADIYA_PORT"])
 out = lambda o: (print(json.dumps(o)), sys.stdout.flush())
 def reply(text):
     out({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": "did " + text[:30]}}]}}}})
@@ -77,7 +77,7 @@ try:
     assert [r for r in call("GET", "/api/runs")[1] if r["id"] == B][0]["brain"] is True
     tok, port = (TMP / "token").read_text().split()
     argv = json.loads(LOG.read_text().splitlines()[0])
-    assert "brain-mcp" in argv[argv.index("--mcp-config") + 1] and tok not in " ".join(argv) and "mcp__flows" in " ".join(argv)
+    assert "brain-mcp" in argv[argv.index("--mcp-config") + 1] and tok not in " ".join(argv) and "mcp__hadiya" in " ".join(argv)
     assert "Second Brain of this project" in argv[argv.index("--append-system-prompt") + 1]
 
     # auth: no token, a wrong one, and a valid one outside /api/brain
@@ -88,10 +88,10 @@ try:
 
     # brain-mcp over stdio: initialize, tools/list, then start a child through it
     mcp = subprocess.Popen([sys.executable, str(d / "server.py"), "brain-mcp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
-                           env={**os.environ, "FLOWS_BRAIN_TOKEN": tok, "FLOWS_PORT": port, "FLOWS_DATA": "/nonexistent"})
+                           env={**os.environ, "HADIYA_BRAIN_TOKEN": tok, "HADIYA_PORT": port, "HADIYA_DATA": "/nonexistent"})
     rpc = lambda i, m, prm={}: (mcp.stdin.write(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": prm}) + "\n"),
                                 mcp.stdin.flush(), json.loads(mcp.stdout.readline()))[2]
-    assert rpc(1, "initialize", {"protocolVersion": "2025-06-18"})["result"]["serverInfo"]["name"] == "flows"
+    assert rpc(1, "initialize", {"protocolVersion": "2025-06-18"})["result"]["serverInfo"]["name"] == "hadiya"
     mcp.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
     names = [t["name"] for t in rpc(2, "tools/list")["result"]["tools"]]
     assert names == ["start_session", "list_sessions", "read_session", "send_message", "answer_question", "stop_session"], names
@@ -109,7 +109,7 @@ try:
                            "agents": 3, "cwd": "/tmp", "model": "sonnet"}, c["config"]
     b = wait(B, lambda r: any(e.get("from") == C for e in r["events"]))
     q = [e for e in b["events"] if e.get("from") == C][0]
-    assert q["type"] == "input" and q["text"].startswith(f'[Flows] Session "Web" ({C}) asks you (question_id q1)') and "Color?" in q["text"]
+    assert q["type"] == "input" and q["text"].startswith(f'[Hadiya] Session "Web" ({C}) asks you (question_id q1)') and "Color?" in q["text"]
 
     # scoping: a session of the user's own that the brain didn't start is invisible to it
     S = call("POST", "/api/sessions", {"message": "mine"})[1]["id"]
@@ -137,7 +137,7 @@ finally:
     srv.terminate()
 
 # the admin package can't have a brain
-os.environ.update(FLOWS_PACKAGE="admin", FLOWS_DATA=str(TMP / "pkg"))
+os.environ.update(HADIYA_PACKAGE="admin", HADIYA_DATA=str(TMP / "pkg"))
 sys.path.insert(0, str(d))
 import server
 try:

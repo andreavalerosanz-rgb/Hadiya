@@ -1,7 +1,7 @@
-# Install: cp flows-whatsapp.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now flows-whatsapp
+# Install: cp hadiya-whatsapp.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now hadiya-whatsapp
 # Pair the QR once in a terminal first (see README), then enable.
 [Unit]
-Description=Flows Asistente WhatsApp bridge
+Description=Hadiya Asistente WhatsApp bridge
 After=network-online.target
 
 [Service]

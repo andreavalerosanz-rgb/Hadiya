@@ -1,8 +1,8 @@
 """python3 scripts/test_plan.py — which Trello cards make today's plan."""
 import os, sys
 from datetime import date
-os.environ["FLOWS_DATA"] = "/tmp/flows-test-plan"
-os.makedirs("/tmp/flows-test-plan", exist_ok=True)
+os.environ["FLOWS_DATA"] = "/tmp/hadiya-test-plan"
+os.makedirs("/tmp/hadiya-test-plan", exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import server as s
 

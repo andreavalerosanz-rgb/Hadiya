@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""UX checks for the admin package ("Flows on paper"), Playwright, phone 390 (isMobile) and desktop 1440, Chrome + Firefox.
-Runs server.py from a temp copy on a free port with FLOWS_PACKAGE=admin and a fake `claude` on PATH.
+"""UX checks for the admin package ("Hadiya on paper"), Playwright, phone 390 (isMobile) and desktop 1440, Chrome + Firefox.
+Runs server.py from a temp copy on a free port with HADIYA_PACKAGE=admin and a fake `claude` on PATH.
 Checks: no JS errors, no sideways scroll, text >=16px, touch targets >=48px on the phone, every destination in <=2 clicks
 from home, and the main flow Pedir -> Mis peticiones.
 Run: /tmp/pwenv/bin/python scripts/test_adm_ux.py [shots dir] [--shots-only PREFIX]"""
@@ -12,7 +12,7 @@ args = [a for a in sys.argv[1:] if not a.startswith("--")]
 SHOTS_ONLY = sys.argv[sys.argv.index("--shots-only") + 1] if "--shots-only" in sys.argv else None
 if SHOTS_ONLY in args:
     args.remove(SHOTS_ONLY)
-TMP = Path(tempfile.mkdtemp(prefix="flows-adm-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-adm-"))
 SHOTS = Path(args[0]) if args else TMP / "shots"
 SHOTS.mkdir(parents=True, exist_ok=True)
 BIN, HOME = TMP / "bin", TMP / "home"
@@ -55,7 +55,7 @@ with socket.socket() as s:
     s.bind(("127.0.0.1", 0)); P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                        env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME),
-                            "FLOWS_DATA": str(d / "data"), "FLOWS_PACKAGE": "admin"})
+                            "HADIYA_DATA": str(d / "data"), "HADIYA_PACKAGE": "admin"})
 URL = f"http://127.0.0.1:{P}/"
 # second instance in multi-user mode, only to see the login page
 with socket.socket() as s:
@@ -63,7 +63,7 @@ with socket.socket() as s:
 (TMP / "ldata").mkdir()
 (TMP / "ldata" / "users.json").write_text('{"ana": {"unix": "ana", "package": "admin", "pw": "x$y"}}')
 lsrv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        env={**os.environ, "PORT": str(LP), "HOME": str(HOME), "FLOWS_DATA": str(TMP / "ldata")})
+                        env={**os.environ, "PORT": str(LP), "HOME": str(HOME), "HADIYA_DATA": str(TMP / "ldata")})
 LOGIN_URL = f"http://127.0.0.1:{LP}/"
 
 # every visible piece of text, every visible control; reports offenders by a short selector

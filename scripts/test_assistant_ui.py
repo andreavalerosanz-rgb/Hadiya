@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""UI check for the Flows Asistente web chat and the Plan de hoy page (Playwright, 390 and 1440). Runs server.py from a temp copy on a free port, HOME and data in a temp dir, a fake `claude` on PATH.
+"""UI check for the Hadiya Asistente web chat and the Plan de hoy page (Playwright, 390 and 1440). Runs server.py from a temp copy on a free port, HOME and data in a temp dir, a fake `claude` on PATH.
 Run: /tmp/pwenv/bin/python scripts/test_assistant_ui.py   [shots dir as argv[1]]"""
 import json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
@@ -7,16 +7,16 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-assistant-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-assistant-"))
 BIN, LOG, HOME = TMP / "bin", TMP / "argv.log", TMP / "home"
 BIN.mkdir()
 (HOME / ".claude/flows-assistant").mkdir(parents=True)
 (HOME / ".claude/flows-assistant/profile.md").write_text("Andrea likes short answers. PROFILE-MARK")
 (BIN / "claude").write_text(f"""#!/usr/bin/env python3
 import json, os, sys
-open({str(LOG)!r}, "a").write(json.dumps(sys.argv + [os.environ.get("FLOWS_ASSISTANT", "")]) + "\\n")
-if os.environ.get("FLOWS_BRAIN_TOKEN"):
-    open({str(TMP / "token")!r}, "w").write(os.environ["FLOWS_BRAIN_TOKEN"])
+open({str(LOG)!r}, "a").write(json.dumps(sys.argv + [os.environ.get("HADIYA_ASSISTANT", "")]) + "\\n")
+if os.environ.get("HADIYA_BRAIN_TOKEN"):
+    open({str(TMP / "token")!r}, "w").write(os.environ["HADIYA_BRAIN_TOKEN"])
 out = lambda o: (print(json.dumps(o)), sys.stdout.flush())
 def reply(text):
     out({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": text}}]}}}})
@@ -46,7 +46,7 @@ with socket.socket() as s:
     s.bind(("127.0.0.1", 0))
     P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "FLOWS_DATA": str(d / "data")})
+                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "HADIYA_DATA": str(d / "data")})
 
 
 

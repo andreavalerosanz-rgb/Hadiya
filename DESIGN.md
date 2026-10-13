@@ -1,6 +1,6 @@
 ---
-name: Flows - Flows on paper (admin package)
-description: Calm, light, one-column ask-and-talk assistant in plain Spanish; paper ground, white cards, ink text, Flows orange only where action or attention lives. Tokens below cover Part 2 only (body.adm); Part 1, the dev "cutting bench", records its own tokens in its prose tables.
+name: Hadiya - Hadiya on paper (admin package)
+description: Calm, light, one-column ask-and-talk assistant in plain Spanish; paper ground, white cards, ink text, Hadiya orange only where action or attention lives. Tokens below cover Part 2 only (body.adm); Part 1, the dev "cutting bench", records its own tokens in its prose tables.
 colors:
   paper-ground: "#f4f2ee"
   card-white: "#ffffff"
@@ -121,11 +121,11 @@ components:
     padding: "5px 9px 9px"
 ---
 
-> This file holds two worlds. Part 1 ("the cutting bench", dark, orange rail) serves the **dev** package. Part 2 ("Flows on paper", light, one column) serves the **admin** package, applied when `body` has class `adm` (`/api/me` package is `admin`); it borrows the bench's brand parts (orange, Barlow, reel logo, state marks, one perforated strip) and nothing else. The YAML frontmatter above describes Part 2 only.
+> This file holds two worlds. Part 1 ("the cutting bench", dark, orange rail) serves the **dev** package. Part 2 ("Hadiya on paper", light, one column) serves the **admin** package, applied when `body` has class `adm` (`/api/me` package is `admin`); it borrows the bench's brand parts (orange, Barlow, reel logo, state marks, one perforated strip) and nothing else. The YAML frontmatter above describes Part 2 only.
 
 # Part 1 - dev package
 
-# Design: Flows ("the cutting bench")
+# Design: Hadiya ("the cutting bench")
 
 Recorded from the built `index.html` (2026-09-28). Operate-mode tool, single dark world.
 
@@ -179,17 +179,17 @@ Rack sidebar 264px + main; rail bleeds full width; windows max 1096px. Under 820
 
 # Part 2 - admin package
 
-# Design System: Flows on paper
+# Design System: Hadiya on paper
 
 Recorded from the built `index.html` (2026-10-02): the `body.adm` CSS block and the `adm*` functions at the end of the script. Everything is scoped to `body.adm`; the dev look is untouched. Frontmatter tokens are normative; the prose names them and gives roles. Paper values are the `--p-*` custom properties on `body.adm`; orange and fonts come from the shared `:root` tokens of Part 1 (`--flag`, `--flag-deep`, `--cond`, `--body`, `--perf`, `--grain`).
 
 ## Overview
 
-**Creative North Star: "Flows on Paper"**
+**Creative North Star: "Hadiya on Paper"**
 
 The same brand made calm and light. A warm paper ground, white cards with hairlines, ink text, and one orange that only ever says "press this" or "this needs you". Audience is office staff with no technical background on a phone or a desk PC; the product is a single column with one obvious action. It refuses both the dark techy bench and a generic app kit: no sidebar, no dashboards, no coloured categories.
 
-The film world survives as a few brand parts, not as scenery: the reel logo, Barlow with Barlow Condensed caps for small labels, the Flows state marks (grease-pencil check, folded tape flag, hatch), and exactly one perforated orange strip under the top bar. Copy is Spanish, informal "tú", plain words; the product never shows tool names, models, folders, costs or permission jargon.
+The film world survives as a few brand parts, not as scenery: the reel logo, Barlow with Barlow Condensed caps for small labels, the Hadiya state marks (grease-pencil check, folded tape flag, hatch), and exactly one perforated orange strip under the top bar. Copy is Spanish, informal "tú", plain words; the product never shows tool names, models, folders, costs or permission jargon.
 
 **Key Characteristics:**
 - One column, mobile-first; on desktop the same column centered at about 680px.
@@ -261,7 +261,7 @@ Flat paper. Depth is hairline borders plus one very soft card shadow; only the d
 
 ## Shapes
 
-12px corners on cards, buttons, chips, options, bubbles and the dialog; 10px on small buttons, attachments and text inputs; chat bubbles square one corner to 4px at the speaker's side. The Flows marks are the only special silhouettes: the tape flag has a folded-tape bottom notch (`clip-path`, V cut to 76%), the hatch mark is a 16px rounded-3px square of 135-degree ink stripes, the grease check is a rounded 10-unit ink stroke. The top bar sits over a 12px orange strip with sprocket holes (`--perf`) on grain. Icons are authored inline SVG (the `icon()` map, 2-2.2 stroke); the logo is the `reel` icon plus "FLOWS" in condensed caps.
+12px corners on cards, buttons, chips, options, bubbles and the dialog; 10px on small buttons, attachments and text inputs; chat bubbles square one corner to 4px at the speaker's side. The Hadiya marks are the only special silhouettes: the tape flag has a folded-tape bottom notch (`clip-path`, V cut to 76%), the hatch mark is a 16px rounded-3px square of 135-degree ink stripes, the grease check is a rounded 10-unit ink stroke. The top bar sits over a 12px orange strip with sprocket holes (`--perf`) on grain. Icons are authored inline SVG (the `icon()` map, 2-2.2 stroke); the logo is the `reel` icon plus "HADIYA" in condensed caps.
 
 ## Components
 
@@ -315,7 +315,7 @@ Spanish, informal "tú", plain words about correo, documentos and agenda. Say wh
 ## Do's and Don'ts
 
 ### Do:
-- **Do** pair every state with its mark and word, using the five Flows marks.
+- **Do** pair every state with its mark and word, using the five Hadiya marks.
 - **Do** keep text on orange in Bench Ink and put orange only on the primary action, the Te necesita flag, focus, selection and the one strip.
 - **Do** build new surfaces from white cards with a 1px Paper Line border on Paper Ground, 12px radius, in the single 680px column.
 - **Do** keep targets at least 44px and the 3px Flag Orange Deep focus ring.

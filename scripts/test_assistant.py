@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-check for Flows Asistente: bearer API, message -> outbox reply, approvals in confirm mode, /auto on, jobs firing,
+"""Self-check for Hadiya Asistente: bearer API, message -> outbox reply, approvals in confirm mode, /auto on, jobs firing,
 the job MCP tools, voice notes (fake transcriber), inbound and outbound files, the brief notice. Runs server.py from a temp copy on a free port, HOME and data in a temp dir, a fake `claude` on PATH.
 Run: python3 scripts/test_assistant.py   (takes ~30 s: the job worker ticks every 20 s)"""
 import json, os, shutil, socket, subprocess, sys, tempfile, time
@@ -8,16 +8,16 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-assistant-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-assistant-"))
 BIN, LOG, HOME = TMP / "bin", TMP / "argv.log", TMP / "home"
 BIN.mkdir()
 (HOME / ".claude/flows-assistant").mkdir(parents=True)
 (HOME / ".claude/flows-assistant/profile.md").write_text("Andrea likes short answers. PROFILE-MARK")
 (BIN / "claude").write_text(f"""#!/usr/bin/env python3
 import json, os, sys
-open({str(LOG)!r}, "a").write(json.dumps(sys.argv + [os.environ.get("FLOWS_ASSISTANT", "")]) + "\\n")
-if os.environ.get("FLOWS_BRAIN_TOKEN"):
-    open({str(TMP / "token")!r}, "w").write(os.environ["FLOWS_BRAIN_TOKEN"])
+open({str(LOG)!r}, "a").write(json.dumps(sys.argv + [os.environ.get("HADIYA_ASSISTANT", "")]) + "\\n")
+if os.environ.get("HADIYA_BRAIN_TOKEN"):
+    open({str(TMP / "token")!r}, "w").write(os.environ["HADIYA_BRAIN_TOKEN"])
 out = lambda o: (print(json.dumps(o)), sys.stdout.flush())
 def reply(text):
     out({{"type": "assistant", "message": {{"content": [{{"type": "text", "text": text}}]}}}})
@@ -54,7 +54,7 @@ with socket.socket() as s:
     s.bind(("127.0.0.1", 0))
     P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "FLOWS_DATA": str(d / "data"), "FLOWS_TRANSCRIBE": str(BIN / "stt")})
+                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "HADIYA_DATA": str(d / "data"), "HADIYA_TRANSCRIBE": str(BIN / "stt")})
 
 
 def call(method, path, body=None, token=None, h=None):
@@ -101,10 +101,10 @@ try:
     assert x["type"] == "reply" and x["text"] == "echo: [whatsapp +34600] hola", x
     argv = json.loads(LOG.read_text().splitlines()[0])
     prompt, allowed = argv[argv.index("--append-system-prompt") + 1], argv[argv.index("--allowedTools") + 1]
-    assert "Flows Asistente" in prompt and "PROFILE-MARK" in prompt, prompt[:300]
+    assert "Hadiya Asistente" in prompt and "PROFILE-MARK" in prompt, prompt[:300]
     assert "AskUserQuestion" in argv[argv.index("--disallowedTools") + 1] and argv[-1] == "1"
-    assert "mcp__claude_ai_Gmail__search_threads" in allowed and "send_message" not in allowed and "mcp__flows" in allowed
-    # the web UI uses the same endpoints with normal Flows auth (X-Flow on the laptop)
+    assert "mcp__claude_ai_Gmail__search_threads" in allowed and "send_message" not in allowed and "mcp__hadiya" in allowed
+    # the web UI uses the same endpoints with normal Hadiya auth (X-Flow on the laptop)
     assert call("GET", "/api/assistant/settings")[1]["run"]
 
     # confirm mode: an outward action waits for an approval in the outbox
@@ -130,16 +130,16 @@ try:
     assert (x["type"], x["text"]) == ("reply", "mail allow"), x
     assert call("POST", "/api/assistant/settings", {"auto": False}, token=TOK)[1]["auto"] is False
 
-    # the assistant's own job tools (brain-mcp, FLOWS_ASSISTANT=1)
+    # the assistant's own job tools (brain-mcp, HADIYA_ASSISTANT=1)
     btok = (TMP / "token").read_text()
     s, r = call("POST", "/api/brain/set_job", {"id": "rem", "at": "23:59", "date": "2099-01-01", "prompt": "X"}, h={"X-Brain": btok})
     assert s == 200 and "rem" in r["text"], r
     assert "rem" not in call("POST", "/api/brain/remove_job", {"id": "rem"}, h={"X-Brain": btok})[1]["text"]
     out = subprocess.run([sys.executable, str(d / "server.py"), "brain-mcp"], input='{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n',
-                         capture_output=True, text=True, env={**os.environ, "FLOWS_ASSISTANT": "1"}).stdout
+                         capture_output=True, text=True, env={**os.environ, "HADIYA_ASSISTANT": "1"}).stdout
     assert "set_job" in out
     out = subprocess.run([sys.executable, str(d / "server.py"), "brain-mcp"], input='{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n',
-                         capture_output=True, text=True, env={k: v for k, v in os.environ.items() if k != "FLOWS_ASSISTANT"}).stdout
+                         capture_output=True, text=True, env={k: v for k, v in os.environ.items() if k != "HADIYA_ASSISTANT"}).stdout
     assert "start_session" in out and "set_job" not in out
     assert call("POST", "/api/assistant/settings", {"jobs": [{"at": "25:00", "prompt": "x"}]}, token=TOK)[0] == 400
 
@@ -174,9 +174,9 @@ try:
     assert s == 200 and "notas.md" in r["text"] and (d / "data/uploads" / run / "notas.md").read_text() == "# hola", r
     assert call("POST", "/api/brain/send_file", {"name": "x.exe", "content": "x"}, h={"X-Brain": btok})[0] == 400
 
-    # the default brief: Mon-Fri 08:30, covers calendar, mail and Flows sessions; when it fires, a notice reaches the bridge
+    # the default brief: Mon-Fri 08:30, covers calendar, mail and Hadiya sessions; when it fires, a notice reaches the bridge
     brief = next(j for j in cfg["jobs"] if j["id"] == "brief")
-    assert (brief["at"], brief["days"]) == ("08:30", [0, 1, 2, 3, 4]) and all(k in brief["prompt"] for k in ("Calendar", "Gmail", "Flows sessions")), brief
+    assert (brief["at"], brief["days"]) == ("08:30", [0, 1, 2, 3, 4]) and all(k in brief["prompt"] for k in ("Calendar", "Gmail", "Hadiya sessions")), brief
     fire = {**brief, "at": "00:00", "date": time.strftime("%Y-%m-%d"), "last": "2000-01-01 00:00", "days": list(range(7))}
     assert call("POST", "/api/assistant/settings", {"jobs": [fire]}, token=TOK)[0] == 200
     x = next_item(TOK, "notice")

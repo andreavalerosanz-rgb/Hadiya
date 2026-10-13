@@ -1,4 +1,4 @@
-// WhatsApp <-> Flows Asistente bridge. Lives ONLY in the user's "message yourself" chat.
+// WhatsApp <-> Hadiya Asistente bridge. Lives ONLY in the user's "message yourself" chat.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,7 +20,7 @@ const bare = j => (j || '').replace(/:\d+@/, '@') // "34600:12@s.whatsapp.net" -
 const quiet = { level: 'silent', child: () => quiet, trace() {}, debug() {}, info() {}, warn() {}, error() {} }
 
 export async function start(o = {}) {
-  const url = o.flowsUrl || process.env.FLOWS_URL || 'http://localhost:8787'
+  const url = o.url || process.env.HADIYA_URL || process.env.FLOWS_URL || 'http://localhost:8787'
   const authDir = o.authDir || path.join(HERE, 'auth')
   const tokenFile = o.tokenFile || '/home/andrea/Desktop/flows/data/assistant.json'
   const qrPng = o.qrPng || process.env.WA_QR_PNG || '/home/andrea/Desktop/flows/data/uploads/20261009-184432-d679/whatsapp-qr.png'
@@ -113,7 +113,7 @@ export async function start(o = {}) {
     } else if (it.type === 'resolved') {  // answered elsewhere (web, auto): stop waiting for a reply to it
       const i = pending.findIndex(p => p.approval_id === it.approval_id)
       if (i >= 0) pending.splice(i, 1)
-    } else if (it.type === 'file') {  // written by the assistant; only from the Flows uploads folder, only allowed types
+    } else if (it.type === 'file') {  // written by the assistant; only from the Hadiya uploads folder, only allowed types
       const root = path.resolve(path.dirname(tokenFile), 'uploads') + path.sep
       const f = path.resolve(String(it.path || ''))
       const ext = path.extname(f).slice(1).toLowerCase(), mimetype = EXT_MIME[ext]
