@@ -8,7 +8,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-theme-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-theme-"))
 SHOTS = Path(sys.argv[1]) if len(sys.argv) > 1 else None
 (TMP / "bin").mkdir(); (TMP / "home").mkdir(); (TMP / "app").mkdir(); (TMP / "ldata").mkdir()
 # fake claude: one markdown answer per message
@@ -36,7 +36,7 @@ def port():
 def serve(data, **env):
     p = port()
     srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                           env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(p), "HOME": str(TMP / "home"), "FLOWS_DATA": str(data), **env})
+                           env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(p), "HOME": str(TMP / "home"), "HADIYA_DATA": str(data), **env})
     for _ in range(50):
         try: socket.create_connection(("127.0.0.1", p), 0.2).close(); break
         except OSError: time.sleep(0.1)
@@ -83,7 +83,7 @@ def shot(pg, name):
 
 
 dev, DEV_URL = serve(TMP / "app/data")
-adm, ADM_URL = serve(TMP / "adata", FLOWS_PACKAGE="admin")
+adm, ADM_URL = serve(TMP / "adata", HADIYA_PACKAGE="admin")
 login, LOGIN_URL = serve(TMP / "ldata")
 try:
     with sync_playwright() as p:

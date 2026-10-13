@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#f4f2ee">
-<script>try{if(localStorage.theme=='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name=theme-color]').content='#141413'}}catch(e){}</script>
+<script>/* pre-Hadiya keys: copy once, keep the old ones */try{for(const k of Object.keys(localStorage)){const n=k.startsWith('flows.')?'hadiya.'+k.slice(6):k=='flowsAllActs'?'hadiyaAllActs':'';if(n&&localStorage.getItem(n)==null)localStorage.setItem(n,localStorage.getItem(k))}}catch(e){}
+try{if(localStorage.theme=='dark'){document.documentElement.dataset.theme='dark';document.querySelector('meta[name=theme-color]').content='#141413'}}catch(e){}</script>
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon-192.png">
-<title>Flows</title>
+<title>Hadiya</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -1022,7 +1023,7 @@ main:has(.ag){padding-bottom:0}
 .pj-row small{color:var(--p-mute);white-space:nowrap}
 .ag #pj-ctx{min-height:260px;font:14px/1.55 var(--mono)}
 
-/* ================= admin package: "Flows on paper" (everything scoped to body.adm) ================= */
+/* ================= admin package: "Hadiya on paper" (everything scoped to body.adm) ================= */
 body.adm{--p-ground:#f4f2ee; --p-card:#fff; --p-line:#e6e3dd; --p-ink:#1a1a1a; --p-mute:#57534d; --p-soft:rgba(26,26,26,.1)}
 body.adm{
   color-scheme:light;display:block;height:auto;min-height:100%;background:var(--p-ground);color:var(--p-ink);font:17px/1.55 var(--body);
@@ -1115,7 +1116,7 @@ body.adm textarea::placeholder{color:var(--p-mute)}
 .a-row.asking .a-rt{font-weight:700}
 .a-rm{font-size:16px;line-height:1.4;color:var(--p-mute)}
 
-/* Flows state marks, small: grease check = Listo, tape flag = Te necesita, dash = Pausado, hatch = No se pudo */
+/* Hadiya state marks, small: grease check = Listo, tape flag = Te necesita, dash = Pausado, hatch = No se pudo */
 .a-s{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--p-ground);font:600 16px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--p-mute);white-space:nowrap}
 .a-s.working{background:var(--warm-bg)}
 .a-s.working .i{color:var(--flag-deep)}
@@ -1750,7 +1751,7 @@ async function refresh() {
   const w5 = use?.windows?.five_hour, p5 = w5 ? (w5.resetsAt && w5.resetsAt < now() ? 0 : Math.round(w5.utilization * 100)) : null;
   const pill = p5 == null ? '' : `<span class="upill ${p5 >= 80 ? 'hot' : ''}" title="Share of your Claude plan's 5-hour limit used">5h ${p5}%</span>`;
   setHTML('#rack', `
-    <div class="rack-top"><a class="brand" href="#" aria-label="Flows, inicio">${icon('reel')}<div><b>FLOWS</b></div></a>
+    <div class="rack-top"><a class="brand" href="#" aria-label="Hadiya, inicio">${icon('reel')}<div><b>HADIYA</b></div></a>
       ${kind == 'session' ? `<a class="ic sback" href="#" aria-label="Volver a Inicio">${icon('left')}</a>` : ''}${pill}</div>
     <nav class="dnav" aria-label="Principal">
       ${[['', 'home', 'Inicio'], ['plan', 'cal', 'Plan'], ['assistant', 'talk', 'Asistente'], ['goals', 'flag', 'Goals']].map(([k, ic, t]) => `<a class="item" title="${t}" href="#${k}" ${(kind || '') == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('')}
@@ -1783,7 +1784,7 @@ async function refresh() {
   const asking = sessions.filter(r => r.status == 'asking' && !(kind == 'session' && id == r.id));
   setHTML('#alert', (me.claude_logged_in === false ? `<p class="alert" role="status">${icon('help')}<span><b>Claude isn't signed in</b> for your account. Connect over SSH and run <code>claude login</code> once, then start your session again.</span></p>` : '') + asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
   const n = sessions.filter(r => r.status == 'asking').length;
-  document.title = n ? `(${n}) Decision needed · Flows` : 'Flows';
+  document.title = n ? `(${n}) Decision needed · Hadiya` : 'Hadiya';
 }
 
 const pinBtn = r => `<button class="ic pin" data-act="pin" data-arg="${r.id}" aria-pressed="${!!r.pinned}" aria-label="${r.pinned ? 'Unpin' : 'Pin'} “${esc(r.name)}”" title="${r.pinned ? 'Unpin' : 'Pin to the top and to Home'}">${icon('pin')}</button>`;
@@ -1890,10 +1891,10 @@ function pushPanel() {
   const hint = t => `<p class="none" style="padding:0">${t}</p>`, btn = (act, label) => `<button class="btn-q" data-act="${act}">${icon('bell')}${label}</button>`;
   return `<h2 class="cap">Notifications</h2>` + (
     !isSecureContext ? hint('Phone notifications need https. On your computer open Phone access, and turn on HTTPS certificates in the Tailscale admin.')
-    : navigator.standalone === false ? hint('To get notifications on iPhone, tap Share, then Add to Home Screen, and open Flows from there first.')
+    : navigator.standalone === false ? hint('To get notifications on iPhone, tap Share, then Add to Home Screen, and open Hadiya from there first.')
     : !push.ok ? ''
     : push.on ? hint('Notifications on') + btn('pushOff', 'Turn off')
-    : Notification.permission == 'denied' ? hint('Notifications are blocked. Allow them for Flows in your browser settings.')
+    : Notification.permission == 'denied' ? hint('Notifications are blocked. Allow them for Hadiya in your browser settings.')
     : btn('pushOn', 'Notify me when a decision is needed'));
 }
 ACT.pushOn = async () => {
@@ -1999,7 +2000,7 @@ function trims(ids, act, list) {
 /* ============ home ============ */
 function home(toTemplates) {
   let last = {};
-  try { last = JSON.parse(localStorage.getItem('flows.sess') || '{}'); } catch {}
+  try { last = JSON.parse(localStorage.getItem('hadiya.sess') || '{}'); } catch {}
   const st = {caps: PKG == 'admin' ? (last.caps || ['drive', 'gmail', 'cal']).filter(c => ADMIN_CAPS.includes(c)) : last.caps ? [...new Set([...last.caps, ...(last.v2 ? [] : ['browser'])])] : ['read', 'figma', 'edit', 'build', 'git', 'browser'], agents: last.agents || 3};
   const live = [...sessions.filter(r => LIVE.includes(r.status) || r.status == 'waiting'), ...runs.filter(r => r.status == 'running' || r.status == 'waiting')];
   const S = {
@@ -2072,7 +2073,7 @@ function brainMode() {  // the start form, worded for a session or for a Second 
   $('#s-start').innerHTML = icon('play') + (on ? 'Start Second Brain' : 'Start session');
 }
 function saveHome(patch) {
-  try { localStorage.setItem('flows.sess', JSON.stringify({...JSON.parse(localStorage.getItem('flows.sess') || '{}'), ...patch})); } catch {}
+  try { localStorage.setItem('hadiya.sess', JSON.stringify({...JSON.parse(localStorage.getItem('hadiya.sess') || '{}'), ...patch})); } catch {}
 }
 function capChips(st, caps, scope) {
   return caps.map(c => `<label class="capt ${c.danger ? 'danger' : ''}">
@@ -2317,7 +2318,7 @@ function toolRow(x, R) {
 function logItem(e, T = {}, R) {
   if (e.type == 'attach') return `<div>${atts(e.files)}</div>`;  // files the agent sent (server.py outbox)
   if (e.type == 'input' && e.text.trim() == '/compact') return `<div class="launch">${icon('compress')}You compacted the conversation</div>`;
-  if (e.type == 'input' && e.from) return `<div class="relay"><a href="#session/${esc(e.from)}">${icon('team')}From ${esc(runOf(e.from)?.name || 'a session')}${icon('right')}</a><p>${esc(e.text.replace(/^\[Flows\]\s*/, ''))}</p></div>`;  // Flows relaying a session's question or report to its Second Brain
+  if (e.type == 'input' && e.from) return `<div class="relay"><a href="#session/${esc(e.from)}">${icon('team')}From ${esc(runOf(e.from)?.name || 'a session')}${icon('right')}</a><p>${esc(e.text.replace(/^\[(Flows|Hadiya)\]\s*/, ''))}</p></div>`;  // Hadiya relaying a session's question or report to its Second Brain
   if (e.type == 'input') return `<div class="me"><div class="you">${esc(e.text)}${atts(e.files)}</div></div>`;
   if (e.type == 'system' && e.subtype == 'status' && e.status == 'compacting') return `<div class="meta">Compacting the conversation…</div>`;
   if (e.type == 'system' && e.subtype == 'compact_boundary') return `<div class="launch">${icon('check')}Compacted: <b>${kTok(e.compact_metadata?.pre_tokens)} → ${kTok(e.compact_metadata?.post_tokens)} tokens</b><span class="meta">${e.compact_metadata?.trigger == 'auto' ? 'automatic, context was full' : ''}</span></div>`;
@@ -2431,7 +2432,7 @@ function capLog(evs, fn, live) {  // live given (dev): tool rows are grouped int
   return (i >= 0 ? (PKG == 'admin' ? `<div><button class="a-btn a-sec" data-act="moreLog">Ver mensajes anteriores</button></div>` : `<div><button class="btn-s" data-act="moreLog">Show earlier</button></div>`) : '') + (live == null ? out.join('') : trails(out, live));
 }
 // work trails: consecutive tool rows fold into one closed "N steps" line; while live, the last one names the step running now
-let allActs = localStorage.flowsAllActs == '1';
+let allActs = localStorage.hadiyaAllActs == '1';
 function trails(items, live) {
   if (allActs) return items.join('');
   const out = []; let g = [];
@@ -2454,7 +2455,7 @@ function curStep(evs) {
   }
   return '';
 }
-ACT.allActs = () => { allActs = !allActs; localStorage.flowsAllActs = allActs ? '1' : '0'; drawSession(); };
+ACT.allActs = () => { allActs = !allActs; localStorage.hadiyaAllActs = allActs ? '1' : '0'; drawSession(); };
 ACT.moreLog = () => {
   const lb = $('.logbox'), h0 = pageScrolls(lb) ? document.documentElement.scrollHeight : lb.scrollHeight;
   (sess.lim ||= {})[sessSel] = (sess.lim[sessSel] || LOG_MAX) + 300;
@@ -2883,11 +2884,11 @@ async function planPage() {
   timer = setTimeout(planPage, 30000);
 }
 
-/* ============ asistente: web chat for Flows Asistente (/api/assistant/*) ============ */
+/* ============ asistente: web chat for Hadiya Asistente (/api/assistant/*) ============ */
 // The outbox only holds the assistant's items; what you send and which approvals you answered stay in localStorage.
 const AS = {items: [], since: 0, wait: false, cfg: {auto: false, jobs: [], run: ''}, ac: null};
-const asLoad = (k, d) => { try { return JSON.parse(localStorage.getItem('flows.as.' + k)) ?? d; } catch { return d; } };
-const asSave = (k, v) => { try { localStorage.setItem('flows.as.' + k, JSON.stringify(v)); } catch {} };
+const asLoad = (k, d) => { try { return JSON.parse(localStorage.getItem('hadiya.as.' + k)) ?? d; } catch { return d; } };
+const asSave = (k, v) => { try { localStorage.setItem('hadiya.as.' + k, JSON.stringify(v)); } catch {} };
 const asHm = t => new Date(t * 1000).toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
 const AS_DAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const asDays = d => !d?.length || d.length == 7 ? 'Todos los días' : d.join() == '0,1,2,3,4' ? 'L–V' : d.map(i => AS_DAYS[i]).join(' ');
@@ -2908,7 +2909,7 @@ function asDraw() {
     : x.type == 'approval' ? (a => `<div class="as-m as-card ask" role="group" aria-label="Pide permiso"><div class="as-ch">${chip(a || 'pending', a == 'allow' ? 'Permitido' : a == 'deny' ? 'Denegado' : 'Pendiente')}<b>Pide permiso</b><small>${asHm(x.ts)}</small></div>${md(x.text)}
         ${a ? '' : `<div class="as-acts"><button class="as-btn pri" data-act="asApprove" data-arg="${esc(x.approval_id)}:1">Permitir</button><button class="as-btn" data-act="asApprove" data-arg="${esc(x.approval_id)}:0">Denegar</button></div>`}</div>`)(done[x.approval_id] || ans[x.approval_id])
     : `<div class="as-m bot" aria-label="Asistente">${md(x.text)}<small>${asHm(x.ts)}</small></div>`;
-  list.innerHTML = all.map(card).join('') || '<p class="as-m note">Tu asistente para correo, calendario y sesiones de Flows. Prueba «qué tengo hoy».</p>';
+  list.innerHTML = all.map(card).join('') || '<p class="as-m note">Tu asistente para correo, calendario y sesiones de Hadiya. Prueba «qué tengo hoy».</p>';
   $('#as-wait').hidden = !AS.wait || !!steps?.live;
   asStatus();
   if (near || AS.stick) { AS.stick = false; scrollTo(0, document.documentElement.scrollHeight); }
@@ -3059,7 +3060,7 @@ const glRow = g => `<a class="gl-row" href="#goals/${esc(g.id)}">
 async function goalsPage() {
   const g = pollGen;
   main.innerHTML = `<div class="gl"><header class="as-head"><h1>Goals</h1><a class="as-btn pri" href="#goals/new">${icon('plus')}Nuevo goal</a></header><div class="gl-list" id="gl-list" aria-live="polite"><p class="none">Cargando…</p></div></div>`;
-  const draw = l => $('#gl-list') && ($('#gl-list').innerHTML = l.map(glRow).join('') || '<p class="as-m note">Aún no hay goals. Crea uno: describes el objetivo y Flows trabaja solo hasta cumplirlo.</p>');
+  const draw = l => $('#gl-list') && ($('#gl-list').innerHTML = l.map(glRow).join('') || '<p class="as-m note">Aún no hay goals. Crea uno: describes el objetivo y Hadiya trabaja solo hasta cumplirlo.</p>');
   let l; try { l = await api('goals'); } catch (e) { return $('#gl-list') && ($('#gl-list').innerHTML = `<p class="as-m note">Goals no disponible: ${esc(e.message)}</p>`); }
   if (g != pollGen) return;
   draw(l); glPoll(g, () => api('goals'), draw);
@@ -3070,7 +3071,7 @@ function goalNew() {
       <label>Carpeta del proyecto<input name="folder" required list="projects" value="${esc(DEFAULT_PROJECTS[0])}" style="font-family:var(--mono);font-size:14px"></label>
       <label>Objetivo<textarea name="objective" required rows="6" placeholder="Qué quieres conseguir, con enlaces (Figma, backend…) y lo que ya existe"></textarea></label>
       <details class="gl-opt"><summary>Repetir con horario (opcional)</summary>${glSchedFields()}</details>
-      <p class="none" id="gl-busy" role="status" hidden>Flows está preparando las preguntas… puede tardar ~30 s.</p>
+      <p class="none" id="gl-busy" role="status" hidden>Hadiya está preparando las preguntas… puede tardar ~30 s.</p>
       <div class="as-acts"><button class="as-btn pri" id="gl-go">${icon('send')}Crear</button></div></form></div>`;
   $('#gl-new').onsubmit = async e => { e.preventDefault(); const f = new FormData(e.target), sched = glSchedRead(e.target), btn = $('#gl-go');
     btn.disabled = true; $('#gl-busy').hidden = false; e.target.setAttribute('aria-busy', 'true');
@@ -3095,7 +3096,7 @@ function glShow(goal) {
       <div class="as-acts"><button type="button" class="as-btn" data-act="glAccAdd">${icon('plus')}Añadir criterio</button><button class="as-btn pri">${icon('check')}Guardar respuestas</button></div></form>` : '';
   const ready = s == 'ready' ? `<section class="gl-sec"><h2>Criterios de aceptación</h2><ul>${(goal.acceptance || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
       <div class="as-acts"><button class="as-btn pri" data-act="glStart">${icon('play')}Empezar</button></div></section>` : '';
-  const blocked = s == 'blocked' ? `<form class="gl-f gl-blk" id="gl-say"><h2>Necesita tu ayuda</h2><label>Mensaje para Flows<textarea id="gl-msg" required rows="3"></textarea></label>
+  const blocked = s == 'blocked' ? `<form class="gl-f gl-blk" id="gl-say"><h2>Necesita tu ayuda</h2><label>Mensaje para Hadiya<textarea id="gl-msg" required rows="3"></textarea></label>
       <div class="as-acts"><button class="as-btn pri">${icon('send')}Enviar</button></div></form>` : '';
   main.innerHTML = `<div class="gl" id="gl-body" data-id="${esc(goal.id)}"><header class="as-head"><h1>${esc(goal.name)}</h1>${glPill(goal)}<a class="as-btn" href="#goals">Goals</a></header>
     <p class="gl-sub">${icon('folder')}${esc(goal.folder)}${goal.slug ? ` · ${icon('git')}goal/${esc(goal.slug)}` : ''}</p>
@@ -3201,7 +3202,7 @@ ACT.kbShare = async id => {
     const link = s.url.replace(/\/$/, '') + '/k/' + kbB(id).token;
     show(`<label>Enlace<input id="kb-link" readonly value="${esc(link)}" style="font-family:var(--mono)"></label>
       <div class="as-acts"><button type="button" class="as-btn pri" data-act="kbCopy">${icon('copy')}Copiar enlace</button></div>
-      <p class="pl-sub">Quien tenga el enlace puede ver y editar este tablero, y nada más de Flows. El enlace cambia cuando Flows se reinicia, salvo que haya una URL fija configurada.</p>`);
+      <p class="pl-sub">Quien tenga el enlace puede ver y editar este tablero, y nada más de Hadiya. El enlace cambia cuando Hadiya se reinicia, salvo que haya una URL fija configurada.</p>`);
   } catch (e) { show(`<p class="as-m note">No se pudo compartir: ${esc(e.message)}</p>`); }
 };
 ACT.kbCopy = async () => { const i = $('#kb-link'); try { await navigator.clipboard.writeText(i.value); toast('Enlace copiado'); } catch { i.select(); toast('Selecciónalo y cópialo', true); } };
@@ -3353,10 +3354,10 @@ async function phonePage() {
     <header class="head"><div><h1>Phone access</h1><div class="sub">Watch and steer sessions from your phone: answer decisions, go faster, stop. Only phones you pair can get in.</div></div></header>
     <div class="pa-wrap">
       <section class="window" style="margin:0 0 18px"><h3>${icon('shield')}Tailscale <span class="mb">Recommended</span></h3>
-        <p class="hint" style="margin-top:0">A private network between your own devices. Your phone reaches Flows from anywhere at an address that never changes, so it stays paired after restarts. Nobody outside your Tailscale account can even see it.</p>
+        <p class="hint" style="margin-top:0">A private network between your own devices. Your phone reaches Hadiya from anywhere at an address that never changes, so it stays paired after restarts. Nobody outside your Tailscale account can even see it.</p>
         ${!tn.installed ? `<ol class="steps">
             <li>Install Tailscale on this computer (in a terminal): <code>curl -fsSL https://tailscale.com/install.sh | sh</code></li>
-            <li>Log in and let Flows manage it: <code>sudo tailscale up --operator=$USER</code>. A browser link opens so you can sign in or create a free account.</li>
+            <li>Log in and let Hadiya manage it: <code>sudo tailscale up --operator=$USER</code>. A browser link opens so you can sign in or create a free account.</li>
             <li>Install the <b>Tailscale</b> app on your phone and sign in with the same account.</li>
             <li>Come back here and press <b>Turn on</b>.</li></ol>`
           : !tn.running ? `<p style="margin:0 0 8px">Tailscale is installed but not connected. Run this in a terminal and sign in:</p><span class="url">sudo tailscale up --operator=$USER</span>`
@@ -3418,12 +3419,12 @@ ACT.phoneRevoke = async id => { if (!confirm('Remove this phone? It will need a 
 function guide() {
   const sec = (ic, title, body) => `<section class="window"><h3 role="heading" aria-level="2">${icon(ic)}${title}</h3>${body}</section>`;
   main.innerHTML = `
-    <header class="head"><div><h1>How to use Flows</h1><div class="sub">Flows runs Claude Code on your own machine and subscription. It has two ways to work: sessions and workflows.</div></div></header>
+    <header class="head"><div><h1>How to use Hadiya</h1><div class="sub">Hadiya runs Claude Code on your own machine and subscription. It has two ways to work: sessions and workflows.</div></div></header>
     ${sec('check', 'Before you start', `<ol class="steps">
-      <li>Flows runs by itself: it starts when the computer boots and restarts if it crashes. Open <code>http://localhost:8787</code>. To restart it: <code>systemctl --user restart flows</code> · logs: <code>journalctl --user -u flows -f</code>.</li>
+      <li>Hadiya runs by itself: it starts when the computer boots and restarts if it crashes. Open <code>http://localhost:8787</code>. To restart it: <code>systemctl --user restart hadiya</code> · logs: <code>journalctl --user -u hadiya -f</code>.</li>
       <li>Claude must be logged in: run <code>claude</code> in a terminal once and use <code>/login</code> if asked.</li>
       ${PKG == 'admin' ? '<li>Connect Google Drive, Gmail and Calendar at claude.ai → Settings → Connectors, then sign in to Claude on this machine.</li>' : `<li>For Figma steps, connect Figma once: in <code>claude</code>, type <code>/mcp</code>, pick <b>figma</b>, choose Authenticate.</li>
-      <li>For browser checks, your local site must be running (Matteria: <code>http://localhost:8080</code>). Flows drives a headless Chrome through Playwright.</li>`}</ol>`)}
+      <li>For browser checks, your local site must be running (Matteria: <code>http://localhost:8080</code>). Hadiya drives a headless Chrome through Playwright.</li>`}</ol>`)}
     ${sec('team', 'Sessions: a live team you can talk to', `<ol class="steps">
       <li>On <a href="#">Home</a>, describe the job, e.g. <i>“Build the hero and services grid from &lt;Figma link&gt; as template parts”</i>.</li>
       <li>Pick the project folder, the local site, how many agents may run in parallel, the <b>lead agent's model</b>, and how <b>subagent models</b> are chosen. <b>Auto</b> lets the lead pick the cheapest model that does each task well: Haiku for mechanical work, Sonnet for normal building, Opus for hard problems. You can switch both from the session header at any time.</li>
@@ -3447,7 +3448,7 @@ function guide() {
       <li>Use the <b>+</b> between steps (or <b>Add a step</b>) to insert a ready-made step: Figma spec, build, team build, browser check, accessibility, performance, bug fix, ACF, WooCommerce, content migration…</li>
       <li>Set the project folder and local site under the title. In instructions, <code>{{input}}</code> is what you type at run time, <code>{{prev}}</code> the previous step's answer, <code>{{site}}</code> the local site.</li>
       <li>Type the run input in the bar at the bottom, e.g. a Figma link plus what to build, and press <b>Run</b>. A step that answers <code>FAIL: …</code> stops the run and the reason shows at the top.</li></ol>`)}
-    ${sec('phone', 'Using Flows from your phone', `<ol class="steps">
+    ${sec('phone', 'Using Hadiya from your phone', `<ol class="steps">
       <li>On this computer open <a href="#phone">Phone access</a>. <b>Tailscale</b> is best: a fixed private address that works anywhere and survives restarts. <b>On your Wi-Fi</b> works at home, and <b>Anywhere</b> is a temporary Cloudflare address.</li>
       <li>Press <b>Create pairing code</b> and scan the QR code with your phone, or open the address shown and type the 6-digit code.</li>
       <li>Install it: on Android open the browser menu and choose <b>Install app</b> (or Add to Home screen). On iPhone tap <b>Share</b>, then <b>Add to Home Screen</b>. Decisions pop up there too.</li>
@@ -3489,7 +3490,7 @@ function md(s) {
   endTop(); return out;
 }
 
-/* ============ admin package: "Flows on paper" ============
+/* ============ admin package: "Hadiya on paper" ============
    Same data, polling and API as the dev bench; only these renderers differ. Spanish, ask-and-talk only, one column. */
 const KEYS = {
   mail: {n: 'Correo', i: 'mail', ex: ['Resume los correos que he recibido hoy', 'Busca el último presupuesto que me enviaron', 'Prepara un borrador de respuesta al último correo de …']},
@@ -3502,7 +3503,7 @@ const ASTATE = {working: 'Trabajando', asking: 'Te necesita', idle: 'Listo', don
 // a lead that ended after finishing its turn is done, not paused; only work cut off mid-turn is "Pausado"
 const admSt = r => r.waiting ? 'waiting' : ['stopped', 'interrupted', 'cancelled'].includes(r.status) && r.turn_done ? 'done' : r.status;
 const GREASE = '<svg class="a-grease" viewBox="0 0 100 60" aria-hidden="true"><path d="M10 33 L37 52 L92 7"/></svg>';
-function astate(s) {  // Flows marks, always with the word
+function astate(s) {  // Hadiya marks, always with the word
   const w = ASTATE[s] || ASTATE.stopped;
   if (s == 'asking') return `<span class="a-s asking"><span class="a-flag">${w}</span></span>`;
   const m = s == 'idle' || s == 'done' ? GREASE : s == 'failed' ? '<span class="a-hatch" aria-hidden="true"></span>' : icon(s == 'working' ? 'dot' : s == 'waiting' ? 'clock' : 'dash');
@@ -3510,8 +3511,8 @@ function astate(s) {  // Flows marks, always with the word
 }
 const hace = t => { const s = now() - t; return s < 60 ? 'ahora' : s < 3600 ? `hace ${s / 60 | 0} min` : s < 86400 ? `hace ${s / 3600 | 0} h` : s < 172800 ? 'ayer' : `hace ${s / 86400 | 0} días`; };
 let admKey = null;
-const cats = () => { try { return JSON.parse(localStorage.getItem('flows.cat') || '{}'); } catch { return {}; } };
-const setCat = (id, k) => { const m = cats(); if (m[id] == k) return; m[id] = k; try { localStorage.setItem('flows.cat', JSON.stringify(m)); } catch {} };
+const cats = () => { try { return JSON.parse(localStorage.getItem('hadiya.cat') || '{}'); } catch { return {}; } };
+const setCat = (id, k) => { const m = cats(); if (m[id] == k) return; m[id] = k; try { localStorage.setItem('hadiya.cat', JSON.stringify(m)); } catch {} };
 function catKey(id) {  // the one source: the idea tapped, else the first Google tool used (needs the events, so learnt when opened), remembered
   const k = cats()[id];
   if (k || sess?.id != id || !sess.events) return k || '';
@@ -3523,21 +3524,21 @@ const toolCat = n => /Gmail/.test(n) ? 'mail' : /Google_Drive/.test(n) ? 'docs' 
 
 function admRefresh(me) {
   const b = document.body;
-  if (!b.classList.contains('adm')) { b.classList.add('adm'); document.documentElement.lang = 'es'; $('#rack').setAttribute('aria-label', 'Flows'); }
+  if (!b.classList.contains('adm')) { b.classList.add('adm'); document.documentElement.lang = 'es'; $('#rack').setAttribute('aria-label', 'Hadiya'); }
   const [kind] = location.hash.slice(1).split('/');
   const need = sessions.filter(r => r.status == 'asking');
   admMe = me;
   // three destinations, always in sight: top bar on desktop, bottom tab bar on phones
   const tab = (href, ic, label, on, extra = '') => `<a class="a-tab" href="${href}" ${on ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span>${extra}</a>`;
   setHTML('#rack', `
-    <div class="rack-top"><a class="brand a-brand" href="#" aria-label="Flows, inicio">${icon('reel')}<b>Flows</b></a>
+    <div class="rack-top"><a class="brand a-brand" href="#" aria-label="Hadiya, inicio">${icon('reel')}<b>Hadiya</b></a>
     <nav class="a-tabs" aria-label="Secciones">
       ${tab('#', 'pencil', 'Pedir', !kind)}
       ${tab('#mis', 'list', 'Mis peticiones', kind == 'mis' || kind == 'session', need.length ? `<i class="a-badge" aria-label="${need.length} te necesita${need.length > 1 ? 'n' : ''}">${need.length}</i>` : '')}
       ${tab('#guide', 'help', 'Ayuda', kind == 'guide')}
     </nav></div>`);
   setHTML('#alert', me.claude_logged_in === false ? `<p class="a-alert login" role="status">${icon('help')}<span>Tu cuenta todavía no está conectada a Claude. Pide a quien te dio acceso que la conecte.</span></p>` : '');
-  document.title = need.length ? `(${need.length}) Te necesita · Flows` : 'Flows';
+  document.title = need.length ? `(${need.length}) Te necesita · Hadiya` : 'Hadiya';
   if (!kind && $('#a-list')) setHTML('#a-list', admList(3));
   if (kind == 'mis' && $('#a-groups')) setHTML('#a-groups', admGroups());
 }
@@ -3560,7 +3561,7 @@ function admHome() {
       <h1 id="a-h" class="a-h1">¿Qué necesitas?</h1>
       <div class="a-card a-box">
         <label class="sr" for="a-msg">Tu petición</label>
-        <textarea id="a-msg" rows="4" placeholder="Escríbelo con tus palabras, como se lo dirías a un compañero">${esc(localStorage.getItem('flows.adm.draft') || '')}</textarea>
+        <textarea id="a-msg" rows="4" placeholder="Escríbelo con tus palabras, como se lo dirías a un compañero">${esc(localStorage.getItem('hadiya.adm.draft') || '')}</textarea>
         <div class="atts" id="atts" aria-label="Archivos adjuntos"></div>
         <div class="a-tools"><button type="button" class="a-small" data-act="attach">${icon('clip')}<span class="lbl">Adjuntar</span></button>${micBtn('#a-msg', 'a-small')}</div>
       </div>
@@ -3573,7 +3574,7 @@ function admHome() {
       <div id="a-list" aria-live="polite">${admList(3)}</div></section>` : ''}
   </div>`;
   const ta = $('#a-msg');
-  ta.addEventListener('input', () => { try { localStorage.setItem('flows.adm.draft', ta.value); } catch {} });
+  ta.addEventListener('input', () => { try { localStorage.setItem('hadiya.adm.draft', ta.value); } catch {} });
   ta.addEventListener('keydown', e => { if (e.key == 'Enter' && (e.ctrlKey || e.metaKey)) ACT.admPedir(null, $('.a-pedir')); });
 }
 const FIRST = {asking: 0, working: 1, waiting: 1};  // "Te necesita" on top, then what is in progress, then the rest by date
@@ -3611,7 +3612,7 @@ ACT.admPedir = async (_, btn) => {
   try {
     const {id} = await api('sessions', {method: 'POST', body: JSON.stringify({cwd: '~', model: '', agents: 2, caps, allowed_tools: capTools({caps}), permission_mode: 'default', message: text, files: await packFiles()})});
     if (k) setCat(id, k);
-    try { localStorage.removeItem('flows.adm.draft'); } catch {}
+    try { localStorage.removeItem('hadiya.adm.draft'); } catch {}
     location.hash = 'session/' + id;
   } catch {
     btn?.removeAttribute('aria-busy');
@@ -3766,7 +3767,7 @@ function admGuide() {
     ['stopped', 'Se paró antes de terminar. Escribe para seguir.'], ['failed', 'Algo falló. Escribe para intentarlo otra vez.']];
   main.innerHTML = `<div class="a-col a-help">
     <h1>Ayuda</h1>
-    <p class="a-lede">Pides lo que necesitas, Flows se pone a ello y te avisa cuando está listo o cuando necesita que decidas algo.</p>
+    <p class="a-lede">Pides lo que necesitas, Hadiya se pone a ello y te avisa cuando está listo o cuando necesita que decidas algo.</p>
     <ol class="a-card a-steps">
       <li><b>Pide lo que necesitas</b><p>Escríbelo con tus palabras, o toca Correo, Documentos, Agenda u Otra cosa para ver ideas. Después pulsa <b>Pedir</b>.</p></li>
       <li><b>Te avisamos</b><p>Tu petición aparece en <b>Mis peticiones</b>. Mientras pone <b>Trabajando</b>, está en ello. Cuando pone <b>Listo</b>, ya puedes leer la respuesta.</p></li>

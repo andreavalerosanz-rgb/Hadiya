@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-02T00:07:54.743372Z",
-  "title": "Design System: Flows on paper (admin package, body.adm). Dev package is documented in DESIGN.md Part 1 only.",
+  "title": "Design System: Hadiya on paper (admin package, body.adm). Dev package is documented in DESIGN.md Part 1 only.",
   "extensions": {
     "colorMeta": {
       "flag-orange": {
@@ -212,8 +212,8 @@
     }
   ],
   "narrative": {
-    "northStar": "Flows on Paper",
-    "overview": "The same brand made calm and light. A warm paper ground, white cards with hairlines, ink text, and one orange that only ever says press this or this needs you. One column, one obvious action, plain Spanish. The film world survives as brand parts: reel logo, Barlow with condensed caps for small labels, the Flows state marks, and one perforated orange strip.",
+    "northStar": "Hadiya on Paper",
+    "overview": "The same brand made calm and light. A warm paper ground, white cards with hairlines, ink text, and one orange that only ever says press this or this needs you. One column, one obvious action, plain Spanish. The film world survives as brand parts: reel logo, Barlow with condensed caps for small labels, the Hadiya state marks, and one perforated orange strip.",
     "keyCharacteristics": [
       "One column, mobile-first; centered about 680px on desktop.",
       "Orange only on the primary action, the Te necesita flag, focus, selection and the one perforated strip.",
@@ -249,7 +249,7 @@
       }
     ],
     "dos": [
-      "Do pair every state with its mark and word, using the five Flows marks.",
+      "Do pair every state with its mark and word, using the five Hadiya marks.",
       "Do keep text on orange in Bench Ink and put orange only on the primary action, the Te necesita flag, focus, selection and the one strip.",
       "Do build new surfaces from white cards with a 1px Paper Line border on Paper Ground, 12px radius, in the single 680px column.",
       "Do keep targets at least 44px and the 3px Flag Orange Deep focus ring.",

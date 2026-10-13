@@ -9,7 +9,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-pa-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-pa-"))
 (TMP / "bin").mkdir(); (TMP / "home").mkdir(); (TMP / "app").mkdir()
 (TMP / "bin/claude").write_text("#!/bin/sh\nexit 0\n"); (TMP / "bin/claude").chmod(0o755)
 for f in ("server.py", "index.html"):
@@ -17,7 +17,7 @@ for f in ("server.py", "index.html"):
 with socket.socket() as s:
     s.bind(("127.0.0.1", 0)); P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "FLOWS_DATA": str(TMP / "app/data")})
+                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "HADIYA_DATA": str(TMP / "app/data")})
 NOW = time.time()
 T = lambda n, g, due=None: {"name": n, "url": "https://trello.com/c/x", "group": g, "board": "Clientes", "list": "Haciendo", "due": due, "new": False}
 PLAN = {"day": time.strftime("%Y-%m-%d"), "planned_at": NOW - 3600, "checked": NOW, "tasks": [
@@ -80,7 +80,7 @@ try:
             pg.evaluate("clearTimeout(timer); planPage()"); pg.wait_for_timeout(500)
             check(opened(pg, "#pl-week") and opened(pg, "#pl-done") and not opened(pg, "#pl-today"), f"{size} plan: state kept after redraw")
             # ---- Asistente
-            pg.evaluate(f"localStorage.setItem('flows.as.mine', {json.dumps(json.dumps(MINE))}); localStorage.removeItem('flows.as.ans')")
+            pg.evaluate(f"localStorage.setItem('hadiya.as.mine', {json.dumps(json.dumps(MINE))}); localStorage.removeItem('hadiya.as.ans')")
             pg.goto(f"http://127.0.0.1:{P}/#assistant"); pg.wait_for_selector(".as-steps", timeout=15000)
             check(pg.locator(".as-m.me").count() == 1 and pg.locator(".as-m.bot").count() == 1, f"{size} as: bubbles")
             bx = [pg.locator(s).bounding_box() for s in (".as-m.me", ".as-m.bot", "#as-list")]

@@ -12,9 +12,15 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 from urllib.request import Request, urlopen
 
+
+def env(k, d=None):
+    """HADIYA_<k>, else the pre-rebrand FLOWS_<k> (installs and child processes set before the rename)."""
+    return os.environ.get("HADIYA_" + k) or os.environ.get("FLOWS_" + k) or d
+
+
 ID = {"type": "string", "description": "The session id"}
 BRAIN_TOOLS = [
-    {"name": "start_session", "description": "Start a Flows session (a lead agent with its own subagents) for one workstream. "
+    {"name": "start_session", "description": "Start a Hadiya session (a lead agent with its own subagents) for one workstream. "
      "It gets your permissions and folder; the message is its whole brief, so make it self-contained.",
      "inputSchema": {"type": "object", "required": ["message"], "properties": {
          "message": {"type": "string", "description": "The brief: goal, exact paths, constraints, contracts with other workstreams, how to verify, what to report"},
@@ -77,17 +83,17 @@ ASSIST_TOOLS = {"set_job", "remove_job", "list_jobs", "send_file", "goal_create"
 
 def brain_mcp():
     """`server.py brain-mcp`: the Second Brain's tools as an MCP server on stdio (newline JSON-RPC). Each call goes to
-    /api/brain/<tool> on Flows with the brain's token. It runs as the owner's Linux user: no Flows data access here."""
+    /api/brain/<tool> on Hadiya with the brain's token. It runs as the owner's Linux user: no Hadiya data access here."""
     def call(name, args):
-        req = Request(f"http://127.0.0.1:{os.environ['FLOWS_PORT']}/api/brain/{name}", data=json.dumps(args).encode(), method="POST",
-                      headers={"Content-Type": "application/json", "X-Flow": "1", "X-Brain": os.environ["FLOWS_BRAIN_TOKEN"]})
+        req = Request(f"http://127.0.0.1:{env('PORT')}/api/brain/{name}", data=json.dumps(args).encode(), method="POST",
+                      headers={"Content-Type": "application/json", "X-Flow": "1", "X-Brain": env("BRAIN_TOKEN")})
         try:
             with urlopen(req, timeout=120) as f:
                 return json.loads(f.read())["text"], False
         except HTTPError as e:
             return json.loads(e.read() or b"{}").get("error") or str(e), True
         except Exception as e:
-            return f"Flows is unreachable: {e}", True
+            return f"Hadiya is unreachable: {e}", True
     for line in sys.stdin:
         try:
             msg = json.loads(line)
@@ -98,10 +104,10 @@ def brain_mcp():
             continue
         if m == "initialize":
             res = {"protocolVersion": prm.get("protocolVersion") or "2024-11-05", "capabilities": {"tools": {}},
-                   "serverInfo": {"name": "flows", "version": "1"}}
+                   "serverInfo": {"name": "hadiya", "version": "1"}}
         elif m == "tools/list":
-            res = {"tools": [t for t in BRAIN_TOOLS if (os.environ.get("FLOWS_ASSISTANT") or t["name"] not in ASSIST_TOOLS)
-                             and (os.environ.get("FLOWS_GOAL") or t["name"] != "goal_report")]}
+            res = {"tools": [t for t in BRAIN_TOOLS if (env("ASSISTANT") or t["name"] not in ASSIST_TOOLS)
+                             and (env("GOAL") or t["name"] != "goal_report")]}
         elif m == "tools/call":
             text, err = call(prm.get("name"), prm.get("arguments") or {})
             res = {"content": [{"type": "text", "text": text}], "isError": err}
@@ -117,7 +123,7 @@ if __name__ == "__main__" and sys.argv[1:2] == ["brain-mcp"]:  # before anything
     raise SystemExit(brain_mcp())
 
 ROOT = Path(__file__).parent
-DATA = Path(os.environ.get("FLOWS_DATA") or ROOT / "data")  # the .deb sets ~/.local/share/flows
+DATA = Path(env("DATA") or ROOT / "data")  # the .deb sets ~/.local/share/flows
 # Multi-user mode (see DEPLOY.md) is on when data/users.json exists: logins, per-user data, and every
 # `claude` runs as that person's Linux user via sudo. Without the file: single user, no login, as always.
 USERS_FILE = DATA / "users.json"
@@ -145,7 +151,7 @@ RUNS.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD = 20 << 20
 MAX_IMAGE = 3_750_000  # the API refuses images over 5 MB of base64; bigger ones go by path
 PORT = int(os.environ.get("PORT", 8787))
-HOSTS = ("localhost", "127.0.0.1", *filter(None, os.environ.get("FLOWS_HOSTS", "").split(",")))  # public names behind a proxy
+HOSTS = ("localhost", "127.0.0.1", *filter(None, env("HOSTS", "").split(",")))  # public names behind a proxy
 
 
 def load_users():
@@ -194,7 +200,7 @@ def workdir(owner, path):
 
 # Packages: what someone's agents can reach. "dev" = everything. "admin" = Google Workspace only:
 # no file, shell or browser tools, and no other MCP server. Per person (users.json "package"),
-# else per install (FLOWS_PACKAGE, set by the .deb).
+# else per install (HADIYA_PACKAGE, set by the .deb).
 GOOGLE = ("mcp__claude_ai_Google_Drive", "mcp__claude_ai_Gmail", "mcp__claude_ai_Google_Calendar")
 PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", "mcp": GOOGLE, "note": (
     "You help someone with no technical background with their Google Workspace: Gmail, Google Drive and Google Calendar. "
@@ -205,7 +211,7 @@ PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", 
 
 
 def package(owner):
-    p = (load_users()[owner].get("package") if owner else None) or os.environ.get("FLOWS_PACKAGE") or "dev"
+    p = (load_users()[owner].get("package") if owner else None) or env("PACKAGE") or "dev"
     return p if p in PACKAGES else "admin"  # a typo must not grant everything
 
 
@@ -248,7 +254,7 @@ def launch(owner, cmd, cwd, extra=None):
         raise ValueError("This run has no owner")
     if owner:
         # the extra vars go by name (SETENV in sudoers), not VAR=value: sudo's command line is visible in ps
-        # to every user, and FLOWS_BRAIN_TOKEN is a secret
+        # to every user, and HADIYA_BRAIN_TOKEN is a secret
         cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd,
                *(["--preserve-env=" + ",".join(extra)] if extra else []), "--", *cmd]
         cwd = None  # the server user can't enter their home; sudo -D does it as them
@@ -343,17 +349,17 @@ ORCH = """You are the lead orchestrator of a team of subagents.
 - The user may message you at any time to change the parallelism limit or redirect you. Always follow the latest instruction; if asked to go faster, split remaining work further and launch more subagents right away.
 {models}"""
 
-BRAIN = """You are the Second Brain of this project: you run it end to end by coordinating Flows sessions, each a lead agent with its own subagents. Your tools for that are the `flows` MCP tools: load them with ToolSearch ("flows") before the first use.
+BRAIN = """You are the Second Brain of this project: you run it end to end by coordinating Hadiya sessions, each a lead agent with its own subagents. Your tools for that are the `hadiya` MCP tools: load them with ToolSearch ("hadiya") before the first use.
 - Plan first. Split the project into workstreams that don't edit the same files, and start one session per workstream with start_session and a self-contained brief: goal, exact paths, constraints, contracts with other workstreams, how to verify, what to report.
 - Run at most {n} sessions at once.
-- You'll receive [Flows] messages when a session asks something or finishes a turn. Answer questions by your own judgment with answer_question, review results (read_session), relay what other sessions need with send_message, and give next instructions.
+- You'll receive [Hadiya] messages when a session asks something or finishes a turn. Answer questions by your own judgment with answer_question, review results (read_session), relay what other sessions need with send_message, and give next instructions.
 - Ask the user (AskUserQuestion) only for decisions that are really theirs: taste, scope, money, credentials, anything irreversible or outward-facing.
 - Don't do the implementation or the checking yourself: you have no terminal or editor. Every file or image you read stays in your context and is re-read on each of your turns, so never Read images or files over ~200 lines; ask a session for a short report instead.
 - At the end verify the whole thing works and report to the user briefly. Answer in the user's language. Keep it tight."""
-ASSISTANT = """You are Flows Asistente, the user's personal assistant. They reach you by chat (web or WhatsApp): reply in at most 3 short plain lines (more only if they ask for detail), in the language they write in (they mix Spanish, English and Catalan).
+ASSISTANT = """You are Hadiya Asistente, the user's personal assistant. They reach you by chat (web or WhatsApp): reply in at most 3 short plain lines (more only if they ask for detail), in the language they write in (they mix Spanish, English and Catalan).
 - Their Gmail, Google Calendar, Google Drive and Trello are connected; load those tools with ToolSearch ("gmail", "calendar", "drive", "trello") before saying you can't reach them. Reading is free. Sending or forwarding mail, creating or deleting events, Trello writes, publishing, deploying and anything destructive go through an approval the user gives on their phone: just call the tool (don't ask in text first) and say in a line what you did.
-- Code or project work: start a Flows session with the `flows` MCP tools (ToolSearch "flows") in the right project folder (see ~/.claude/flows-projects/*.md) with a self-contained brief. [Flows] messages tell you when a session finishes or asks: pass the outcome on in a line or two.
-- Reminders and routines: the `flows` tools set_job, remove_job, list_jobs ("apúntame a las 15 X" = set_job with today's date, at 15:00). [Job <id>] messages are jobs firing: do the job and reply with what the user should know, or exactly NOTHING if nothing needs them.
+- Code or project work: start a Hadiya session with the `hadiya` MCP tools (ToolSearch "hadiya") in the right project folder (see ~/.claude/flows-projects/*.md) with a self-contained brief. [Hadiya] messages tell you when a session finishes or asks: pass the outcome on in a line or two.
+- Reminders and routines: the `hadiya` tools set_job, remove_job, list_jobs ("apúntame a las 15 X" = set_job with today's date, at 15:00). [Job <id>] messages are jobs firing: do the job and reply with what the user should know, or exactly NOTHING if nothing needs them.
 - You have no terminal or editor: file and code work goes to sessions. Don't read big files.
 - Files for the user: `send_file` for small text/CSV/Markdown; for PDFs, images or Office files have a session write the file into your uploads folder (path in the session's system note). Files the user sends arrive as "Attached files: <path>" (and "[voz]" marks a transcribed voice note, so expect transcription slips).
 - Goals ("develop project X until it's done", "nightly QA of X"): goal_create with the folder and everything the user gave, relay its intake questions, then goal_answer and goal_start. A Goal works alone and its done/failed/blocked notices reach the user by themselves; goal_message passes their answer to a blocked one; goal_list.
@@ -799,7 +805,7 @@ def spawn(r):
     # stdio prompt tool: questions (AskUserQuestion) and permission checks come back to us as control_requests
     cmd = ["claude", "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
            "--permission-prompt-tool", "stdio", "--permission-mode", c.get("permission_mode") or "default",
-           "--allowedTools", ",".join(filter(None, ["Agent,Task", c.get("allowed_tools"), r.get("brain") and "mcp__flows"])),
+           "--allowedTools", ",".join(filter(None, ["Agent,Task", c.get("allowed_tools"), r.get("brain") and "mcp__hadiya"])),
            "--add-dir", str(udir(r.get("owner"), "uploads", make=True))]  # so attached files are readable from any project folder
     if c.get("model"):
         cmd += ["--model", c["model"]]
@@ -810,16 +816,16 @@ def spawn(r):
         for k in [k for k, v in brains.items() if v == r["id"]]:
             del brains[k]
         brains[tok] = r["id"]
-        extra.update(FLOWS_BRAIN_TOKEN=tok, FLOWS_PORT=str(PORT))
-        cmd += ["--mcp-config", json.dumps({"mcpServers": {"flows": {  # a second --mcp-config (Playwright) adds up
+        extra.update(HADIYA_BRAIN_TOKEN=tok, HADIYA_PORT=str(PORT))
+        cmd += ["--mcp-config", json.dumps({"mcpServers": {"hadiya": {  # a second --mcp-config (Playwright) adds up
             "command": sys.executable or "python3", "args": [str((ROOT / "server.py").resolve()), "brain-mcp"]}}})]
         lead = BRAIN.format(n=c.get("agents") or 3)
         if r.get("assistant"):  # it asks the user in its replies; AskUserQuestion would block WhatsApp
             lead = ASSISTANT + profile(r.get("owner"))
-            extra["FLOWS_ASSISTANT"] = "1"
+            extra["HADIYA_ASSISTANT"] = "1"
         if r.get("goal"):  # autonomous: nobody answers AskUserQuestion; goal_report "blocked" is its way to the user
             lead += "\n\n" + GOAL_RULES
-            extra["FLOWS_GOAL"] = "1"
+            extra["HADIYA_GOAL"] = "1"
         cmd += ["--disallowedTools", "Bash,Edit,Write,NotebookEdit" + (",AskUserQuestion" if r.get("assistant") or r.get("goal") else "")]  # it coordinates; sessions do the work
     else:
         lead = ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))) + ("\n\n" + CHILD if r.get("parent") else "")
@@ -860,11 +866,11 @@ def pump(r, p):
             req = ev.get("request") or {}
             if req.get("subtype") != "can_use_tool":
                 write(p, {"type": "control_response", "response": {
-                    "subtype": "error", "request_id": ev.get("request_id"), "error": "unsupported by Flows"}})
+                    "subtype": "error", "request_id": ev.get("request_id"), "error": "unsupported by Hadiya"}})
                 continue
             if not allowed(r.get("owner"), req.get("tool_name")):
                 write(p, {"type": "control_response", "response": {"subtype": "success", "request_id": ev.get("request_id"), "response": {
-                    "behavior": "deny", "message": f"Not available in the {package(r.get('owner'))} package of Flows."}}})
+                    "behavior": "deny", "message": f"Not available in the {package(r.get('owner'))} package of Hadiya."}}})
                 continue
             with lock:
                 r.setdefault("pending", {})[ev["request_id"]] = {
@@ -953,7 +959,7 @@ def tell_brain(r, text):
     if b and b.get("goal") and G.get(b["goal"], {}).get("status") not in ("running", "verifying", "blocked"):
         return b  # a stopped or finished goal: don't respawn its brain
     if b:
-        threading.Thread(target=send, args=(b, f"[Flows] Session \"{r['name']}\" ({r['id']}) {text}"), kwargs={"src": r["id"]}, daemon=True).start()
+        threading.Thread(target=send, args=(b, f"[Hadiya] Session \"{r['name']}\" ({r['id']}) {text}"), kwargs={"src": r["id"]}, daemon=True).start()
     return b
 
 
@@ -970,7 +976,7 @@ def last_text(r, n):
 
 def send(r, text, agents=None, sub_models=None, files=(), src=None):
     """files: saved uploads from save_files. Images go as image blocks, and every file's path is listed.
-    src: the child session a [Flows] message to a Second Brain is about."""
+    src: the child session a [Hadiya] message to a Second Brain is about."""
     with lock:
         if agents:
             r["config"]["agents"] = agents
@@ -1222,12 +1228,12 @@ try:  # the only non-stdlib piece; without it phones just don't get push
 except ImportError:
     VAPID = None
 SW_JS = """self.addEventListener('push', e => { const d = e.data ? e.data.json() : {};
-  e.waitUntil(self.registration.showNotification(d.title || 'Flows', {body: d.body, tag: d.tag, renotify: true, data: {url: d.url || '/'}})); });
+  e.waitUntil(self.registration.showNotification(d.title || 'Hadiya', {body: d.body, tag: d.tag, renotify: true, data: {url: d.url || '/'}})); });
 // the app shell never caches: when the computer is unreachable, say so instead of a browser error page
 const OFFLINE = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0d0d">
 <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0d0d;color:#ecebe7;font:16px/1.5 system-ui;text-align:center;padding:24px;box-sizing:border-box">
-<main><h1 style="font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 8px">Can't reach Flows</h1>
-<p style="color:#a6a39c;margin:0 0 20px">Your computer is asleep, offline, or Flows isn't running. Check Tailscale is on for both devices.</p>
+<main><h1 style="font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 8px">Can't reach Hadiya</h1>
+<p style="color:#a6a39c;margin:0 0 20px">Your computer is asleep, offline, or Hadiya isn't running. Check Tailscale is on for both devices.</p>
 <button onclick="location.reload()" style="border:0;border-radius:3px;background:#ff5a1f;color:#0d0d0d;padding:14px 22px;font:700 16px system-ui;text-transform:uppercase;letter-spacing:.08em">Try again</button></main>`;
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(clients.claim()));
@@ -1236,7 +1242,7 @@ self.addEventListener('fetch', e => { if (e.request.mode == 'navigate')
 self.addEventListener('notificationclick', e => { e.notification.close();
   e.waitUntil(clients.matchAll({type: 'window'}).then(ws => { const w = ws[0];
     return w ? w.focus().then(() => w.navigate(e.notification.data.url)) : clients.openWindow(e.notification.data.url); })); });"""
-MANIFEST = {"id": "/", "name": "Flows", "short_name": "Flows", "description": "Claude Code workbench",
+MANIFEST = {"id": "/", "name": "Hadiya", "short_name": "Hadiya", "description": "Claude Code workbench",
             "start_url": "/", "scope": "/", "display": "standalone", "background_color": "#0d0d0d", "theme_color": "#0d0d0d",
             "icons": [{"src": f"/icons/icon-{n}.png", "sizes": f"{n}x{n}", "type": "image/png", "purpose": "any maskable"} for n in (192, 512)]}
 
@@ -1274,7 +1280,7 @@ def vapid_auth(endpoint):
     u = urlsplit(endpoint)
     head = b64u(json.dumps({"typ": "JWT", "alg": "ES256"}).encode())
     claims = b64u(json.dumps({"aud": f"{u.scheme}://{u.netloc}", "exp": int(time.time()) + 43200,
-                              "sub": "mailto:flows@localhost"}).encode())
+                              "sub": "mailto:hadiya@localhost"}).encode())
     r, s = decode_dss_signature(VAPID.sign(f"{head}.{claims}".encode(), ec.ECDSA(hashes.SHA256())))
     return f"vapid t={head}.{claims}.{b64u(r.to_bytes(32, 'big') + s.to_bytes(32, 'big'))}, k={b64u(raw_pub(VAPID))}"
 
@@ -1295,9 +1301,9 @@ def push_one(sub, payload):
 
 def notify(r, body):
     """A session is waiting on the user: tell this desktop and every subscribed phone."""
-    title = f"Flows needs you: {r['name']}"
+    title = f"Hadiya needs you: {r['name']}"
     try:
-        subprocess.Popen(["notify-send", "-a", "Flows", "-i", "dialog-question", title, body[:300]],
+        subprocess.Popen(["notify-send", "-a", "Hadiya", "-i", "dialog-question", title, body[:300]],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
         pass
@@ -1399,7 +1405,7 @@ def good_morning():
         enqueue({"kind": "session", "name": "Buenos días", "message": "¡Buenos días, Claude!"}, o)
 
 
-# ---------- Flows Asistente: one Second Brain per user, reachable from any channel (web, WhatsApp bridge) ----------
+# ---------- Hadiya Asistente: one Second Brain per user, reachable from any channel (web, WhatsApp bridge) ----------
 # data/assistant.json: {token, owner, users: {owner or "": {run, auto, jobs, outbox, n}}}. The bridge sends
 # `Authorization: Bearer <token>` and acts as `owner`.
 # shortcut: one bridge token, for the single user (or the "owner" set by hand in multi-user); per-user tokens when needed.
@@ -1410,14 +1416,17 @@ alock = threading.Lock()  # one assistant spawn at a time
 twlock = threading.Lock()  # one transcription at a time (RAM)
 HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d(,([01]\d|2[0-3]):[0-5]\d)*")
 BRIEF = ("Daily brief, exactly 5 short lines (this overrides the 3-line limit): 1) today's Google Calendar events with times, 2) the important "
-         "unread Gmail (sender and subject), 3) the Flows sessions waiting for the user or failed (list the Flows sessions), then 4-5) the "
+         "unread Gmail (sender and subject), 3) the Hadiya sessions waiting for the user or failed (list the Hadiya sessions), then 4-5) the "
          "one or two things that matter most today. Reading only, no approvals.")
-OLD_BRIEFS = ("Daily brief: today's Google Calendar, the important unread Gmail, and the unticked items in "
+OLD_BRIEFS = (("Daily brief, exactly 5 short lines (this overrides the 3-line limit): 1) today's Google Calendar events with times, 2) the important "
+         "unread Gmail (sender and subject), 3) the Flows sessions waiting for the user or failed (list the Flows sessions), then 4-5) the "
+         "one or two things that matter most today. Reading only, no approvals."),
+              "Daily brief: today's Google Calendar, the important unread Gmail, and the unticked items in "
               "~/.claude/projects/*/memory/pending-tasks.md. A few short lines.",)
 DEFAULT_JOBS = [
     {"id": "brief", "at": "08:30", "days": [0, 1, 2, 3, 4], "prompt": BRIEF},
     {"id": "heartbeat", "at": "09:00,11:00,13:00,15:00,17:00,19:00", "prompt": "Heartbeat: does anything need the user now? An urgent "
-     "unread email, an event in the next 2 hours, one of your Flows sessions waiting or failed. Say it in a line or two, else reply exactly NOTHING."},
+     "unread email, an event in the next 2 hours, one of your Hadiya sessions waiting or failed. Say it in a line or two, else reply exactly NOTHING."},
 ]
 
 
@@ -1469,11 +1478,11 @@ def wa_file(r, name):
 
 def transcribe(raw):
     """Voice note -> text in a throwaway process, so the model's RAM is freed as soon as it is done.
-    FLOWS_TRANSCRIBE overrides the command (it gets the audio file path as its last argument)."""
+    HADIYA_TRANSCRIBE (or FLOWS_TRANSCRIBE) overrides the command (it gets the audio file path as its last argument)."""
     if not (raw.startswith(VOICE_MAGIC) or raw[4:8] == b"ftyp") or len(raw) > VOICE_MAX:
         raise ValueError("Unsupported or too large voice note")
     venv = DATA / "whisper-venv/bin/python"
-    cmd = shlex.split(os.environ.get("FLOWS_TRANSCRIBE") or f"{venv if venv.exists() else sys.executable} {ROOT / 'scripts/transcribe.py'}")
+    cmd = shlex.split(env("TRANSCRIBE") or f"{venv if venv.exists() else sys.executable} {ROOT / 'scripts/transcribe.py'}")
     with tempfile.NamedTemporaryFile(suffix=".audio") as t, twlock:
         t.write(raw)
         t.flush()
@@ -1559,7 +1568,7 @@ def run_jobs(now=None):
             for j in list(s["jobs"]):
                 slot = job_slot(j, now)
                 if j.get("date", day) < day:
-                    s["jobs"].remove(j)  # a reminder whose day went by while Flows was off
+                    s["jobs"].remove(j)  # a reminder whose day went by while Hadiya was off
                 elif slot:
                     j["last"] = slot
                     if j.get("date"):
@@ -1574,11 +1583,14 @@ def run_jobs(now=None):
 if not A.get("token"):
     A["token"] = secrets.token_urlsafe(32)
     save_a()
-for _s in A.get("users", {}).values():  # the first default brief didn't cover Flows sessions
+OLD_HEARTBEATS = ("Heartbeat: does anything need the user now? An urgent "
+     "unread email, an event in the next 2 hours, one of your Flows sessions waiting or failed. Say it in a line or two, else reply exactly NOTHING.",)  # before the Hadiya rename
+for _s in A.get("users", {}).values():  # stored default prompts: the first brief didn't cover sessions; then the rename
     for _j in _s["jobs"]:
-        if _j["id"] == "brief" and _j["prompt"] in OLD_BRIEFS:
-            _j["prompt"] = BRIEF
-            save_a()
+        for _d in DEFAULT_JOBS:
+            if _j["id"] == _d["id"] and _j["prompt"] in (OLD_BRIEFS if _d["id"] == "brief" else OLD_HEARTBEATS):
+                _j["prompt"] = _d["prompt"]
+                save_a()
 if not MULTI:
     st(None)
 
@@ -1596,7 +1608,7 @@ for _g in G.values():
 GOAL_RULES = """This is an autonomous Goal: the user is away and won't answer questions. Work to the end on your own.
 - Git: all work goes on the goal branch named in the [Goal] message (create it from the current branch if it doesn't exist). Sessions may edit, install dependencies, run tests, commit on that branch and push it, only as `git push -u origin <goal branch>`. Never merge into main, deploy, publish, or message or email anyone: say so in every session's brief.
 - Plan, then run sessions. Quality is part of done: sessions add or update unit and integration tests, run the linters and the project's quality standards, and write and run Playwright front-end tests for any UI. Answer your sessions' questions yourself.
-- When you believe every acceptance criterion is met and all checks pass, call the flows tool goal_report with verdict "done" and end your turn. An independent verifier then checks the work; its failures come back as a [Goal] message: fix them and report again.
+- When you believe every acceptance criterion is met and all checks pass, call the hadiya tool goal_report with verdict "done" and end your turn. An independent verifier then checks the work; its failures come back as a [Goal] message: fix them and report again.
 - Only if you truly can't continue without the user (a missing credential or access), call goal_report with verdict "blocked" saying exactly what you need, and end your turn. Their reply comes as a [User] message."""
 INTAKE = """You prepare an autonomous coding Goal that will then run with no more questions to the user.
 Folder: {folder}
@@ -1929,7 +1941,7 @@ def plan_worker():
         time.sleep(60)
 
 
-IDLE_SECS = 60 * int(os.environ.get("FLOWS_IDLE_MIN", "20"))
+IDLE_SECS = 60 * int(env("IDLE_MIN", "20"))
 
 
 def reap_idle():
@@ -2049,7 +2061,7 @@ remote = json.loads(REMOTE_FILE.read_text()) if REMOTE_FILE.exists() else {}
 remote.setdefault("devices", {})  # sha256(token) -> {name, created, last}
 TUNNEL_PORT = PORT + 2
 TAILNET_PORT = PORT + 1  # phone-only listener that `tailscale serve` forwards to
-PUBLIC_PORT = PORT + 3  # with FLOWS_PUBLIC_URL: a phone listener that a named tunnel forwards to (DEPLOY.md)
+PUBLIC_PORT = PORT + 3  # with HADIYA_PUBLIC_URL: a phone listener that a named tunnel forwards to (DEPLOY.md)
 listeners = {}  # "lan" / "tunnel" -> {srv, url, proc?}
 pairing = {}    # the single active code: {code, exp, tries}
 CODE_TTL, CODE_TRIES, DEVICE_DAYS = 300, 5, 90
@@ -2092,7 +2104,7 @@ def set_lan(on):
 
 
 def die_with_parent():
-    """Linux: the kernel sends the tunnel SIGTERM if Flows exits for any reason (even kill -9),
+    """Linux: the kernel sends the tunnel SIGTERM if Hadiya exits for any reason (even kill -9),
     so a public address never outlives the server."""
     import ctypes, signal
     ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
@@ -2193,7 +2205,7 @@ def new_code():
 
 
 PAIR_HTML = b"""<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f4f2ee"><title>Emparejar con Flows</title>
+<meta name="theme-color" content="#f4f2ee"><title>Emparejar con Hadiya</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"><style>
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f2ee;color:#1a1a1a;font:17px/1.5 Barlow,system-ui,sans-serif;padding:16px;box-sizing:border-box}
 main{width:100%;max-width:400px;background:#fff;border:1px solid #dcd7cf;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(26,26,26,.08)}
@@ -2212,7 +2224,7 @@ p{margin:0 0 4px;font-size:17px;color:#57534d}#err{color:#b3360b;min-height:1.4e
 <script>try{if(localStorage.theme=='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script></head><body>
 <button type="button" id="tt" aria-label="Tema oscuro" onclick="var h=document.documentElement,d=h.dataset.theme!='dark';if(d)h.dataset.theme='dark';else delete h.dataset.theme;try{localStorage.theme=d?'dark':'light'}catch(e){}this.setAttribute('aria-pressed',d)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
 <script>document.getElementById('tt').setAttribute('aria-pressed',document.documentElement.dataset.theme=='dark')</script><main>
-<div class="band">Emparejar con Flows</div><form id="f"><p>En tu ordenador abre Flows, ve a <b>Phone access</b> y crea un c&#243;digo de emparejamiento.</p>
+<div class="band">Emparejar con Hadiya</div><form id="f"><p>En tu ordenador abre Hadiya, ve a <b>Phone access</b> y crea un c&#243;digo de emparejamiento.</p>
 <label for="code">C&#243;digo de emparejamiento</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
 <label for="name">Nombre de este dispositivo</label><input id="name" value="Mi m&#243;vil" maxlength="40">
 <button>Emparejar</button><div id="err" role="alert"></div></form></main><script>const f=document.getElementById('f'),c=document.getElementById('code'),m=/code=(\\d{6})/.exec(location.hash);
@@ -2238,8 +2250,8 @@ def locked(k):
     return len(fails[k]) >= (50 if k == "*" else 5)
 
 
-LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Emparejar con Flows", b"Entrar en Flows") + b"""<main>
-<div class="band">Entrar en Flows</div><form id="f"><label for="u">Usuario</label><input id="u" autocomplete="username" autocapitalize="none" required>
+LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Emparejar con Hadiya", b"Entrar en Hadiya") + b"""<main>
+<div class="band">Entrar en Hadiya</div><form id="f"><label for="u">Usuario</label><input id="u" autocomplete="username" autocapitalize="none" required>
 <label for="p">Contrase&#241;a</label><input id="p" type="password" autocomplete="current-password" required>
 <button>Entrar</button><div id="err" role="alert"></div></form></main><script>
 const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({user:f.u.value,password:f.p.value})});
@@ -2768,7 +2780,7 @@ class H(BaseHTTPRequestHandler):
                     return self.send(403, {"error": "Only an admin can turn the tunnel on or off"})
                 set_tunnel(bool(body.get("on")))
             t = listeners.get("tunnel")
-            return self.send(200, {"url": os.environ.get("FLOWS_PUBLIC_URL") or (t or {}).get("url"), "tunnel": bool(t)})
+            return self.send(200, {"url": env("PUBLIC_URL") or (t or {}).get("url"), "tunnel": bool(t)})
         with klock:
             if p[2:] == ["boards"] and m == "GET":
                 mine = sorted((b for b in K["boards"].values() if b["owner"] == (u or "")), key=lambda b: b["created"])
@@ -2912,7 +2924,7 @@ def admin_cli(cmd, name, *rest):
         us[name]["pw"] = hash_pw(pw)  # a new salt also ends their open sessions
     write_atomic(USERS_FILE, json.dumps(us, indent=1))
     os.chmod(USERS_FILE, 0o600)
-    print("Saved. Restart Flows if this created data/users.json (turns on multi-user mode).")
+    print("Saved. Restart Hadiya if this created data/users.json (turns on multi-user mode).")
 
 
 if __name__ == "__main__":
@@ -2929,11 +2941,11 @@ if __name__ == "__main__":
         for f in DATA.iterdir():  # everything else (runs, keys, sessions): server user only
             if f.name != "users":
                 os.chmod(f, f.stat().st_mode & 0o700)
-    print(f"Flows on http://localhost:{PORT}" + (f" ({len(load_users())} users, sign-in required)" if MULTI else ""))
+    print(f"Hadiya on http://localhost:{PORT}" + (f" ({len(load_users())} users, sign-in required)" if MULTI else ""))
     if remote.get("tailnet"):
         listeners["tailnet"] = {"srv": serve(("127.0.0.1", TAILNET_PORT), RH)}  # tailscaled keeps its serve config
         print(f"Tailscale phone listener on 127.0.0.1:{TAILNET_PORT}")
-    if os.environ.get("FLOWS_PUBLIC_URL"):
+    if env("PUBLIC_URL"):
         listeners["public"] = {"srv": serve(("127.0.0.1", PUBLIC_PORT), RH)}
         print(f"Public listener (named tunnel) on 127.0.0.1:{PUBLIC_PORT}")
 

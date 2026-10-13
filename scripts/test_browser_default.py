@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-bdef-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-bdef-"))
 BIN, LOG, d = TMP / "bin", TMP / "argv.log", TMP / "app"
 BIN.mkdir(); d.mkdir()
 (BIN / "claude").write_text(f"""#!/usr/bin/env python3

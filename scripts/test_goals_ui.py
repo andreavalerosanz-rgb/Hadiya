@@ -6,7 +6,7 @@ import json, os, re, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-goals-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-goals-"))
 BIN, HOME = TMP / "bin", TMP / "home"; BIN.mkdir(); (HOME / "proj").mkdir(parents=True)
 # the fake claude is the one in test_goals.py (taken from its source so the two stay in step)
 (BIN / "claude").write_text(eval(re.search(r'\(BIN / "claude"\)\.write_text\((f""".*?""")\)', (REPO / "scripts/test_goals.py").read_text(), re.S).group(1), {"TMP": TMP}))
@@ -18,7 +18,7 @@ for f in ("server.py", "index.html"):
 with socket.socket() as s:
     s.bind(("127.0.0.1", 0)); P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "FLOWS_DATA": str(d / "data")})
+                       env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME), "HADIYA_DATA": str(d / "data")})
 from playwright.sync_api import sync_playwright
 args = [a for a in sys.argv[1:] if a != "e2e"]; E2E = "e2e" in sys.argv[1:]
 SHOTS = Path(args[0] if args else TMP / "shots"); SHOTS.mkdir(parents=True, exist_ok=True)

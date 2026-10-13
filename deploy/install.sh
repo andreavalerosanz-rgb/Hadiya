@@ -14,13 +14,14 @@ mkdir -p /opt/flows/data
 chown -R flows:flows /opt/flows/data
 chmod 700 /opt/flows/data
 
-sed "s/PORT=8787/PORT=${PORT:-8787}/" "$src/deploy/flows.service" > /etc/systemd/system/flows.service
+sed "s/PORT=8787/PORT=${PORT:-8787}/" "$src/deploy/hadiya.service" > /etc/systemd/system/hadiya.service
 systemctl daemon-reload
-systemctl enable --now flows
+systemctl disable --now flows 2>/dev/null || true  # the unit before the Hadiya rename (same port)
+systemctl enable --now hadiya
 
 cat <<MSG
 
-flows installed and running on 127.0.0.1:${PORT:-8787}.
+hadiya installed and running on 127.0.0.1:${PORT:-8787}.
 IMPORTANT: put HTTPS in front BEFORE exposing the login (Caddy: deploy/Caddyfile,
 or a Cloudflare named tunnel). Never expose port 8787 over plain HTTP.
 Add users with: deploy/add-user.sh <linux_user>

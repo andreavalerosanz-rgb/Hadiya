@@ -1,5 +1,5 @@
 [Unit]
-Description=Flows (Claude Code workbench)
+Description=Hadiya (Claude Code workbench)
 After=network.target
 
 [Service]

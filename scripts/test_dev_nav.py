@@ -7,7 +7,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-nav-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-nav-"))
 (TMP / "bin").mkdir(); (TMP / "home").mkdir(); (TMP / "app").mkdir()
 (TMP / "bin/claude").write_text("#!/bin/sh\nexit 0\n"); (TMP / "bin/claude").chmod(0o755)
 for f in ("server.py", "index.html"):
@@ -15,7 +15,7 @@ for f in ("server.py", "index.html"):
 with socket.socket() as s:
     s.bind(("127.0.0.1", 0)); P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "FLOWS_DATA": str(TMP / "app/data")})
+                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "HADIYA_DATA": str(TMP / "app/data")})
 NOW = time.time()
 RUNS = [{"id": f"20261012-1{i}0000-aaaa", "kind": "session", "name": n, "status": st, "started": NOW - 900 * i, "ended": None, "cost": 0.1,
          "project": "/home/andrea/Desktop/flows", "parent": None, "pending": {}, "subs": [], "pinned": NOW if n == "Copia de seguridad" else None, "last": "Una línea de estado bastante larga para ver si la tarjeta corta bien el texto en el móvil."}

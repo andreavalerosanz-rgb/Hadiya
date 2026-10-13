@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Self-check for the kanban: owner boards/cards/columns/files, guests via /k/<token> on a phone listener
 (no pairing, one board only, no deletes, no /api/*), token rotation, persistence, multi-user isolation.
-Runs server.py from a temp copy on a free port; FLOWS_PUBLIC_URL turns on the public phone listener (PORT+3).
+Runs server.py from a temp copy on a free port; HADIYA_PUBLIC_URL turns on the public phone listener (PORT+3).
 Run: python3 scripts/test_kanban.py"""
 import base64, getpass, json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
@@ -9,13 +9,13 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
 REPO = Path(__file__).resolve().parent.parent
-TMP = Path(tempfile.mkdtemp(prefix="flows-kanban-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-kanban-"))
 BIN = TMP / "bin"
 BIN.mkdir()
 # fake cloudflared: prints a quick-tunnel URL and idles, so the tunnel-only listener runs with nothing public
 (BIN / "cloudflared").write_text("#!/bin/sh\necho 'INF |  https://fake-kanban.trycloudflare.com  |'\nexec sleep 600\n")
 (BIN / "cloudflared").chmod(0o755)
-ENV = {**{k: v for k, v in os.environ.items() if k not in ("FLOWS_PACKAGE", "FLOWS_DATA")}, "PATH": f"{BIN}:{os.environ['PATH']}"}
+ENV = {**{k: v for k, v in os.environ.items() if k not in ("HADIYA_PACKAGE", "HADIYA_DATA", "FLOWS_PACKAGE", "FLOWS_DATA")}, "PATH": f"{BIN}:{os.environ['PATH']}"}
 PAGE = (REPO / "kanban.html").read_bytes()
 
 
@@ -44,7 +44,7 @@ def free():
 def start(d, port=None):
     port = port or free()
     p = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         env={**ENV, "PORT": str(port), "HOME": str(TMP), "FLOWS_PUBLIC_URL": "https://kb.example.com"})
+                         env={**ENV, "PORT": str(port), "HOME": str(TMP), "HADIYA_PUBLIC_URL": "https://kb.example.com"})
     for _ in range(50):
         try:
             socket.create_connection(("127.0.0.1", port + 3), 0.2).close()

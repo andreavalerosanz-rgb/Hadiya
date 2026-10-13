@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mine Claude/Flows logs into ~/.claude/flows-assistant/stats.md (raw input for the hand-curated profile.md).
+"""Mine Claude/Hadiya logs into ~/.claude/flows-assistant/stats.md (raw input for the hand-curated profile.md).
 Stdlib only. Never writes emails/tokens: prompts are scrubbed before sampling."""
 import json, re, glob, os, collections
 H = os.path.expanduser("~")
@@ -24,7 +24,7 @@ TOPICS = {k: re.compile(v, re.I) for k, v in {
 }.items()}
 def proj(d):
     d = os.path.basename(d).lower()
-    for k, n in [("matteria","Matteria"),("bfs","BFS"),("flows","Flows"),("phh","PHH"),("sonora","Sonora"),("drzhang","Dr. Zhang"),("residus","Residus"),("vikunja","Vikunja")]:
+    for k, n in [("matteria","Matteria"),("bfs","BFS"),("flows","Hadiya"),("phh","PHH"),("sonora","Sonora"),("drzhang","Dr. Zhang"),("residus","Residus"),("vikunja","Vikunja")]:
         if k in d: return n
     return "other"
 prompts, seen = [], set()

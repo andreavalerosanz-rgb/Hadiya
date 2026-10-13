@@ -1,7 +1,7 @@
 """python3 scripts/test_packages.py — the admin package clamps every claude command line."""
 import os, sys
-os.environ["FLOWS_PACKAGE"] = "admin"
-os.environ["FLOWS_DATA"] = "/tmp/flows-test-packages"
+os.environ["FLOWS_PACKAGE"] = "admin"  # pre-rename name still read
+os.environ["HADIYA_DATA"] = "/tmp/hadiya-test-packages"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import server as s
 
@@ -15,8 +15,8 @@ cmd = s.fence(None, ["claude", "--append-system-prompt", "ORCH"])
 assert cmd == ["claude", "--append-system-prompt=ORCH\n\n" + s.PACKAGES["admin"]["note"], "--tools=Agent,ToolSearch,AskUserQuestion"], cmd
 assert s.allowed(None, "mcp__claude_ai_Google_Drive__create_file") and s.allowed(None, "AskUserQuestion")
 assert not any(s.allowed(None, t) for t in ("Bash", "Edit", "mcp__claude_ai_Trello__x", "mcp__playwright__browser_click"))
-os.environ["FLOWS_PACKAGE"] = "dev"
+os.environ["HADIYA_PACKAGE"] = "dev"  # the new name wins over FLOWS_PACKAGE
 assert s.fence(None, ["claude", "--allowedTools", "Bash"]) == ["claude", "--allowedTools", "Bash"]
-os.environ["FLOWS_PACKAGE"] = "typo"
+os.environ["HADIYA_PACKAGE"] = "typo"
 assert s.package(None) == "admin"
 print("ok")

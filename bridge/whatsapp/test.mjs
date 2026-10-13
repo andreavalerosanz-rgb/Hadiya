@@ -28,7 +28,7 @@ sock.ev.on = sock.ev.addListener.bind(sock.ev)
 const up = (jid, fromMe, text, id, extra) => sock.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: jid, fromMe, id }, message: extra || { conversation: text } }] })
 const tick = () => new Promise(r => setTimeout(r, 100))
 
-await start({ flowsUrl: 'http://f', authDir: dir + '/auth', tokenFile: dir + '/a.json', makeSock: async () => sock, download: async m => Buffer.from(m.message.fake || 'DATA'), fetch: fakeFetch, pollMs: 1000, backoffMs: 10, log() {} })
+await start({ url: 'http://f', authDir: dir + '/auth', tokenFile: dir + '/a.json', makeSock: async () => sock, download: async m => Buffer.from(m.message.fake || 'DATA'), fetch: fakeFetch, pollMs: 1000, backoffMs: 10, log() {} })
 sock.ev.emit('connection.update', { connection: 'open' })
 await new Promise(r => setTimeout(r, 700))
 

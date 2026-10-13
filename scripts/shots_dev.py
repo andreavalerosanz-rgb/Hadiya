@@ -11,7 +11,7 @@ from playwright.sync_api import sync_playwright
 REPO = Path(__file__).resolve().parent.parent
 PREFIX = sys.argv[1] if len(sys.argv) > 1 else "after"
 OUT = REPO / "data" / "shots"; OUT.mkdir(parents=True, exist_ok=True)
-TMP = Path(tempfile.mkdtemp(prefix="flows-shots-"))
+TMP = Path(tempfile.mkdtemp(prefix="hadiya-shots-"))
 (TMP / "bin").mkdir(); (TMP / "home").mkdir(); (TMP / "app").mkdir()
 (TMP / "bin/claude").write_text("#!/bin/sh\nexit 0\n"); (TMP / "bin/claude").chmod(0o755)
 for f in ("server.py", "index.html"):
@@ -19,7 +19,7 @@ for f in ("server.py", "index.html"):
 with socket.socket() as s:
     s.bind(("127.0.0.1", 0)); P = s.getsockname()[1]
 srv = subprocess.Popen([sys.executable, "server.py"], cwd=TMP / "app", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "FLOWS_DATA": str(TMP / "app/data")})
+                       env={**os.environ, "PATH": f"{TMP / 'bin'}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(TMP / "home"), "HADIYA_DATA": str(TMP / "app/data")})
 
 NOW = time.time()
 def run(i, name, status, ago, **kw):

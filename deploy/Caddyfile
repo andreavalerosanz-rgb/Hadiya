@@ -1,15 +1,15 @@
-flows.example.com {
+hadiya.example.com {
 	reverse_proxy 127.0.0.1:8787
 }
 
 # Alternative: Cloudflare named tunnel (no open ports, no Caddy needed)
-#   cloudflared tunnel create flows
-#   cloudflared tunnel route dns flows flows.example.com
+#   cloudflared tunnel create hadiya
+#   cloudflared tunnel route dns hadiya hadiya.example.com
 #   ~/.cloudflared/config.yml:
-#     tunnel: flows
+#     tunnel: hadiya
 #     credentials-file: /home/<you>/.cloudflared/<id>.json
 #     ingress:
-#       - hostname: flows.example.com
+#       - hostname: hadiya.example.com
 #         service: http://127.0.0.1:8787
 #       - service: http_status:404
-#   cloudflared tunnel run flows
+#   cloudflared tunnel run hadiya

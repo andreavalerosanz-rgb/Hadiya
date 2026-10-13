@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage (as the person, not root): setup-token-optimizer.sh
-# Installs the Token Optimizer plugin into this user's ~/.claude. Hooks then run in every Flows session they own.
+# Installs the Token Optimizer plugin into this user's ~/.claude. Hooks then run in every Hadiya session they own.
 set -euo pipefail
 claude plugin marketplace add alexgreensh/token-optimizer 2>&1 | tail -1 || true
 claude plugin install token-optimizer@alexgreensh-token-optimizer 2>&1 | tail -1
