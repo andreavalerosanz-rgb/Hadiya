@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#f4f2ee">
 <meta name="referrer" content="no-referrer">
 <title>Tablero</title>
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -48,6 +49,7 @@ a{color:inherit}
 .btn.tg{padding:0}
 .btn:has(input:focus-visible){outline:2px solid var(--flag);outline-offset:2px}
 header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 16px 8px}
+header .logo{width:30px;height:30px;flex:none;fill:var(--ink)}
 header h1{margin:0 auto 0 0;min-width:0;overflow-wrap:anywhere;font:700 30px/1.05 var(--cond);letter-spacing:.02em;text-transform:uppercase}
 .none{color:var(--mute);padding:24px 16px}
 /* board: columns side by side; the board scrolls sideways, never the page */
@@ -106,7 +108,7 @@ h3{margin:4px 0 0;font:700 16px/1.2 var(--cond);letter-spacing:.09em;text-transf
 </style>
 </head>
 <body>
-<header><h1 id="bname">Tablero</h1><button type="button" class="btn tg" id="theme" aria-pressed="false" aria-label="Tema oscuro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><span id="hacts"></span></header>
+<header><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/><g transform="matrix(-1 0 0 1 64 0)"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/></g><circle cx="32" cy="55" r="2.6" fill="var(--flag)"/></svg><h1 id="bname">Tablero</h1><button type="button" class="btn tg" id="theme" aria-pressed="false" aria-label="Tema oscuro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><span id="hacts"></span></header>
 <nav class="tabs" id="tabs" aria-label="Columnas"></nav>
 <main class="cols" id="cols"><p class="none">Cargando…</p></main>
 <p id="msg" role="status" hidden></p>

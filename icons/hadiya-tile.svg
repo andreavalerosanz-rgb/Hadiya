@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><path id="h" d="M23.5 59 C19 44 10 22 14 3 C17 21 26 42 30.5 59 Q27 61.5 23.5 59 Z"/></defs><rect width="64" height="64" rx="14" fill="#ff5a1f"/><g fill="#1a1a1a" transform="translate(32 31) scale(.8) translate(-32 -32)"><use href="#h"/><use href="#h" transform="matrix(-1 0 0 1 64 0)"/></g></svg>
