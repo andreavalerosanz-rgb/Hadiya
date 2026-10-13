@@ -4,13 +4,28 @@
 Each step runs `claude -p` using your logged-in CLI (subscription auth).
 Run: python3 server.py  ->  http://localhost:8787
 """
-import base64, gzip, hashlib, hmac, json, os, pwd, re, secrets, shlex, shutil, socket, subprocess, sys, tempfile, threading, time, uuid
+import base64, gzip, hashlib, hmac, json, os, re, secrets, shlex, shutil, socket, subprocess, sys, tempfile, threading, time, uuid
 from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 from urllib.request import Request, urlopen
+
+WIN = os.name == "nt"
+if WIN:
+    os.environ.setdefault("PYTHONUTF8", "1")  # children (brain-mcp) read/write UTF-8, not cp1252
+NOWIN = {"creationflags": subprocess.CREATE_NO_WINDOW} if WIN else {}  # pythonw has no console: don't flash one per child
+# Windows: the shortcut may start Hadiya before the installer's PATH change reaches it, and npm's claude.cmd needs the full name
+CLAUDE = shutil.which("claude") or (str(Path.home() / ".local/bin/claude.exe") if WIN else "claude")
+
+
+def kill_tree(p):
+    """End a claude process. On Windows terminate() kills only claude.exe and orphans its MCP servers and browsers."""
+    if WIN:
+        subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], capture_output=True, **NOWIN)
+    else:
+        p.terminate()
 
 
 def env(k, d=None):
@@ -83,7 +98,7 @@ ASSIST_TOOLS = {"set_job", "remove_job", "list_jobs", "send_file", "goal_create"
 
 def brain_mcp():
     """`server.py brain-mcp`: the Second Brain's tools as an MCP server on stdio (newline JSON-RPC). Each call goes to
-    /api/brain/<tool> on Hadiya with the brain's token. It runs as the owner's Linux user: no Hadiya data access here."""
+    /api/brain/<tool> on Hadiya with the brain's token."""
     def call(name, args):
         req = Request(f"http://127.0.0.1:{env('PORT')}/api/brain/{name}", data=json.dumps(args).encode(), method="POST",
                       headers={"Content-Type": "application/json", "X-Flow": "1", "X-Brain": env("BRAIN_TOKEN")})
@@ -123,13 +138,7 @@ if __name__ == "__main__" and sys.argv[1:2] == ["brain-mcp"]:  # before anything
     raise SystemExit(brain_mcp())
 
 ROOT = Path(__file__).parent
-DATA = Path(env("DATA") or ROOT / "data")  # the .deb sets ~/.local/share/flows
-# Multi-user mode (see DEPLOY.md) is on when data/users.json exists: logins, per-user data, and every
-# `claude` runs as that person's Linux user via sudo. Without the file: single user, no login, as always.
-USERS_FILE = DATA / "users.json"
-MULTI = USERS_FILE.exists()
-if MULTI:
-    os.umask(0o077)  # runs, sessions, workflows: readable by the server user only
+DATA = Path(env("DATA") or ROOT / "data")  # the .deb sets ~/.local/share/hadiya
 RUNS = DATA / "runs"
 
 
@@ -137,7 +146,7 @@ def write_atomic(path, text):
     """Write via a temp file + rename, so a crash mid-save leaves the old file, never an empty one."""
     path = Path(path)
     tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
         f.flush()
         os.fsync(f.fileno())
@@ -145,7 +154,13 @@ def write_atomic(path, text):
         os.chmod(tmp, path.stat().st_mode & 0o7777)  # keep the old file's permissions
     except FileNotFoundError:
         pass
-    os.replace(tmp, path)
+    for i in range(5):  # Windows: antivirus or a reader holding the target makes replace fail for a moment
+        try:
+            return os.replace(tmp, path)
+        except PermissionError:
+            if not WIN or i == 4:
+                raise
+            time.sleep(0.05)
 
 RUNS.mkdir(parents=True, exist_ok=True)
 MAX_UPLOAD = 20 << 20
@@ -154,53 +169,21 @@ PORT = int(os.environ.get("PORT", 8787))
 HOSTS = ("localhost", "127.0.0.1", *filter(None, env("HOSTS", "").split(",")))  # public names behind a proxy
 
 
-def load_users():
-    return json.loads(USERS_FILE.read_text()) if USERS_FILE.exists() else {}
-
-
-def hash_pw(pw, salt=None):
-    salt = salt or secrets.token_hex(16)
-    return salt + "$" + hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 600_000).hex()
-
-
-def check_pw(pw, stored):
-    return hmac.compare_digest(hash_pw(pw, stored.split("$")[0]), stored)
-
-
-def unix_home(owner):
-    return pwd.getpwnam(load_users()[owner]["unix"]).pw_dir
-
-
-def udir(owner, kind, rid="", make=False):
-    """data/<kind>/<run> (single user), or data/users/<owner>/<kind>/<run>: group-owned by the owner's
-    primary group, setgid, so their agent can read uploads and write screenshots (DEPLOY.md)."""
-    base = DATA / "users" / owner if owner else DATA
-    d = base / kind / rid
+def udir(kind, rid="", make=False):
+    """data/<kind>/<run>: uploads and screenshots."""
+    d = DATA / kind / rid
     if make:
         d.mkdir(parents=True, exist_ok=True)
-        if owner:
-            gid = pwd.getpwnam(load_users()[owner]["unix"]).pw_gid
-            for x in {base, base / kind, d}:
-                os.chown(x, -1, gid)
-                os.chmod(x, 0o2770)
     return d
 
 
-def workdir(owner, path):
-    """The project folder: ~ is the owner's home, and in multi-user mode it must stay inside it."""
-    path = path or "~"
-    if not owner:
-        return os.path.expanduser(path)
-    home = unix_home(owner)
-    d = os.path.normpath(os.path.join(home, "" if path == "~" else path[2:] if path.startswith("~/") else path))
-    if os.path.commonpath([home, d]) != home:
-        raise ValueError(f"The project folder must be inside {home}")
-    return d
+def workdir(path):
+    """The project folder (~ expanded)."""
+    return os.path.expanduser(path or "~")
 
 
-# Packages: what someone's agents can reach. "dev" = everything. "admin" = Google Workspace only:
-# no file, shell or browser tools, and no other MCP server. Per person (users.json "package"),
-# else per install (HADIYA_PACKAGE, set by the .deb).
+# Packages: what the agents can reach. "dev" = everything. "admin" = Google Workspace only:
+# no file, shell or browser tools, and no other MCP server. Per install (HADIYA_PACKAGE, set by the .deb).
 GOOGLE = ("mcp__claude_ai_Google_Drive", "mcp__claude_ai_Gmail", "mcp__claude_ai_Google_Calendar")
 PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", "mcp": GOOGLE, "note": (
     "You help someone with no technical background with their Google Workspace: Gmail, Google Drive and Google Calendar. "
@@ -210,20 +193,20 @@ PACKAGES = {"dev": None, "admin": {"tools": "Agent,ToolSearch,AskUserQuestion", 
     "Before sending, saving or changing anything, say exactly what you will do; the person approves it in a popup.")}}
 
 
-def package(owner):
-    p = (load_users()[owner].get("package") if owner else None) or env("PACKAGE") or "dev"
+def package():
+    p = env("PACKAGE") or "dev"
     return p if p in PACKAGES else "admin"  # a typo must not grant everything
 
 
-def allowed(owner, tool):
-    """May this person's package use the tool at all? (Asked tools outside it are refused, never shown.)"""
-    pk = PACKAGES[package(owner)]
+def allowed(tool):
+    """May this install's package use the tool at all? (Asked tools outside it are refused, never shown.)"""
+    pk = PACKAGES[package()]
     return not pk or tool in pk["tools"].split(",") + ["Task"] or str(tool).startswith(pk["mcp"])
 
 
-def fence(owner, cmd):
-    """Clamp a `claude` command line to the owner's package, whatever the step or session asked for."""
-    pk = PACKAGES[package(owner)]
+def fence(cmd):
+    """Clamp a `claude` command line to the package, whatever the step or session asked for."""
+    pk = PACKAGES[package()]
     if not pk:
         return cmd
     out, it = [], iter(cmd)
@@ -232,7 +215,7 @@ def fence(owner, cmd):
             next(it)
             a = "--permission-mode=default"  # bypass would let every MCP tool through
         elif a == "--allowedTools":
-            a = "--allowedTools=" + ",".join(t for t in next(it).split(",") if allowed(owner, t.strip()))
+            a = "--allowedTools=" + ",".join(t for t in next(it).split(",") if allowed(t.strip()))
         elif a == "--mcp-config":  # Playwright
             next(it)
             continue
@@ -240,26 +223,17 @@ def fence(owner, cmd):
             a = "--append-system-prompt=" + next(it) + "\n\n" + pk["note"]
             pk = {**pk, "note": ""}  # used up
         out.append(a)
-    # ponytail: user/project settings could still pre-allow a non-Google MCP tool; the sudo users of an admin
-    # package have a fresh ~/.claude. --strict-mcp-config would be tighter but also drops the claude.ai connectors.
+    # ponytail: user/project settings could still pre-allow a non-Google MCP tool.
+    # --strict-mcp-config would be tighter but also drops the claude.ai connectors.
     return out + ["--tools=" + pk["tools"]] + (["--append-system-prompt=" + pk["note"]] if pk["note"] else [])  # built-ins: Read, Bash, Edit, WebFetch… all gone
 
 
-def launch(owner, cmd, cwd, extra=None):
-    """Start `claude`. Multi-user: as the owner's Linux user through sudo (it relays our SIGTERM on cancel/stop)."""
+def launch(cmd, cwd, extra=None):
+    """Start `claude`."""
     # Long sessions grew to 400k tokens and every turn re-read all of it. Compact at ~200k instead of near 1M.
     extra = {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": os.environ.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "200000"), **(extra or {})}
-    cmd = fence(owner, cmd)
-    if MULTI and not owner:  # e.g. a run left over from single-user mode: never run it as the server user
-        raise ValueError("This run has no owner")
-    if owner:
-        # the extra vars go by name (SETENV in sudoers), not VAR=value: sudo's command line is visible in ps
-        # to every user, and HADIYA_BRAIN_TOKEN is a secret
-        cmd = ["sudo", "-n", "-u", load_users()[owner]["unix"], "-H", "-D", cwd,
-               *(["--preserve-env=" + ",".join(extra)] if extra else []), "--", *cmd]
-        cwd = None  # the server user can't enter their home; sudo -D does it as them
-    return subprocess.Popen(cmd, cwd=cwd, env={**ENV, **(extra or {})}, text=True, stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return subprocess.Popen(fence(cmd), cwd=cwd, env={**ENV, **extra}, text=True, stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8", errors="replace", **NOWIN)
 # Drop API keys so the CLI uses the subscription login, and any parent Claude
 # session's vars so child runs don't piggyback on (or break) the host's auth.
 ENV = {k: v for k, v in os.environ.items()
@@ -280,62 +254,42 @@ for f in RUNS.glob("*.json"):
         r["pending"] = {}  # questions die with their process
     runs[r["id"]] = r
 
-usages = {}  # owner (None in single-user mode) -> their subscription's limits: everyone has their own plan
+USAGE_FILE = DATA / "usage.json"
+usage = json.loads(USAGE_FILE.read_text()) if USAGE_FILE.exists() else {}  # the subscription's limits
 
 
-def use(owner):
-    if owner not in usages:
-        f = usage_file(owner)
-        usages[owner] = json.loads(f.read_text()) if f.exists() else {}
-    return usages[owner]
+def save_usage():
+    write_atomic(USAGE_FILE, json.dumps(usage))
 
 
-def usage_file(owner):
-    return DATA / "usage" / f"{owner}.json" if owner else DATA / "usage.json"
-
-
-def save_usage(owner):
-    usage_file(owner).parent.mkdir(exist_ok=True)
-    write_atomic(usage_file(owner), json.dumps(use(owner)))
-
-
-def note_usage(ev, owner):
+def note_usage(ev):
     """Keep the latest subscription limits (5-hour / weekly utilization) that the CLI reports."""
-    info, usage = ev.get("rate_limit_info") or {}, use(owner)
+    info = ev.get("rate_limit_info") or {}
     if info:
         usage.update({"windows": info.get("unifiedWindows") or usage.get("windows"), "status": info.get("status"),
                       "type": info.get("rateLimitType"), "resetsAt": info.get("resetsAt"), "ts": ev.get("ts") or time.time()})
-        save_usage(owner)
+        save_usage()
 
 
-def note_auth(res, owner):
-    """Remember whether the owner's CLI is logged in (a result asking to /login says it isn't)."""
-    ok = not (res.get("is_error") and re.search(r"/login|not logged in|invalid api key", str(res.get("result")), re.I))
-    if use(owner).get("auth", True) != ok:
-        use(owner)["auth"] = ok
-        save_usage(owner)
-
-
-def limited_until(owner):
+def limited_until():
     """Epoch when the subscription limit resets, or 0 if we may run now."""
-    usage = use(owner)
     t = usage.get("resetsAt") or 0
     return t if usage.get("status") == "rejected" and t > time.time() else 0
 
 
-def hit_limit(res, owner):
+def hit_limit(res):
     """Did this turn end because the usage limit ran out? Records the reset time so the queue waits for it."""
     text = str((res or {}).get("result") or "")
     if not (res and res.get("is_error")):
         return False
-    if limited_until(owner):
+    if limited_until():
         return True
     if not re.search(r"usage limit|hit your limit|limit reached|rate.?limit", text, re.I):
         return False
     # no reset time from the CLI: parse "limit reached|<epoch>", else retry in 15 min
     m = re.search(r"\|(\d{10})", text)
-    use(owner).update(status="rejected", resetsAt=int(m.group(1)) if m else time.time() + 900)
-    save_usage(owner)
+    usage.update(status="rejected", resetsAt=int(m.group(1)) if m else time.time() + 900)
+    save_usage()
     return True
 
 
@@ -397,24 +351,21 @@ def save_run(r):
     write_atomic((RUNS / f"{r['id']}.json"), json.dumps(r))
 
 
-def wf_file(owner):
-    return DATA / "workflows" / f"{owner}.json" if owner else DATA / "workflows.json"
+WF_FILE = DATA / "workflows.json"
 
 
-def load_wfs(owner):
-    return json.loads(wf_file(owner).read_text()) if wf_file(owner).exists() else {}
+def load_wfs():
+    return json.loads(WF_FILE.read_text()) if WF_FILE.exists() else {}
 
 
-def save_wfs(w, owner):
-    wf_file(owner).parent.mkdir(exist_ok=True)
-    write_atomic(wf_file(owner), json.dumps(w, indent=2))
+def save_wfs(w):
+    write_atomic(WF_FILE, json.dumps(w, indent=2))
 
 
 # Claude Code subagents: ~/.claude/agents/<name>.md, YAML frontmatter + directives. Often symlinks into
 # the user's own repo: edits go through the link, so the repo file is what changes.
-def claude_dir(owner):
-    # ponytail: multi-user reads/writes the owner's home as the server user; needs a sudo helper if homes are 700
-    return Path(unix_home(owner) if owner else Path.home()) / ".claude"
+def claude_dir():
+    return Path.home() / ".claude"
 
 
 def front(text):
@@ -458,23 +409,23 @@ def agent_info(f):
             "tools": meta.get("tools", ""), "skills": meta.get("skills") or [], "file": str(f.resolve()), "link": f.is_symlink()}, meta, body
 
 
-def list_agents(owner):
-    d = claude_dir(owner) / "agents"
+def list_agents():
+    d = claude_dir() / "agents"
     return [agent_info(f)[0] for f in sorted(d.glob("*.md")) if f.is_file() and re.fullmatch(r"[a-z0-9-]+", f.stem)]
 
 
-def list_skills(owner):
+def list_skills():
     out = []
-    for f in sorted((claude_dir(owner) / "skills").glob("*/SKILL.md")):
+    for f in sorted((claude_dir() / "skills").glob("*/SKILL.md")):
         meta = front(f.read_text())[0]
         out.append({"name": meta.get("name") or f.parent.name, "description": " ".join(str(meta.get("description", "")).split())})
     return out
 
 
-def agent_api(owner, m, name, body):
+def agent_api(m, name, body):
     if not re.fullmatch(r"[a-z0-9-]+", name):
         raise ValueError("Nombre: solo minúsculas, números y guiones")
-    d = claude_dir(owner) / "agents"
+    d = claude_dir() / "agents"
     f = d / f"{name}.md"
     if not (m == "PUT" and body.get("new")) and not f.is_symlink() and not f.is_file():
         raise KeyError(name)
@@ -523,7 +474,6 @@ PROJECT = ("Project context: {f} is shared by every session working on {p}. Read
 
 
 def project_of(path):
-    # ponytail: multi-user, the server user can't see into a 700 home, so it falls back to the folder itself
     p = Path(path)
     return str(next((d for d in (p, *p.parents) if (d / ".git").exists()), p))
 
@@ -532,8 +482,8 @@ def project_slug(path):
     return (re.sub(r"[^a-z0-9]+", "-", Path(path).name.lower()).strip("-")[:40] or "root") + "-" + hashlib.sha1(path.encode()).hexdigest()[:6]
 
 
-def project_file(owner, path):
-    return claude_dir(owner) / "flows-projects" / f"{project_slug(path)}.md"
+def project_file(path):
+    return claude_dir() / "flows-projects" / f"{project_slug(path)}.md"
 
 
 WP_NOTE = ("This is a WordPress project. Before any work, invoke the Skill tool with skill `wp-plugin-development` and follow it; "
@@ -558,19 +508,19 @@ def wp_auto(path):
     return False
 
 
-def wp_flag(owner, cwd):
+def wp_flag(cwd):
     """WordPress mode of a folder: the user's choice in flows-projects/<slug>.json, else auto-detected."""
-    path = project_of(workdir(owner, cwd))
+    path = project_of(workdir(cwd))
     try:
-        on = json.loads(project_file(owner, path).with_suffix(".json").read_text()).get("wordpress")
+        on = json.loads(project_file(path).with_suffix(".json").read_text()).get("wordpress")
     except (OSError, ValueError):
         on = None
     auto = wp_auto(path)
     return {"on": auto if on is None else bool(on), "auto": auto, "set": on is not None, "path": path}
 
 
-def wp_set(owner, cwd, on):
-    f = project_file(owner, project_of(workdir(owner, cwd))).with_suffix(".json")
+def wp_set(cwd, on):
+    f = project_file(project_of(workdir(cwd))).with_suffix(".json")
     f.parent.mkdir(parents=True, exist_ok=True)
     write_atomic(f, json.dumps({"wordpress": bool(on)}))
 
@@ -578,29 +528,29 @@ def wp_set(owner, cwd, on):
 def run_project(r):
     if "project" not in r:  # runs from before projects existed
         try:
-            r["project"] = project_of(workdir(r.get("owner"), r["config"].get("cwd")))
+            r["project"] = project_of(workdir(r["config"].get("cwd")))
         except (ValueError, KeyError):
             r["project"] = None
     return r["project"]
 
 
-def projects(owner, slug=None):
-    """The owner's projects, newest session first, with their sessions and context (an excerpt when listing)."""
+def projects(slug=None):
+    """The projects, newest session first, with their sessions and context (an excerpt when listing)."""
     out = {}
     for r in sorted(runs.values(), key=lambda r: r["started"], reverse=True):
-        if r.get("owner") != owner or r.get("kind") != "session" or not run_project(r):
+        if r.get("kind") != "session" or not run_project(r):
             continue
         s = project_slug(r["project"])
         j = out.setdefault(s, {"slug": s, "name": Path(r["project"]).name or r["project"], "path": r["project"], "sessions": []})
         j["sessions"].append({**{k: r.get(k) for k in ("id", "name", "status", "started", "ended", "pinned", "brain", "parent")},
                               **({"status": "waiting"} if r.get("waiting") else {}), "last":r["events"][-1].get("ts") if r["events"] else r["started"]})
     for j in out.values() if not slug else [out[slug]]:
-        f = project_file(owner, j["path"])
+        f = project_file(j["path"])
         try:
             j["context"], j["mtime"] = f.read_text(), f.stat().st_mtime
         except OSError:
             j["context"], j["mtime"] = "", None
-        j["wordpress"] = wp_flag(owner, j["path"])
+        j["wordpress"] = wp_flag(j["path"])
         if not slug:
             j["context"] = j["context"][:300]
     return out[slug] if slug else list(out.values())
@@ -615,9 +565,9 @@ def browser(cmd, tools, r):
     Returns a system-prompt note pinning screenshots to data/shots/<run> (relative names resolve to the project)."""
     if "mcp__playwright" not in tools:
         return ""
-    out = udir(r.get("owner"), "shots", r["id"], make=True)
-    cmd += ["--mcp-config", json.dumps({"mcpServers": {"playwright": {"command": "npx", "args": [
-        "-y", "@playwright/mcp@0.0.82", "--headless", "--isolated", "--ignore-https-errors", "--output-dir", str(out)]}}})]
+    out = udir("shots", r["id"], make=True)
+    cmd += ["--mcp-config", json.dumps({"mcpServers": {"playwright": {"command": "cmd" if WIN else "npx", "args": [
+        *(["/c", "npx"] if WIN else []), "-y", "@playwright/mcp@0.0.82", "--headless", "--isolated", "--ignore-https-errors", "--output-dir", str(out)]}}})]
     return (f"When you take browser screenshots, always pass an absolute filename inside {out}/ "
             f"(e.g. {out}/home-1440.png). Never save screenshots into the project.")
 
@@ -635,10 +585,10 @@ def keep_shots_out(ev, cwd, r, seen):
                 seen[x["id"]] = name
         elif x.get("type") == "tool_result" and x.get("tool_use_id") in seen:
             src = Path(cwd) / seen.pop(x["tool_use_id"])
-            dst = udir(r.get("owner"), "shots", r["id"]) / src.name
-            try:  # multi-user: the server can't reach into the owner's home, so the file stays put
+            dst = udir("shots", r["id"]) / src.name
+            try:
                 if src.suffix.lower() in (".png", ".jpg", ".jpeg") and src.is_file() and not dst.exists():
-                    udir(r.get("owner"), "shots", r["id"], make=True)
+                    udir("shots", r["id"], make=True)
                     src.replace(dst)
             except OSError:
                 pass
@@ -648,7 +598,7 @@ def outbox(r):
     """Files the agent wrote into data/uploads/<run>/ that no event lists yet become its chat attachments."""
     known = {f["name"] for e in r["events"] for f in e.get("files") or []}
     try:
-        new = sorted((f for f in udir(r.get("owner"), "uploads", r["id"]).iterdir() if f.is_file() and f.name not in known),
+        new = sorted((f for f in udir("uploads", r["id"]).iterdir() if f.is_file() and f.name not in known),
                      key=lambda f: f.stat().st_mtime)
         files = [{"name": f.name, "image": bool(image_type(f.open("rb").read(12)))} for f in new]
     except OSError:
@@ -677,14 +627,12 @@ def save_files(r, files):
     for f in files:
         raw = base64.b64decode(f.get("data") or "")
         name = re.sub(r"[^\w.\- ]", "_", Path(str(f.get("name") or "")).name).strip(". ")[-120:] or "file"
-        d = udir(r.get("owner"), "uploads", r["id"], make=True)
+        d = udir("uploads", r["id"], make=True)
         dst, n = d / name, 1
         while dst.exists():
             n += 1
             dst = d / f"{Path(name).stem}-{n}{Path(name).suffix}"
         dst.write_bytes(raw)
-        if r.get("owner"):
-            os.chmod(dst, 0o640)  # the owner's agent reads it through the group
         media = image_type(raw)
         out.append({"name": dst.name, "path": str(dst), "media": media,
                     "b64": base64.b64encode(raw).decode() if media and len(raw) <= MAX_IMAGE else None})
@@ -701,10 +649,10 @@ def delete_run(rid):
         r["status"] = "stopped"
     p = procs.pop(rid, None)
     if p:
-        p.terminate()
+        kill_tree(p)
     (RUNS / f"{rid}.json").unlink(missing_ok=True)
     for k in ("shots", "uploads"):
-        shutil.rmtree(udir(r.get("owner"), k, rid), ignore_errors=True)
+        shutil.rmtree(udir(k, rid), ignore_errors=True)
 
 
 def execute(r):
@@ -713,7 +661,7 @@ def execute(r):
     prev = r["steps"][-1]["result"] if done else ""
     try:
         for i, step in enumerate(r["workflow"]["steps"][done:], done):
-            cmd = ["claude", "-p", "--output-format", "stream-json", "--verbose",
+            cmd = [CLAUDE, "-p", "--output-format", "stream-json", "--verbose",
                    "--permission-mode", step.get("permission_mode") or "default"]
             if step.get("model"):
                 cmd += ["--model", step["model"]]
@@ -733,8 +681,8 @@ def execute(r):
                 if r["status"] != "running":
                     return
                 r["steps"].append(s)
-            cwd = workdir(r.get("owner"), step.get("cwd") or r["workflow"].get("cwd"))
-            p = launch(r.get("owner"), cmd, cwd)
+            cwd = workdir(step.get("cwd") or r["workflow"].get("cwd"))
+            p = launch(cmd, cwd)
             procs[r["id"]] = p
             # stdin avoids the ~128KB argv limit when {{prev}} is large
             p.stdin.write(render(step["prompt"], r["input"], prev, r["workflow"].get("site") or ""))
@@ -748,10 +696,9 @@ def execute(r):
                 ev["ts"] = time.time()
                 keep_shots_out(ev, cwd, r, seen)
                 if ev.get("type") == "rate_limit_event":
-                    note_usage(ev, r.get("owner"))
+                    note_usage(ev)
                 if ev.get("type") == "result":
                     res = ev
-                    note_auth(ev, r.get("owner"))
                 with lock:
                     s["events"].append(ev)
             p.wait()
@@ -763,7 +710,7 @@ def execute(r):
                              cost=res.get("total_cost_usd") or 0)
                     r["cost"] += s["cost"]
                     prev = s["result"]
-                elif r["status"] == "running" and hit_limit(res, r.get("owner")):
+                elif r["status"] == "running" and hit_limit(res):
                     r["steps"].pop()  # redone from scratch when the limit resets
                     r["status"] = "waiting"
                     return
@@ -784,9 +731,9 @@ def execute(r):
             save_run(r)
 
 
-def start_run(wf_id, inp, owner):
-    wf = load_wfs(owner)[wf_id]
-    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "workflow_id": wf_id, "owner": owner,
+def start_run(wf_id, inp):
+    wf = load_wfs()[wf_id]
+    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "workflow_id": wf_id,
          "name": wf["name"], "input": inp, "status": "running", "started": time.time(),
          "ended": None, "cost": 0, "steps": [], "workflow": wf}
     with lock:
@@ -803,10 +750,10 @@ brains = {}  # secret token -> Second Brain run id. In memory: every spawn mints
 def spawn(r):
     c = r["config"]
     # stdio prompt tool: questions (AskUserQuestion) and permission checks come back to us as control_requests
-    cmd = ["claude", "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+    cmd = [CLAUDE, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
            "--permission-prompt-tool", "stdio", "--permission-mode", c.get("permission_mode") or "default",
            "--allowedTools", ",".join(filter(None, ["Agent,Task", c.get("allowed_tools"), r.get("brain") and "mcp__hadiya"])),
-           "--add-dir", str(udir(r.get("owner"), "uploads", make=True))]  # so attached files are readable from any project folder
+           "--add-dir", str(udir("uploads", make=True))]  # so attached files are readable from any project folder
     if c.get("model"):
         cmd += ["--model", c["model"]]
     note = browser(cmd, c.get("allowed_tools") or "", r)
@@ -821,7 +768,7 @@ def spawn(r):
             "command": sys.executable or "python3", "args": [str((ROOT / "server.py").resolve()), "brain-mcp"]}}})]
         lead = BRAIN.format(n=c.get("agents") or 3)
         if r.get("assistant"):  # it asks the user in its replies; AskUserQuestion would block WhatsApp
-            lead = ASSISTANT + profile(r.get("owner"))
+            lead = ASSISTANT + profile()
             extra["HADIYA_ASSISTANT"] = "1"
         if r.get("goal"):  # autonomous: nobody answers AskUserQuestion; goal_report "blocked" is its way to the user
             lead += "\n\n" + GOAL_RULES
@@ -829,29 +776,29 @@ def spawn(r):
         cmd += ["--disallowedTools", "Bash,Edit,Write,NotebookEdit" + (",AskUserQuestion" if r.get("assistant") or r.get("goal") else "")]  # it coordinates; sessions do the work
     else:
         lead = ORCH.format(n=c.get("agents") or 3, models=sub_models_rule(c.get("sub_models"))) + ("\n\n" + CHILD if r.get("parent") else "")
-    out = udir(r.get("owner"), "uploads", r["id"], make=True)
+    out = udir("uploads", r["id"], make=True)
     note += (f"\n\nTo send the user a file in the chat, write it into {out}/ (plain filename, no subfolders). "
              "It appears as a downloadable attachment under your message when your turn ends." + (" You can't write files yourself: use send_file, or tell a session to." if r.get("assistant") else ""))
-    if package(r.get("owner")) == "dev" and run_project(r):
-        f, pj = project_file(r.get("owner"), r["project"]), r["project"]
-        if not r.get("owner") and not f.exists():  # multi-user: their own claude creates it, so they own it
+    if package() == "dev" and run_project(r):
+        f, pj = project_file(r["project"]), r["project"]
+        if not f.exists():
             f.parent.mkdir(parents=True, exist_ok=True)
             f.write_text(f"# {Path(pj).name or pj}\n\nFolder: {pj}\n")
         note += "\n\n" + PROJECT.format(f=f, p=pj, name=Path(pj).name or pj)
-        if wp_flag(r.get("owner"), pj)["on"]:
+        if wp_flag(pj)["on"]:
             note += "\n\n" + WP_NOTE
     cmd +=["--append-system-prompt", "\n\n".join(filter(None, [lead, note]))]
     if r.get("session_id"):
         cmd += ["--resume", r["session_id"]]
         r["cost_base"] = r["cost"]  # new process reports cost from zero
-    p = launch(r.get("owner"), cmd, workdir(r.get("owner"), c.get("cwd")), extra)
+    p = launch(cmd, workdir(c.get("cwd")), extra)
     procs[r["id"]] = p
     threading.Thread(target=pump, args=(r, p), daemon=True).start()
     return p
 
 
 def pump(r, p):
-    seen, cwd = {}, workdir(r.get("owner"), r["config"].get("cwd"))
+    seen, cwd = {}, workdir(r["config"].get("cwd"))
     for line in p.stdout:
         try:
             ev = json.loads(line)
@@ -861,16 +808,16 @@ def pump(r, p):
         keep_shots_out(ev, cwd, r, seen)
         t, sub = ev.get("type"), ev.get("subtype")
         if t == "rate_limit_event":
-            note_usage(ev, r.get("owner"))
+            note_usage(ev)
         if t == "control_request":
             req = ev.get("request") or {}
             if req.get("subtype") != "can_use_tool":
                 write(p, {"type": "control_response", "response": {
                     "subtype": "error", "request_id": ev.get("request_id"), "error": "unsupported by Hadiya"}})
                 continue
-            if not allowed(r.get("owner"), req.get("tool_name")):
+            if not allowed(req.get("tool_name")):
                 write(p, {"type": "control_response", "response": {"subtype": "success", "request_id": ev.get("request_id"), "response": {
-                    "behavior": "deny", "message": f"Not available in the {package(r.get('owner'))} package of Hadiya."}}})
+                    "behavior": "deny", "message": f"Not available in the {package()} package of Hadiya."}}})
                 continue
             with lock:
                 r.setdefault("pending", {})[ev["request_id"]] = {
@@ -888,10 +835,10 @@ def pump(r, p):
                 continue
             a = assistant_of(r)
             if a and q["tool"] != "AskUserQuestion":
-                if st(a.get("owner"))["auto"]:
+                if st()["auto"]:
                     answer(r, {"id": q["id"], "allow": True}, by="auto")
                     continue
-                post(a.get("owner"), "approval", ("" if a is r else r["name"] + ": ") + f"{q['tool']} "
+                post("approval", ("" if a is r else r["name"] + ": ") + f"{q['tool']} "
                      + json.dumps(q["input"], ensure_ascii=False)[:800], approval_id=q["id"])
             if q["tool"] == "AskUserQuestion" and tell_brain(r, f"asks you (question_id {q['id']}):\n"
                     f"{json.dumps(q['input'].get('questions'), ensure_ascii=False)}\nAnswer it with answer_question. "
@@ -914,8 +861,7 @@ def pump(r, p):
                 job = next((e.get("from") or "" for e in reversed(r["events"]) if e.get("type") == "input"), "").startswith("job:")
                 if said and job and said.strip(" .").upper() == "NOTHING":
                     said = None
-                note_auth(ev, r.get("owner"))
-                if hit_limit(ev, r.get("owner")):
+                if hit_limit(ev):
                     r["waiting"] = True  # the queue worker sends "continue" once the limit resets
                 r["turn_done"] = True
                 r["cost"] = r.get("cost_base", 0) + (ev.get("total_cost_usd") or 0)
@@ -933,7 +879,7 @@ def pump(r, p):
         if done is not None:
             tell_brain(r, "finished its turn:\n" + done)
         if said:
-            post(r.get("owner"), "notice" if job else "reply", said)
+            post("notice" if job else "reply", said)
         for f in (made or []) if r.get("assistant") else []:
             wa_file(r, f["name"])
     p.wait()
@@ -1043,7 +989,7 @@ def answer(r, body, by=None):
     write(p, {"type": "control_response", "response": {"subtype": "success", "request_id": body["id"], "response": resp}})
     a = assistant_of(r)
     if a and q["tool"] != "AskUserQuestion":  # lets every client of the assistant drop or grey out the approval
-        post(a.get("owner"), "resolved", "", approval_id=body["id"], allow=bool(body.get("allow")))
+        post("resolved", "", approval_id=body["id"], allow=bool(body.get("allow")))
 
 
 def set_model(r, model):
@@ -1061,7 +1007,7 @@ def set_model(r, model):
 def restart(r, p):
     """End the lead process so the next message respawns it (--resume) with the current config."""
     restarting.add(p)
-    p.terminate()
+    kill_tree(p)
 
 
 def configure(r, body):
@@ -1080,20 +1026,19 @@ def configure(r, body):
         return "after-turn"
 
 
-def start_session(body, owner, brain=None, assistant=False, src=None, goal=None):
+def start_session(body, brain=None, assistant=False, src=None, goal=None):
     """brain: the Second Brain run starting this session as its child. The child gets the brain's permissions;
-    only the folder (still inside the owner's home) and the model can differ."""
+    only the folder and the model can differ."""
     text = body.get("message", "").strip()
-    if body.get("brain") and package(owner) != "dev":
+    if body.get("brain") and package() != "dev":
         raise ValueError("The Second Brain is only in the dev package")
-    workdir(owner, body.get("cwd"))  # refuse a folder outside their home before the session exists
     c = {k: body.get(k) for k in ("cwd", "model", "permission_mode", "allowed_tools", "agents", "caps", "sub_models")}
-    if c["allowed_tools"] is None and package(owner) == "dev":
+    if c["allowed_tools"] is None and package() == "dev":
         c["allowed_tools"] = "mcp__playwright"  # browser on by default; the UI sends an explicit list, so unticking still works
     if brain:
         c = {**{k: brain["config"].get(k) for k in ("permission_mode", "allowed_tools", "caps", "sub_models")}, "agents": 3,
              "cwd": body.get("cwd") or brain["config"].get("cwd"), "model": body.get("model") or "sonnet"}  # not the brain's opus: children were ~80% of a brain project's cost
-    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "kind": "session", "owner": owner,
+    r = {"id": time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4], "kind": "session",
          "name": str(body.get("name") or "")[:60] or (text.splitlines()[0][:60] if text else "Session"), "status": "working",
          "started": time.time(), "ended": None, "cost": 0, "events": [], "session_id": None, "config": c}
     run_project(r)
@@ -1118,7 +1063,7 @@ def stop_session(r):
         r["status"] = "stopped"
         r.pop("waiting", None)
         if r["id"] in procs:
-            procs[r["id"]].terminate()
+            kill_tree(procs[r["id"]])
 
 
 def transcript(r, since, cap=4000):
@@ -1165,7 +1110,7 @@ def brain_api(b, tool, a):
             raise ValueError(f"{live} of your sessions are already working (your limit is {n}). Wait for one to finish its turn.")
         if not str(a.get("message") or "").strip():
             raise ValueError("start_session needs a `message`: the session's whole brief.")
-        rid = start_session({k: a.get(k) for k in ("message", "name", "cwd", "model")}, b.get("owner"), b)
+        rid = start_session({k: a.get(k) for k in ("message", "name", "cwd", "model")}, b)
         return f"Started session {rid}."
     if tool == "list_sessions":
         with lock:
@@ -1174,14 +1119,13 @@ def brain_api(b, tool, a):
                      "last_message": last_text(r, 300)} for r in runs.values() if r.get("parent") == b["id"]]
         return json.dumps(kids, ensure_ascii=False, indent=1) if kids else "No sessions yet."
     if tool in ("set_job", "remove_job", "list_jobs") and b.get("assistant"):
-        o = b.get("owner")
         if tool != "list_jobs":
-            set_jobs(o, [j for j in st(o)["jobs"] if j["id"] != a.get("id")] + ([a] if tool == "set_job" else []))
-        return json.dumps(st(o)["jobs"], ensure_ascii=False)
+            set_jobs([j for j in st()["jobs"] if j["id"] != a.get("id")] + ([a] if tool == "set_job" else []))
+        return json.dumps(st()["jobs"], ensure_ascii=False)
     if tool == "goal_report" and b.get("goal"):
         return goal_reported(b["goal"], b["id"], a)
     if tool.startswith("goal_") and b.get("assistant"):
-        return goal_tool(b.get("owner"), tool, a)
+        return goal_tool(tool, a)
     if tool == "send_file" and b.get("assistant"):
         raw = str(a.get("content") or "").encode()[:1 << 20]
         if not wa_ok(str(a.get("name")), raw) or Path(str(a.get("name"))).suffix.lower() not in (".txt", ".csv", ".md"):
@@ -1310,7 +1254,7 @@ def notify(r, body):
         pass
     if VAPID:
         payload = json.dumps({"title": title, "body": body[:300], "tag": r["id"], "url": f"/#session/{r['id']}"}).encode()
-        for s in [s for s in push["subs"].values() if s.get("owner") == r.get("owner")]:
+        for s in push["subs"].values():
             threading.Thread(target=push_one, args=(s["sub"], payload), daemon=True).start()
 
 
@@ -1324,23 +1268,14 @@ def save_queue():
     write_atomic(QUEUE_FILE, json.dumps(queue))
 
 
-def own(rid, user):
-    """The run, if this user owns it (KeyError, so a 404, otherwise)."""
-    r = runs[rid]
-    if r.get("owner") != user:
-        raise KeyError(rid)
-    return r
 
-
-def enqueue(body, owner):
+def enqueue(body):
     """body: {kind: "workflow", wf_id, input}, {kind: "session", ...start_session body}
     or {kind: "message", run_id, text, files?}: sent to that session once it is free."""
-    item = {**body, "id": uuid.uuid4().hex[:8], "added": time.time(), "owner": owner}
+    item = {**body, "id": uuid.uuid4().hex[:8], "added": time.time()}
     k = body.get("kind")
-    if k == "session":
-        workdir(owner, body.get("cwd"))
-    item["name"] = (load_wfs(owner)[body["wf_id"]]["name"] if k == "workflow" else
-                    (body.get("text") or "Message").strip().splitlines()[0][:60] if k == "message" and own(body["run_id"], owner) else
+    item["name"] = (load_wfs()[body["wf_id"]]["name"] if k == "workflow" else
+                    (body.get("text") or "Message").strip().splitlines()[0][:60] if k == "message" and runs[body["run_id"]] else
                     (body.get("message") or "Session").strip().splitlines()[0][:60])
     with lock:
         queue.append(item)
@@ -1353,9 +1288,9 @@ def busy(r):
 
 
 def tick():
-    """Each owner's queue runs one task at a time and pauses while their own usage limit is out."""
+    """The queue runs one task at a time and pauses while the usage limit is out."""
     with lock:
-        waiting = [r for r in runs.values() if bool(r.get("owner")) == MULTI and not limited_until(r.get("owner")) and (r["status"] == "waiting" or
+        waiting = [r for r in runs.values() if not limited_until() and (r["status"] == "waiting" or
                    (r.get("waiting") and r["status"] in ("idle", "stopped", "failed")))]
         for r in waiting:
             if r.get("kind") == "session":
@@ -1370,9 +1305,9 @@ def tick():
         due, sent = [], set()
         for q in [q for q in queue if q.get("kind") == "message"]:
             r = runs.get(q["run_id"])
-            if not r or r.get("owner") != q.get("owner"):
+            if not r:
                 queue.remove(q)
-            elif bool(q.get("owner")) == MULTI and q["run_id"] not in sent and not busy(r) and not limited_until(r.get("owner")):
+            elif q["run_id"] not in sent and not busy(r) and not limited_until():
                 sent.add(q["run_id"])
                 queue.remove(q)
                 due.append((r, q))
@@ -1380,15 +1315,14 @@ def tick():
     for r, q in due:
         send(r, q.get("text", ""), files=save_files(r, q.get("files")))
     with lock:
-        free = lambda o: not limited_until(o) and not any(r.get("queued") and busy(r) and r.get("owner") == o for r in runs.values())
-        tasks = [q for q in queue if q.get("kind") != "message" and bool(q.get("owner")) == MULTI and free(q.get("owner"))]
+        free = not limited_until() and not any(r.get("queued") and busy(r) for r in runs.values())
+        tasks = [q for q in queue if q.get("kind") != "message"] if free else []
         if not tasks:
             return
         item = tasks[0]
         queue.remove(item)
         save_queue()
-    o = item.get("owner")
-    rid = start_run(item["wf_id"], item.get("input", ""), o) if item.get("kind") == "workflow" else start_session(item, o)
+    rid = start_run(item["wf_id"], item.get("input", "")) if item.get("kind") == "workflow" else start_session(item)
     runs[rid]["queued"] = True
 
 
@@ -1396,20 +1330,18 @@ GREETED = DATA / "greeted.txt"
 
 
 def good_morning():
-    """At 6am local, once a day (the date is kept on disk, so a restart doesn't repeat it), each user gets a session saying buenos días."""
+    """At 6am local, once a day (the date is kept on disk, so a restart doesn't repeat it), a session saying buenos días."""
     now = time.localtime()
     today = time.strftime("%Y-%m-%d", now)
     if now.tm_hour != 6 or (GREETED.exists() and GREETED.read_text() == today):
         return
     GREETED.write_text(today)
-    for o in (load_users() if MULTI else [None]):
-        enqueue({"kind": "session", "name": "Buenos días", "message": "¡Buenos días, Claude!"}, o)
+    enqueue({"kind": "session", "name": "Buenos días", "message": "¡Buenos días, Claude!"})
 
 
-# ---------- Hadiya Asistente: one Second Brain per user, reachable from any channel (web, WhatsApp bridge) ----------
-# data/assistant.json: {token, owner, users: {owner or "": {run, auto, jobs, outbox, n}}}. The bridge sends
-# `Authorization: Bearer <token>` and acts as `owner`.
-# shortcut: one bridge token, for the single user (or the "owner" set by hand in multi-user); per-user tokens when needed.
+# ---------- Hadiya Asistente: one Second Brain, reachable from any channel (web, WhatsApp bridge) ----------
+# data/assistant.json: {token, users: {"": {run, auto, jobs, outbox, n}}} ("" kept from the multi-user days, so old
+# files load as they are). The bridge sends `Authorization: Bearer <token>`.
 AFILE = DATA / "assistant.json"
 A = json.loads(AFILE.read_text()) if AFILE.exists() else {}
 acond = threading.Condition()  # guards A; outbox long-polls wait on it
@@ -1469,10 +1401,10 @@ def wa_ok(name, raw):
 
 def wa_file(r, name):
     """Hand a file the assistant wrote to its uploads folder to the channels (the bridge sends it to WhatsApp)."""
-    f = udir(r.get("owner"), "uploads", r["id"]) / name
+    f = udir("uploads", r["id"]) / name
     try:
         if f.is_file() and f.stat().st_size <= WA_MAX and wa_ok(name, f.read_bytes()):
-            post(r.get("owner"), "file", name, path=str(f))
+            post("file", name, path=str(f))
     except OSError:
         pass
 
@@ -1488,7 +1420,7 @@ def transcribe(raw):
         t.write(raw)
         t.flush()
         try:
-            out = subprocess.run(cmd + [t.name], capture_output=True, text=True, timeout=300)
+            out = subprocess.run(cmd + [t.name], capture_output=True, text=True, timeout=300, **NOWIN)
         except (OSError, subprocess.TimeoutExpired) as e:
             raise ValueError(f"Could not transcribe the voice note: {e}")
     if out.returncode or not out.stdout.strip():
@@ -1496,33 +1428,33 @@ def transcribe(raw):
     return out.stdout.strip()[:4000]
 
 
-def st(owner):
-    """The owner's assistant state, created with the default jobs on first use."""
+def st():
+    """The assistant state, created with the default jobs on first use."""
     with acond:
-        s = A.setdefault("users", {}).get(owner or "")
+        s = A.setdefault("users", {}).get("")
         if s is None:
-            s = A["users"][owner or ""] = {"run": None, "auto": False, "outbox": [], "n": 0, "jobs": [clean_job(j) for j in DEFAULT_JOBS]}
+            s = A["users"][""] = {"run": None, "auto": False, "outbox": [], "n": 0, "jobs": [clean_job(j) for j in DEFAULT_JOBS]}
             save_a()
         return s
 
 
-def set_jobs(owner, jobs):
+def set_jobs(jobs):
     jobs = [clean_job(j) for j in jobs]
     with acond:
-        st(owner)["jobs"] = jobs
+        st()["jobs"] = jobs
         save_a()
 
 
-def post(owner, kind, text, **kw):
-    """Add to the owner's outbox ("reply", "notice", "approval", "resolved") and wake the long-polls. Notices also go to Web Push."""
-    s = st(owner)
+def post(kind, text, **kw):
+    """Add to the outbox ("reply", "notice", "approval", "resolved") and wake the long-polls. Notices also go to Web Push."""
+    s = st()
     with acond:
         s["n"] += 1
         s["outbox"] = s["outbox"][-199:] + [{"id": s["n"], "type": kind, "text": text, "ts": time.time(), **kw}]
         save_a()
         acond.notify_all()
     if kind == "notice":
-        notify(runs.get(s["run"] or "") or {"id": "", "name": "Asistente", "owner": owner}, text)
+        notify(runs.get(s["run"] or "") or {"id": "", "name": "Asistente"}, text)
 
 
 def assistant_of(r):
@@ -1532,22 +1464,22 @@ def assistant_of(r):
             return x
 
 
-def profile(owner):
+def profile():
     try:
-        return "\n\nWhat you know about the user:\n" + (claude_dir(owner) / "flows-assistant" / "profile.md").read_text()[:8000]
+        return "\n\nWhat you know about the user:\n" + (claude_dir() / "flows-assistant" / "profile.md").read_text()[:8000]
     except OSError:
         return ""
 
 
-def assistant_send(owner, text, src=None):
-    """Send to the owner's assistant, starting it the first time (or after it was deleted). Reaped ones resume in send()."""
-    s = st(owner)
+def assistant_send(text, src=None):
+    """Send to the assistant, starting it the first time (or after it was deleted). Reaped ones resume in send()."""
+    s = st()
     with alock:
         r = runs.get(s["run"] or "")
         if r:
             return send(r, text, src=src)
         rid = start_session({"message": text, "brain": True, "name": "Asistente", "permission_mode": "acceptEdits",
-                             "allowed_tools": READONLY}, owner, assistant=True, src=src)
+                             "allowed_tools": READONLY}, assistant=True, src=src)
         with acond:
             s["run"] = rid
             save_a()
@@ -1563,22 +1495,21 @@ def job_slot(j, now):
 def run_jobs(now=None):
     """Each job fires once per HH:MM slot on its days (or its date: one-off), as a [Job] message to the assistant."""
     now = now or time.localtime()
-    day, due = time.strftime("%Y-%m-%d", now), []
+    day, due, s = time.strftime("%Y-%m-%d", now), [], st()
     with acond:
-        for o, s in A.get("users", {}).items():
-            for j in list(s["jobs"]):
-                slot = job_slot(j, now)
-                if j.get("date", day) < day:
-                    s["jobs"].remove(j)  # a reminder whose day went by while Hadiya was off
-                elif slot:
-                    j["last"] = slot
-                    if j.get("date"):
-                        s["jobs"].remove(j)
-                    due.append((o or None, j))
+        for j in list(s["jobs"]):
+            slot = job_slot(j, now)
+            if j.get("date", day) < day:
+                s["jobs"].remove(j)  # a reminder whose day went by while Hadiya was off
+            elif slot:
+                j["last"] = slot
+                if j.get("date"):
+                    s["jobs"].remove(j)
+                due.append(j)
         if due:
             save_a()
-    for o, j in due:
-        assistant_send(o, f"[Job {j['id']}] {j['prompt']}", src="job:" + j["id"])
+    for j in due:
+        assistant_send(f"[Job {j['id']}] {j['prompt']}", src="job:" + j["id"])
 
 
 if not A.get("token"):
@@ -1592,8 +1523,7 @@ for _s in A.get("users", {}).values():  # stored default prompts: the first brie
             if _j["id"] == _d["id"] and _j["prompt"] in (OLD_BRIEFS if _d["id"] == "brief" else OLD_HEARTBEATS):
                 _j["prompt"] = _d["prompt"]
                 save_a()
-if not MULTI:
-    st(None)
+st()
 
 
 # ---------- Goals: autonomous loops that work until an independent verifier passes them ----------
@@ -1662,14 +1592,14 @@ ONESHOT_DENY = "Edit,Write,NotebookEdit,AskUserQuestion," + ",".join(f"Bash({c}:
     "gh", "npm publish", "vercel", "netlify", "firebase", "ssh", "scp", "rsync"))
 
 
-def oneshot(owner, cwd, prompt, model, tools, timeout):
+def oneshot(cwd, prompt, model, tools, timeout):
     """A fresh `claude -p` that must answer with a JSON object; it can't edit files."""
-    cmd = ["claude", "-p", "--output-format", "json", "--model", model, "--allowedTools", tools, "--disallowedTools", ONESHOT_DENY]
-    p = launch(owner, cmd, workdir(owner, cwd))
+    cmd = [CLAUDE, "-p", "--output-format", "json", "--model", model, "--allowedTools", tools, "--disallowedTools", ONESHOT_DENY]
+    p = launch(cmd, workdir(cwd))
     try:
         out, _ = p.communicate(prompt, timeout=timeout)
     except subprocess.TimeoutExpired:
-        p.kill()
+        kill_tree(p)
         p.wait()
         raise ValueError("timed out")
     try:
@@ -1686,12 +1616,6 @@ def clean_schedule(s):
     return {k: v for k, v in clean_job({**s, "prompt": "-"}).items() if k in ("at", "days", "last")}
 
 
-def goal_get(owner, gid):
-    g = G[gid]
-    if g.get("owner") != owner:
-        raise KeyError(gid)
-    return g
-
 
 def goal_brief(g):
     return ("Objective: " + g["objective"] + "\nContext from the user:\n"
@@ -1699,19 +1623,19 @@ def goal_brief(g):
             + "\nAcceptance criteria:\n" + "\n".join("- " + a for a in g["acceptance"]))
 
 
-def goal_create(owner, body):
+def goal_create(body):
     name, objective = str(body.get("name") or "").strip()[:60], str(body.get("objective") or "").strip()[:8000]
-    folder = str(workdir(owner, body.get("folder")))
+    folder = str(workdir(body.get("folder")))
     if not name or not objective or not body.get("folder"):
         raise ValueError("A goal needs name, folder and objective")
     if not os.path.isdir(folder):
         raise ValueError(f"No such folder: {folder}")
-    g = {"id": uuid.uuid4().hex[:8], "owner": owner, "name": name, "slug": re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "goal",
+    g = {"id": uuid.uuid4().hex[:8], "name": name, "slug": re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "goal",
          "folder": folder, "objective": objective, "schedule": clean_schedule(body.get("schedule")), "status": "intake",
          "questions": [], "answers": {}, "acceptance": [], "iteration": 0, "max_iter": 5, "max_hours": 8, "run": None,
          "started": None, "ended": None, "history": [], "report": "", "last": None, "created": time.time()}
     try:
-        j = oneshot(owner, folder, INTAKE.format(folder=folder, objective=objective), "haiku", "Read,Glob,Grep", 100)
+        j = oneshot(folder, INTAKE.format(folder=folder, objective=objective), "haiku", "Read,Glob,Grep", 100)
         g["questions"] = [{"id": str(q.get("id") or f"q{i}"), "q": str(q.get("q") or ""), "hint": str(q.get("hint") or "")}
                           for i, q in enumerate(j.get("questions") or [], 1) if q.get("q")][:8]
         g["acceptance"] = [str(a) for a in j.get("acceptance") or []][:8]
@@ -1744,7 +1668,7 @@ def goal_start(g):
     msg = (f"[Goal] {g['name']}\nFolder: {g['folder']}\nBranch: goal/{g['slug']}\n{goal_brief(g)}\n"
            f"Limits: {g['max_iter']} verification rounds or {g['max_hours']} h in total. Start now.")
     start_session({"message": msg, "brain": True, "name": "Goal: " + g["name"], "cwd": g["folder"], "permission_mode": "acceptEdits",
-                   "allowed_tools": "Read,Glob,Grep,WebSearch,WebFetch,ToolSearch,mcp__playwright"}, g.get("owner"), goal=g["id"])
+                   "allowed_tools": "Read,Glob,Grep,WebSearch,WebFetch,ToolSearch,mcp__playwright"}, goal=g["id"])
     with glock:
         save_g()
     return g
@@ -1768,7 +1692,7 @@ def goal_finish(g, status, line):
         if status != "blocked":
             goal_kill(g)
             g["ended"] = time.time()
-        post(g.get("owner"), "notice", g["report"], goal=g["id"])
+        post("notice", g["report"], goal=g["id"])
         g["status"] = status
         save_g()
 
@@ -1792,7 +1716,7 @@ def goal_reported(gid, rid, a):
 def goal_verify(g, summary):
     n = g["iteration"]
     try:
-        v = oneshot(g.get("owner"), g["folder"], VERIFY.format(folder=g["folder"], branch="goal/" + g["slug"], brief=goal_brief(g), summary=summary),
+        v = oneshot(g["folder"], VERIFY.format(folder=g["folder"], branch="goal/" + g["slug"], brief=goal_brief(g), summary=summary),
                     "sonnet", "Read,Glob,Grep,Bash", 3600)
         ok, why, failing = v.get("verdict") == "pass", str(v.get("summary") or "")[:1000], [str(x)[:300] for x in v.get("failing") or []][:20]
     except (ValueError, OSError) as e:
@@ -1865,13 +1789,13 @@ def goal_tick(now=None):
         goal_start(g)
 
 
-def goal_tool(owner, tool, a):
+def goal_tool(tool, a):
     """The assistant's goal_* tools (WhatsApp): same as the API."""
     if tool == "goal_list":
         with glock:
             return json.dumps([{k: g[k] for k in ("id", "name", "folder", "status", "iteration", "questions", "schedule", "report")}
-                               for g in G.values() if g.get("owner") == owner], ensure_ascii=False)
-    g = goal_create(owner, a) if tool == "goal_create" else goal_get(owner, str(a.get("id")))
+                               for g in G.values()], ensure_ascii=False)
+    g = goal_create(a) if tool == "goal_create" else G[str(a.get("id"))]
     if tool == "goal_answer":
         goal_answers(g, a)
     elif tool == "goal_start":
@@ -2120,7 +2044,8 @@ def set_tunnel(on):
         def read():
             # Spawned here, not in the request thread: PDEATHSIG fires when the forking *thread* exits.
             proc = t["proc"] = subprocess.Popen([exe, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{TUNNEL_PORT}"],
-                                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, preexec_fn=die_with_parent)
+                                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                                preexec_fn=None if WIN else die_with_parent, **NOWIN)
             if listeners.get("tunnel") is not t:  # turned off before we got here
                 proc.terminate()
             for line in proc.stdout:
@@ -2139,7 +2064,7 @@ def ts(*args, timeout=10):
     if not exe:
         return False, "not installed"
     try:
-        r = subprocess.run([exe, *args], capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run([exe, *args], capture_output=True, text=True, timeout=timeout, **NOWIN)
         return r.returncode == 0, (r.stdout + r.stderr).strip()
     except subprocess.TimeoutExpired as e:
         said = ((e.stdout or b"") + (e.stderr or b"")).decode(errors="replace").strip() if isinstance(e.stdout, bytes) else (e.stdout or "") + (e.stderr or "")
@@ -2234,31 +2159,6 @@ if(m){c.value=m[1];history.replaceState(null,'',location.pathname);}
 f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({code:c.value,name:document.getElementById('name').value})});
 const j=await r.json().catch(()=>({}));if(r.ok)location.replace('/');else document.getElementById('err').textContent=j.error||'No se pudo emparejar';};
 if(m)f.requestSubmit();</script></body></html>"""
-
-# ---------- multi-user logins: hashed session tokens in data/sessions.json ----------
-SESS_FILE = DATA / "sessions.json"
-logins = json.loads(SESS_FILE.read_text()) if SESS_FILE.exists() else {}  # sha256(token) -> {user, salt, exp}
-fails = {}  # user name, or "*" for everyone -> times of recent failed logins
-SESSION_DAYS, FAIL_WINDOW = 30, 900
-
-
-def save_logins():
-    write_atomic(SESS_FILE, json.dumps(logins))
-    os.chmod(SESS_FILE, 0o600)
-
-
-def locked(k):
-    fails[k] = [t for t in fails.get(k, []) if t > time.time() - FAIL_WINDOW]
-    return len(fails[k]) >= (50 if k == "*" else 5)
-
-
-LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Emparejar con Hadiya", b"Entrar en Hadiya") + b"""<main>
-<div class="band"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/><g transform="matrix(-1 0 0 1 64 0)"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/></g></svg>Entrar en Hadiya</div><form id="f"><label for="u">Usuario</label><input id="u" autocomplete="username" autocapitalize="none" required>
-<label for="p">Contrase&#241;a</label><input id="p" type="password" autocomplete="current-password" required>
-<button>Entrar</button><div id="err" role="alert"></div></form></main><script>
-const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({user:f.u.value,password:f.p.value})});
-const j=await r.json().catch(()=>({}));if(r.ok)location.reload();else document.getElementById('err').textContent=j.error||'No se pudo entrar';};</script></body></html>"""
-
 
 sub_scan = {}  # run id -> (events scanned, {tool_use_id: {id, desc, status}})
 
@@ -2378,30 +2278,6 @@ class H(BaseHTTPRequestHandler):
         cookie = f"flows_device={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={DEVICE_DAYS * 86400}{secure}"
         return self.send(200, {"ok": True}, headers=[("Set-Cookie", cookie)])
 
-    def who(self):
-        """Multi-user: the signed-in user, or None. A password change or deluser ends their sessions."""
-        tok = SimpleCookie(self.headers.get("Cookie", "")).get("flows_session")
-        s = tok and logins.get(hashlib.sha256(tok.value.encode()).hexdigest())
-        u = s and load_users().get(s["user"])
-        return s["user"] if u and s["exp"] > time.time() and u["pw"].split("$")[0] == s["salt"] else None
-
-    def login(self, body):
-        name, pw = str(body.get("user") or ""), str(body.get("password") or "")
-        if locked(name) or locked("*"):
-            return self.send(429, {"error": "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos."})
-        u = load_users().get(name)
-        if not check_pw(pw, (u or {}).get("pw") or "x$") or not u:  # hash anyway: no timing hint that a user exists
-            for k in (name, "*"):
-                fails[k].append(time.time())
-            return self.send(403, {"error": "Usuario o contraseña incorrectos"})
-        tok = secrets.token_urlsafe(32)
-        with lock:
-            logins.update({k: v for k, v in logins.items() if v["exp"] > time.time()} | {
-                hashlib.sha256(tok.encode()).hexdigest(): {"user": name, "salt": u["pw"].split("$")[0], "exp": time.time() + SESSION_DAYS * 86400}})
-            save_logins()
-        secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" or self.server is listeners.get("tunnel", {}).get("srv") else ""
-        return self.send(200, {"ok": True}, headers=[("Set-Cookie", f"flows_session={tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age={SESSION_DAYS * 86400}{secure}")])
-
     def route(self):
         n = int(self.headers.get("Content-Length") or 0)
         p = self.path.split("?")[0].strip("/").split("/")
@@ -2411,13 +2287,12 @@ class H(BaseHTTPRequestHandler):
                 return self.send(413, {"error": "too large"})
             return self.guest(m, p, json.loads(self.rfile.read(n) or b"{}") if n else {})
         body = json.loads(self.rfile.read(n) or b"{}") if n else {}
-        u = self.user = None
         if p[:2] == ["api", "assistant"] and self.headers.get("Authorization", "").startswith("Bearer "):
             # the WhatsApp bridge, a local process: laptop listener only
             if self.remote or not hmac.compare_digest(self.headers["Authorization"][7:].strip(), A["token"]):
                 return self.send(403, {"error": "forbidden"})
             try:
-                return self.assistant(m, p, body, A.get("owner"))
+                return self.assistant(m, p, body)
             except KeyError:
                 return self.send(404, {"error": "not found"})
             except (ValueError, TypeError) as e:
@@ -2440,28 +2315,7 @@ class H(BaseHTTPRequestHandler):
                 return self.send(400, {"error": str(e)})
             except Exception as e:
                 return self.send(500, {"error": str(e)})
-        if MULTI:  # signed-in users on every listener; the phone pairing below is single-user only
-            if not self.remote and self.headers.get("Host", "").split(":")[0] not in HOSTS:
-                return self.send(403, {"error": "bad host"})
-            if m != "GET" and self.headers.get("X-Flow") != "1":
-                return self.send(403, {"error": "missing X-Flow header"})
-            if m == "POST" and p == ["api", "login"]:
-                return self.login(body)
-            u = self.user = self.who()
-            public = m == "GET" and (p in (["manifest.json"], ["sw.js"]) or (len(p) == 2 and p[0] == "icons"))
-            if not u and not public:
-                if m == "GET" and p == [""]:
-                    return self.send(200, LOGIN_HTML, "text/html; charset=utf-8")
-                return self.send(401, {"error": "Sign in first"})
-            if m == "POST" and p == ["api", "logout"]:
-                tok = SimpleCookie(self.headers.get("Cookie", "")).get("flows_session")
-                with lock:
-                    logins.pop(hashlib.sha256(tok.value.encode()).hexdigest(), None)
-                    save_logins()
-                return self.send(200, {"ok": True}, headers=[("Set-Cookie", "flows_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")])
-            if p[:2] == ["api", "remote"] and not load_users()[u].get("admin"):
-                return self.send(403, {"error": "Only an admin can manage remote access"})
-        elif self.remote:
+        if self.remote:
             # Phone listeners: nothing but the pairing page until this device is paired. The install
             # files hold no data and browsers fetch the manifest and icons without cookies, so they're open.
             public = m == "GET" and (p in (["manifest.json"], ["sw.js"]) or (len(p) == 2 and p[0] == "icons"))
@@ -2504,13 +2358,13 @@ class H(BaseHTTPRequestHandler):
                     save_remote()
                     return self.send(200, remote_status())
             if m == "GET" and len(p) == 3 and p[0] == "shots":
-                f = udir(u, "shots", own(Path(p[1]).name, u)["id"]) / Path(p[2]).name  # basename only: no path traversal
+                f = udir("shots", runs[Path(p[1]).name]["id"]) / Path(p[2]).name  # basename only: no path traversal
                 if f.suffix in (".png", ".jpeg", ".jpg") and f.is_file():
                     return self.send(200, f.read_bytes(), "image/png" if f.suffix == ".png" else "image/jpeg")
                 return self.send(404, {"error": "no such screenshot"})
             if m == "GET" and len(p) == 3 and p[0] == "uploads":
-                base = udir(u, "uploads").resolve()
-                f = (base / own(Path(unquote(p[1])).name, u)["id"] / Path(unquote(p[2])).name).resolve()
+                base = udir("uploads").resolve()
+                f = (base / runs[Path(unquote(p[1])).name]["id"] / Path(unquote(p[2])).name).resolve()
                 if f.parent.parent != base or not f.is_file():
                     return self.send(404, {"error": "no such file"})
                 raw = f.read_bytes()
@@ -2525,56 +2379,49 @@ class H(BaseHTTPRequestHandler):
                     return self.send(304, b"", "text/html; charset=utf-8", hd)
                 return self.send(200, raw, "text/html; charset=utf-8", hd)
             if m == "GET" and p == ["api", "me"]:
-                if not u:
-                    return self.send(200, {"user": None, "admin": True, "claude_logged_in": True, "package": package(None)})
-                home = unix_home(u)
-                # the server usually can't look inside a 700 home: then go by what their last run said
-                auth = os.path.exists(f"{home}/.claude/.credentials.json") if os.access(home, os.X_OK) else use(u).get("auth", True)
-                return self.send(200, {"user": u, "admin": bool(load_users()[u].get("admin")), "claude_logged_in": auth, "package": package(u)})
+                return self.send(200, {"package": package()})
             if p == ["api", "plan"] and m == "GET":
-                if u and not load_users()[u].get("admin"):  # one Trello account: the server owner's
-                    return self.send(403, {"error": "Only an admin can see the plan"})
                 return self.send(200, plan)
             if p[:2] == ["api", "workflows"]:
-                wfs = load_wfs(u)
+                wfs = load_wfs()
                 if m == "GET" and len(p) == 2:
                     return self.send(200, wfs)
                 if m == "PUT" and len(p) == 3:
                     wfs[p[2]] = body
-                    save_wfs(wfs, u)
+                    save_wfs(wfs)
                     return self.send(200, {"ok": True})
                 if m == "DELETE" and len(p) == 3:
                     wfs.pop(p[2], None)
-                    save_wfs(wfs, u)
+                    save_wfs(wfs)
                     return self.send(200, {"ok": True})
                 if m == "POST" and len(p) == 4 and p[3] == "run":
-                    return self.send(200, {"id": start_run(p[2], body.get("input", ""), u)})
+                    return self.send(200, {"id": start_run(p[2], body.get("input", ""))})
             if p[:2] in (["api", "agents"], ["api", "skills"]):
-                if package(u) != "dev":
+                if package() != "dev":
                     return self.send(403, {"error": "Los agentes solo están en el paquete dev"})
                 if m == "GET" and p == ["api", "skills"]:
-                    return self.send(200, list_skills(u))
+                    return self.send(200, list_skills())
                 if m == "GET" and p == ["api", "agents"]:
-                    return self.send(200, list_agents(u))
+                    return self.send(200, list_agents())
                 if len(p) == 3:
-                    return self.send(200, agent_api(u, m, p[2], body))
-            if p == ["api", "wp"] and package(u) == "dev":  # WordPress mode of any folder, before it has a session
+                    return self.send(200, agent_api(m, p[2], body))
+            if p == ["api", "wp"] and package() == "dev":  # WordPress mode of any folder, before it has a session
                 cwd = parse_qs(self.path.partition("?")[2]).get("cwd", ["~"])[0] if m == "GET" else body.get("cwd")
                 if m == "PUT":
-                    wp_set(u, cwd, body.get("on"))
-                return self.send(200, wp_flag(u, cwd))
+                    wp_set(cwd, body.get("on"))
+                return self.send(200, wp_flag(cwd))
             if p[:2] == ["api", "projects"]:
                 with lock:
                     if m == "GET" and len(p) == 2:
-                        return self.send(200, projects(u))
-                    j = projects(u, p[2]) if len(p) == 3 else {}[0]  # KeyError: not one of theirs
+                        return self.send(200, projects())
+                    j = projects(p[2]) if len(p) == 3 else {}[0]  # KeyError: not one of theirs
                 if m == "GET":
                     return self.send(200, j)
                 if m == "PUT" and "wordpress" in body:
-                    wp_set(u, j["path"], body["wordpress"])
+                    wp_set(j["path"], body["wordpress"])
                     return self.send(200, {"ok": True})
                 if m == "PUT":
-                    f = project_file(u, j["path"])
+                    f = project_file(j["path"])
                     f.parent.mkdir(parents=True, exist_ok=True)
                     f.write_text(str(body.get("context") or "").strip() + "\n")
                     return self.send(200, {"ok": True})
@@ -2595,23 +2442,22 @@ class H(BaseHTTPRequestHandler):
                     if not ep.startswith("https://"):
                         return self.send(400, {"error": "bad subscription"})
                     if body.get("off"):
-                        if push["subs"].get(ep, {}).get("owner") == u:
-                            push["subs"].pop(ep, None)
+                        push["subs"].pop(ep, None)
                     else:
-                        push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40], "owner": u}
+                        push["subs"][ep] = {"sub": body["sub"], "name": str(body.get("name") or "Phone")[:40]}
                     write_atomic(PUSH_FILE, json.dumps(push))
                     return self.send(200, {"ok": True})
             if m == "GET" and p == ["api", "usage"]:
-                return self.send(200, use(u))
+                return self.send(200, usage)
             if p[:2] == ["api", "queue"]:
                 if m == "GET" and len(p) == 2:
-                    return self.send(200, {"items": [{k: v for k, v in q.items() if k != "files"} for q in queue if q.get("owner") == u],
-                                           "limited_until": limited_until(u)})
+                    return self.send(200, {"items": [{k: v for k, v in q.items() if k != "files"} for q in queue],
+                                           "limited_until": limited_until()})
                 if m == "POST" and len(p) == 2:
-                    return self.send(200, {"id": enqueue(body, u)})
+                    return self.send(200, {"id": enqueue(body)})
                 if m == "DELETE" and len(p) == 3:
                     with lock:
-                        queue[:] = [q for q in queue if q["id"] != p[2] or q.get("owner") != u]
+                        queue[:] = [q for q in queue if q["id"] != p[2]]
                         save_queue()
                     return self.send(200, {"ok": True})
             if p[:2] == ["api", "runs"]:
@@ -2620,39 +2466,38 @@ class H(BaseHTTPRequestHandler):
                         skip = ("steps", "workflow", "input", "events", "config")
                         return self.send(200, sorted(
                             ({**{k: v for k, v in r.items() if k not in skip}, **({"subs": subs_of(r), "last": last_line(r)} if r.get("kind") == "session" else {})}
-                             for r in runs.values() if r.get("owner") == u),
+                             for r in runs.values()),
                             key=lambda r: r["started"], reverse=True))
                     if m == "GET" and len(p) == 3:
-                        r = own(p[2], u)
+                        r = runs[p[2]]
                         if "events" in r:  # sessions grow large: client polls with ?since=<count>
                             since = int(self.path.partition("since=")[2] or 0)
                             return self.send(200, {**r, "events": [slim(e) for e in r["events"][since:]], "total": len(r["events"])})
                         return self.send(200, r)
                     if m == "POST" and len(p) == 4 and p[3] == "cancel":
-                        own(p[2], u)
                         if runs[p[2]]["status"] == "waiting":
                             runs[p[2]].update(status="cancelled", ended=time.time())
                             save_run(runs[p[2]])
                         if runs[p[2]]["status"] == "running":
                             runs[p[2]]["status"] = "cancelled"
                             if p[2] in procs:
-                                procs[p[2]].terminate()
+                                kill_tree(procs[p[2]])
                         return self.send(200, {"ok": True})
                     if m == "DELETE" and len(p) == 3:
-                        delete_run(own(p[2], u)["id"])
+                        delete_run(runs[p[2]]["id"])
                         return self.send(200, {"ok": True})
             if p[:2] == ["api", "assistant"]:
-                return self.assistant(m, p, body, u)
+                return self.assistant(m, p, body)
             if p[:2] == ["api", "goals"]:
-                return self.goals(m, p, body, u)
+                return self.goals(m, p, body)
             if p[:2] == ["api", "kanban"]:
-                return self.kanban(m, p, body, u)
+                return self.kanban(m, p, body)
             if m == "GET" and p == ["kanban.html"]:  # the owner's view of a board: ?b=<id>
                 return self.send(200, (ROOT / "kanban.html").read_bytes(), "text/html; charset=utf-8")
             if p[:2] == ["api", "sessions"] and m == "POST":
                 if len(p) == 2:
-                    return self.send(200, {"id": start_session(body, u)})
-                r = own(p[2], u)
+                    return self.send(200, {"id": start_session(body)})
+                r = runs[p[2]]
                 if p[3:] == ["message"]:
                     send(r, body.get("text", ""), body.get("agents"), body.get("sub_models"), save_files(r, body.get("files")))
                     return self.send(200, {"ok": True})
@@ -2683,11 +2528,11 @@ class H(BaseHTTPRequestHandler):
         except Exception as e:
             self.send(500, {"error": str(e)})
 
-    def assistant(self, m, p, body, u):
+    def assistant(self, m, p, body):
         """/api/assistant/*: message, outbox (long-poll), approve, settings. Same for the web UI and the bridge."""
-        if package(u) != "dev":
+        if package() != "dev":
             return self.send(403, {"error": "The assistant is only in the dev package"})
-        s = st(u)
+        s = st()
         if m == "POST" and p[2:] == ["message"]:
             text, ch = str(body.get("text") or "").strip(), str(body.get("channel") or "web")
             if body.get("audio"):  # voice note (base64): the assistant gets the transcript
@@ -2710,13 +2555,13 @@ class H(BaseHTTPRequestHandler):
                 with acond:
                     s["auto"] = auto[1].lower() == "on"
                     save_a()
-                post(u, "notice", "Full auto: I act without asking." if s["auto"] else "Confirm mode: I ask before sending, deleting or publishing.")
+                post("notice", "Full auto: I act without asking." if s["auto"] else "Confirm mode: I ask before sending, deleting or publishing.")
             else:
                 msg = text if ch == "web" else f"[{ch}{' ' + str(body['from']) if body.get('from') else ''}] {text}"
                 if files:
                     send(runs[s["run"]], msg, files=files)
                 else:
-                    assistant_send(u, msg)
+                    assistant_send(msg)
             return self.send(200, {"ok": True, **({"text": text} if body.get("audio") else {})})
         if m == "GET" and p[2:] == ["outbox"]:
             q = parse_qs(self.path.partition("?")[2])
@@ -2728,14 +2573,14 @@ class H(BaseHTTPRequestHandler):
         if m == "POST" and p[2:] == ["approve"]:
             aid = str(body.get("approval_id") or "")
             with lock:
-                r = next((x for x in runs.values() if aid in (x.get("pending") or {}) and x.get("owner") == u and assistant_of(x)), None)
+                r = next((x for x in runs.values() if aid in (x.get("pending") or {}) and assistant_of(x)), None)
             if not r:
                 raise ValueError("No such pending approval (already answered?)")
             answer(r, {"id": aid, "allow": bool(body.get("allow")), "message": body.get("message")})
             return self.send(200, {"ok": True})
         if p[2:] == ["settings"]:
             if m == "POST" and "jobs" in body:
-                set_jobs(u, body["jobs"])
+                set_jobs(body["jobs"])
             if m == "POST" and "auto" in body:
                 with acond:
                     s["auto"] = bool(body["auto"])
@@ -2743,16 +2588,16 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"auto": s["auto"], "jobs": s["jobs"], "run": s["run"]})
         raise KeyError(p)
 
-    def goals(self, m, p, body, u):
+    def goals(self, m, p, body):
         """/api/goals[/<id>[/answers|start|stop|message|schedule]]"""
-        if package(u) != "dev":
+        if package() != "dev":
             return self.send(403, {"error": "Goals are only in the dev package"})
         if len(p) == 2:
             if m == "POST":
-                return self.send(200, goal_create(u, body))
+                return self.send(200, goal_create(body))
             with glock:
-                return self.send(200, sorted((g for g in G.values() if g.get("owner") == u), key=lambda g: g["created"], reverse=True))
-        g = goal_get(u, p[2])
+                return self.send(200, sorted(G.values(), key=lambda g: g["created"], reverse=True))
+        g = G[p[2]]
         if m == "GET" and len(p) == 3:
             return self.send(200, g)
         if m == "DELETE" and len(p) == 3:
@@ -2772,24 +2617,22 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, act[p[3]]())
         raise KeyError(p)
 
-    def kanban(self, m, p, body, u):
+    def kanban(self, m, p, body):
         """/api/kanban/boards[/<id>[/token | board API]], /api/kanban/share (the owner's side)."""
-        if package(u) != "dev":
+        if package() != "dev":
             return self.send(403, {"error": "The kanban is only in the dev package"})
         if p[2:] == ["share"]:
             if m == "POST":
-                if u and not load_users()[u].get("admin"):
-                    return self.send(403, {"error": "Only an admin can turn the tunnel on or off"})
                 set_tunnel(bool(body.get("on")))
             t = listeners.get("tunnel")
             return self.send(200, {"url": env("PUBLIC_URL") or (t or {}).get("url"), "tunnel": bool(t)})
         with klock:
             if p[2:] == ["boards"] and m == "GET":
-                mine = sorted((b for b in K["boards"].values() if b["owner"] == (u or "")), key=lambda b: b["created"])
+                mine = sorted(K["boards"].values(), key=lambda b: b["created"])
                 return self.send(200, [{**{k: b[k] for k in ("id", "name", "columns", "token")},
                                         "count": sum(c["board"] == b["id"] for c in K["cards"].values())} for b in mine])
             if p[2:] == ["boards"] and m == "POST":
-                b = {"id": secrets.token_urlsafe(9), "name": kb_text(body.get("name"), 80, "name", True), "owner": u or "",
+                b = {"id": secrets.token_urlsafe(9), "name": kb_text(body.get("name"), 80, "name", True),
                      "token": secrets.token_urlsafe(24), "created": time.time()}
                 b["columns"] = kb_cols(b, body.get("columns") or ["Por hacer", "En curso", "Hecho"])
                 K["boards"][b["id"]] = b
@@ -2798,8 +2641,6 @@ class H(BaseHTTPRequestHandler):
             if p[2:3] != ["boards"] or len(p) < 4:
                 raise KeyError(p)
             b = K["boards"][p[3]]
-            if b["owner"] != (u or ""):
-                raise KeyError(p)
             if len(p) == 4 and m == "PATCH":
                 if "name" in body:
                     b["name"] = kb_text(body["name"], 80, "name", True)
@@ -2818,7 +2659,7 @@ class H(BaseHTTPRequestHandler):
                 b["token"] = secrets.token_urlsafe(24)
                 save_k()
                 return self.send(200, {"token": b["token"]})
-            return self.kanban_board(m, p[4:], body, b, False, u or "")
+            return self.kanban_board(m, p[4:], body, b, False)
 
     def kanban_board(self, m, rest, body, b, guest, by=""):
         """The board API, the same for the owner and for a guest (who can't delete). Caller holds klock."""
@@ -2904,46 +2745,8 @@ class RH(H):
     remote = True
 
 
-def admin_cli(cmd, name, *rest):
-    """python3 server.py adduser <name> <unix_user> [--admin] [--package admin] | passwd <name> | deluser <name>"""
-    import getpass
-    us = load_users()
-    if cmd == "deluser":
-        us.pop(name)
-    else:
-        if cmd == "adduser":
-            if not re.fullmatch(r"[a-z0-9_-]{1,32}", name) or name in us:
-                raise SystemExit("name: 1-32 of a-z 0-9 _ - and not taken")
-            pwd.getpwnam(rest[0])  # the Linux user must exist
-            us[name] = {"unix": rest[0], "admin": "--admin" in rest}
-            if "--package" in rest:
-                us[name]["package"] = rest[rest.index("--package") + 1]
-                if us[name]["package"] not in PACKAGES:
-                    raise SystemExit(f"package: one of {', '.join(PACKAGES)}")
-        pw = getpass.getpass(f"Password for {name}: ")
-        if len(pw) < 10 or pw != getpass.getpass("Again: "):
-            raise SystemExit("Passwords must match and be at least 10 characters")
-        us[name]["pw"] = hash_pw(pw)  # a new salt also ends their open sessions
-    write_atomic(USERS_FILE, json.dumps(us, indent=1))
-    os.chmod(USERS_FILE, 0o600)
-    print("Saved. Restart Hadiya if this created data/users.json (turns on multi-user mode).")
-
-
 if __name__ == "__main__":
-    if sys.argv[1:2] and sys.argv[1] in ("adduser", "passwd", "deluser"):
-        try:
-            admin_cli(*sys.argv[1:])
-        except (TypeError, IndexError, KeyError) as e:
-            raise SystemExit(f"{admin_cli.__doc__}\n({e!r})")
-        raise SystemExit
-    if MULTI:  # the owners' agents must reach data/users/<name>/ but list nothing on the way
-        for d in (DATA, DATA / "users"):
-            d.mkdir(exist_ok=True)
-            os.chmod(d, 0o711)
-        for f in DATA.iterdir():  # everything else (runs, keys, sessions): server user only
-            if f.name != "users":
-                os.chmod(f, f.stat().st_mode & 0o700)
-    print(f"Hadiya on http://localhost:{PORT}" + (f" ({len(load_users())} users, sign-in required)" if MULTI else ""))
+    print(f"Hadiya on http://localhost:{PORT}")
     if remote.get("tailnet"):
         listeners["tailnet"] = {"srv": serve(("127.0.0.1", TAILNET_PORT), RH)}  # tailscaled keeps its serve config
         print(f"Tailscale phone listener on 127.0.0.1:{TAILNET_PORT}")

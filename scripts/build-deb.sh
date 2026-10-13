@@ -16,14 +16,13 @@ ver=$(printf '%s' "$ver" | tr -c 'A-Za-z0-9.+~:\n-' '.')
 name=hadiya-$pkg
 other=hadiya-admin; [ "$pkg" = admin ] && other=hadiya-dev
 stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT
-app=$stage/opt/flows
+app=$stage/opt/hadiya
 install -d "$app/scripts" "$stage/DEBIAN" "$stage/usr/lib/systemd/user" \
   "$stage/usr/share/applications" \
   "$stage/usr/share/icons/hicolor/512x512/apps" "$stage/usr/share/icons/hicolor/192x192/apps"
 
-cp server.py index.html PRODUCT.md DEPLOY.md "$app/"
+cp server.py index.html kanban.html PRODUCT.md DEPLOY.md "$app/"
 cp -r icons deploy "$app/"
-cp scripts/test_multiuser.py "$app/scripts/"
 find "$app" \( -name __pycache__ -o -name '*.log' \) -prune -exec rm -rf {} +
 
 sed "s/@PKG@/$pkg/g" deploy/hadiya-user.service > "$stage/usr/lib/systemd/user/hadiya.service"

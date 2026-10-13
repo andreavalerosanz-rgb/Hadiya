@@ -1139,8 +1139,7 @@ body.adm #alert:empty{display:none}
 .a-alert .go,.a-askbar .go{margin-left:auto;display:inline-flex;align-items:center;gap:2px;font-weight:700;white-space:nowrap}
 .a-alert .go .i,.a-askbar .go .i{width:18px;height:18px}
 p.a-alert{cursor:default}
-.a-alert.login{border-color:var(--p-line);background:rgba(26,26,26,.06)}
-.a-alert.login>.i{width:22px;height:22px;flex:none}
+
 
 /* conversation */
 .a-where{padding:0 0 14px;border-bottom:1px solid var(--p-line)}
@@ -1444,7 +1443,7 @@ const $ = s => document.querySelector(s);
 const main = $('#main');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const api = (p, o = {}) => fetch('/api/' + p, {...o, headers: {'Content-Type': 'application/json', 'X-Flow': '1'}})
-  .then(r => r.status == 401 ? location.reload() : r)  // signed out or unpaired: the server shows its sign-in page
+  .then(r => r.status == 401 ? location.reload() : r)  // unpaired phone: the server shows its pairing page
   .then(r => r.json().then(j => r.ok ? j : Promise.reject(new Error(j.error || r.statusText))));
 const ago = t => { const s = Date.now() / 1000 - t; return s < 60 ? 'now' : s < 3600 ? (s / 60 | 0) + 'm' : s < 86400 ? (s / 3600 | 0) + 'h' : (s / 86400 | 0) + 'd'; };
 const dur = (a, b) => { if (!a || !b) return ''; const s = b - a; return s < 60 ? s.toFixed(0) + 's' : s < 3600 ? (s / 60).toFixed(1) + 'm' : (s / 3600).toFixed(1) + 'h'; };
@@ -1510,7 +1509,7 @@ const P = {
   talk: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
   pin: '<path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v8"/>', up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-  out: '<path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/>',
+
   brain: '<path d="M12 5.5a3 3 0 0 0-5.6-1.4 3 3 0 0 0-2.3 4.6 3.3 3.3 0 0 0 .7 5.6 3.4 3.4 0 0 0 3.8 4.8A3 3 0 0 0 12 19.5zM12 5.5a3 3 0 0 1 5.6-1.4 3 3 0 0 1 2.3 4.6 3.3 3.3 0 0 1-.7 5.6 3.4 3.4 0 0 1-3.8 4.8 3 3 0 0 1-3.4.4zM12 5.5v14M8.3 9.5a2.2 2.2 0 0 1 2 2.3M15.7 9.5a2.2 2.2 0 0 0-2 2.3M8 14.8h2M14 14.8h2"/>',
 };
 const icon = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${P[n] || P.bricks}</svg>`;
@@ -1746,7 +1745,7 @@ async function refresh() {
   if (isRemote && !push) await pushLoad();
   sessions = all.filter(r => r.kind == 'session').map(r => r.waiting ? {...r, status: 'waiting'} : r);
   runs = all.filter(r => r.kind != 'session');
-  if (PKG == 'admin') return admRefresh(me);
+  if (PKG == 'admin') return admRefresh();
   const [kind, id] = location.hash.slice(1).split('/');
   const cur = (k, i) => kind == k && id == i ? 'aria-current="page"' : '';
   const nq = queue.items.length;
@@ -1768,8 +1767,7 @@ async function refresh() {
     </div>`);
   setHTML('#more', `<div class="more-h"><h2>Más</h2><button class="ic" data-act="moreClose" aria-label="Cerrar">${icon('x')}</button></div>
     <nav class="more-nav" aria-label="Más secciones">${[['kanban', 'bricks', 'Kanban'], ['agents', 'team', 'Agentes'], ['projects', 'list', 'Proyectos'], ['guide', 'help', 'Guía'], ['templates', 'reel', 'Plantillas'], ...(isRemote ? [] : [['phone', 'phone', 'Teléfono']])].map(([k, ic, t]) => `<a class="item" href="#${k}" ${kind == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span>${k == 'phone' && phoneOn ? '<small>ON</small>' : ''}</a>`).join('')}
-    ${themeBtn('item')}
-    ${me.user ? `<button class="item" data-act="logout">${icon('x')}<span>Salir</span><small>${esc(me.user)}</small></button>` : ''}</nav>
+    ${themeBtn('item')}</nav>
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
     <h2 class="cap">Workflows <a href="#templates" aria-label="New workflow">${icon('plus')}New</a></h2>
@@ -1784,7 +1782,7 @@ async function refresh() {
   setHTML('#sites', [...sites].map(p => `<option value="${esc(p)}">`).join(''));
   // a session waiting on a decision is flagged from every other page
   const asking = sessions.filter(r => r.status == 'asking' && !(kind == 'session' && id == r.id));
-  setHTML('#alert', (me.claude_logged_in === false ? `<p class="alert" role="status">${icon('help')}<span><b>Claude isn't signed in</b> for your account. Connect over SSH and run <code>claude login</code> once, then start your session again.</span></p>` : '') + asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
+  setHTML('#alert', asking.map(r => `<a class="alert" href="#session/${r.id}">${icon('help')}<span><b>Decision needed</b> in “${esc(r.name)}”</span><span class="go">Answer ${icon('right')}</span></a>`).join(''));
   const n = sessions.filter(r => r.status == 'asking').length;
   document.title = n ? `(${n}) Decision needed · Hadiya` : 'Hadiya';
 }
@@ -2144,7 +2142,7 @@ ACT.theme = () => {
   $('meta[name=theme-color]').content = d ? '#141413' : '#f4f2ee';
   document.querySelectorAll('[data-act=theme]').forEach(b => b.setAttribute('aria-pressed', d));
 };
-ACT.logout = async () => { await api('logout', {method: 'POST'}).catch(() => {}); location.reload(); };
+
 ACT.fromTemplate = id => { pendingTpl = id; location.hash = 'wf/' + crypto.randomUUID().slice(0, 8); };
 
 const shut = new Set(JSON.parse(localStorage.shutFolders || '[]'));
@@ -3524,12 +3522,11 @@ function catKey(id) {  // the one source: the idea tapped, else the first Google
 const catName = id => KEYS[catKey(id)]?.n || 'Petición';
 const toolCat = n => /Gmail/.test(n) ? 'mail' : /Google_Drive/.test(n) ? 'docs' : /Calendar/.test(n) ? 'cal' : '';
 
-function admRefresh(me) {
+function admRefresh() {
   const b = document.body;
   if (!b.classList.contains('adm')) { b.classList.add('adm'); document.documentElement.lang = 'es'; $('#rack').setAttribute('aria-label', 'Hadiya'); }
   const [kind] = location.hash.slice(1).split('/');
   const need = sessions.filter(r => r.status == 'asking');
-  admMe = me;
   // three destinations, always in sight: top bar on desktop, bottom tab bar on phones
   const tab = (href, ic, label, on, extra = '') => `<a class="a-tab" href="${href}" ${on ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span>${extra}</a>`;
   setHTML('#rack', `
@@ -3539,12 +3536,11 @@ function admRefresh(me) {
       ${tab('#mis', 'list', 'Mis peticiones', kind == 'mis' || kind == 'session', need.length ? `<i class="a-badge" aria-label="${need.length} te necesita${need.length > 1 ? 'n' : ''}">${need.length}</i>` : '')}
       ${tab('#guide', 'help', 'Ayuda', kind == 'guide')}
     </nav></div>`);
-  setHTML('#alert', me.claude_logged_in === false ? `<p class="a-alert login" role="status">${icon('help')}<span>Tu cuenta todavía no está conectada a Claude. Pide a quien te dio acceso que la conecte.</span></p>` : '');
+  setHTML('#alert', '');
   document.title = need.length ? `(${need.length}) Te necesita · Hadiya` : 'Hadiya';
   if (!kind && $('#a-list')) setHTML('#a-list', admList(3));
   if (kind == 'mis' && $('#a-groups')) setHTML('#a-groups', admGroups());
 }
-let admMe = {};
 function admRoute(kind, id) {
   document.body.classList.remove('sess', 'menu-open');
   document.body.classList.toggle('a-chat', kind == 'session');
@@ -3781,7 +3777,7 @@ function admGuide() {
     <ul class="a-card a-marks">${marks.map(([s, t]) => `<li>${astate(s).replace(' · escribe para seguir', '')}<span>${t}</span></li>`).join('')}</ul>
     <a class="a-btn a-pri a-pedir" href="#">Hacer una petición</a>
     <section class="a-card a-acct"><h2>Apariencia</h2>${themeBtn('a-btn a-sec')}</section>
-    ${admMe.user ? `<section class="a-card a-acct"><h2>Tu cuenta</h2><p>${esc(admMe.user)}</p><button type="button" class="a-btn a-sec" data-act="logout">${icon('out')}Salir</button></section>` : ''}
+
   </div>`;
 }
 

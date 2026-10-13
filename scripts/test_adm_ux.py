@@ -57,15 +57,6 @@ srv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.D
                        env={**os.environ, "PATH": f"{BIN}:{os.environ['PATH']}", "PORT": str(P), "HOME": str(HOME),
                             "HADIYA_DATA": str(d / "data"), "HADIYA_PACKAGE": "admin"})
 URL = f"http://127.0.0.1:{P}/"
-# second instance in multi-user mode, only to see the login page
-with socket.socket() as s:
-    s.bind(("127.0.0.1", 0)); LP = s.getsockname()[1]
-(TMP / "ldata").mkdir()
-(TMP / "ldata" / "users.json").write_text('{"ana": {"unix": "ana", "package": "admin", "pw": "x$y"}}')
-lsrv = subprocess.Popen([sys.executable, "server.py"], cwd=d, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                        env={**os.environ, "PORT": str(LP), "HOME": str(HOME), "HADIYA_DATA": str(TMP / "ldata")})
-LOGIN_URL = f"http://127.0.0.1:{LP}/"
-
 # every visible piece of text, every visible control; reports offenders by a short selector
 AUDIT = r"""(mobile) => {
   const sel = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className == 'string' ? '.' + e.className.trim().split(/\s+/).join('.') : '');
@@ -94,7 +85,7 @@ def check(cond, msg):
 
 from playwright.sync_api import sync_playwright
 try:
-    for port in (P, LP):
+    for port in (P,):
         for _ in range(80):
             try:
                 socket.create_connection(("127.0.0.1", port), 0.2).close(); break
@@ -171,24 +162,9 @@ try:
                 check(not errs, f"{tag}: JS errors {errs}")
                 print("ok", tag)
                 ctx.close()
-            # login page: multi-user instance (users.json present), shown before anyone signs in
-            for name, ctxargs in (() if SHOTS_ONLY else (("mobile", phone), ("desktop", {"viewport": {"width": 1440, "height": 900}}))):
-                ctx = b.new_context(**ctxargs, locale="es-ES"); pg = ctx.new_page()
-                pg.goto(LOGIN_URL); pg.wait_for_selector("#u"); pg.wait_for_timeout(1500)
-                a = pg.evaluate(AUDIT, name == "mobile")
-                tag = f"{eng}/{name} login"
-                check(a["over"] <= 0, f"{tag}: sideways scroll {a['over']}px")
-                check(not a["small"], f"{tag}: text under 16px {a['small']}")
-                check(not a["tiny"], f"{tag}: targets under 48px {a['tiny']}")
-                info = pg.evaluate("[getComputedStyle(document.body).backgroundColor, document.fonts.check('16px Barlow'), document.body.innerText.includes('Contrase')]")
-                check(info == ["rgb(244, 242, 238)", True, True], f"{tag}: paper bg / Barlow / Spanish copy, got {info}")
-                if eng == "chrome":
-                    pg.screenshot(path=str(SHOTS / f"login-after-{name}.png"), full_page=True)
-                ctx.close()
-            print("ok", eng, "login")
             b.close()
 finally:
-    srv.terminate(); lsrv.terminate()
+    srv.terminate()
     shutil.rmtree(TMP / "app", ignore_errors=True)
 print("shots in", SHOTS)
 if fails:

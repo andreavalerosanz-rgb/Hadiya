@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Self-check for the kanban: owner boards/cards/columns/files, guests via /k/<token> on a phone listener
-(no pairing, one board only, no deletes, no /api/*), token rotation, persistence, multi-user isolation.
+(no pairing, one board only, no deletes, no /api/*), token rotation, persistence.
 Runs server.py from a temp copy on a free port; HADIYA_PUBLIC_URL turns on the public phone listener (PORT+3).
 Run: python3 scripts/test_kanban.py"""
-import base64, getpass, json, os, shutil, socket, subprocess, sys, tempfile, time
+import base64, json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
@@ -79,7 +79,7 @@ try:
     assert call(P, "POST", "/api/kanban/boards", {"name": "x"}, flow=False)[0] == 403
     assert call(P, "POST", "/api/kanban/boards", {"name": ""})[0] == 400
     b = ok(P, "POST", "/api/kanban/boards", {"name": "Oficina"})
-    assert [c["name"] for c in b["columns"]] == ["Por hacer", "En curso", "Hecho"] and b["owner"] == ""
+    assert [c["name"] for c in b["columns"]] == ["Por hacer", "En curso", "Hecho"]
     todo, doing, done = (c["id"] for c in b["columns"])
     B = f"/api/kanban/boards/{b['id']}"
     lst = ok(P, "GET", "/api/kanban/boards")
@@ -204,29 +204,5 @@ finally:
     srv.terminate()
     srv.wait()
 
-# ---------------- multi-user: each owner sees only their own boards ----------------
-d = copy("multi")
-ME, PW = getpass.getuser(), "correct horse battery"
-for name in ("alice", "bob"):
-    r = subprocess.run([sys.executable, "server.py", "adduser", name, ME], cwd=d, input=f"{PW}\n{PW}\n", text=True,
-                       capture_output=True, start_new_session=True, env=ENV)
-    assert r.returncode == 0, r.stderr
-srv, P = start(d)
-try:
-    assert call(P, "GET", "/api/kanban/boards")[0] == 401
-    A, Bc = (call(P, "POST", "/api/login", {"user": u, "password": PW})[2]["Set-Cookie"].split(";")[0] for u in ("alice", "bob"))
-    ba = ok(P, "POST", "/api/kanban/boards", {"name": "de alice"}, A)
-    ok(P, "POST", "/api/kanban/boards", {"name": "de bob"}, Bc)
-    assert [x["name"] for x in ok(P, "GET", "/api/kanban/boards", cookie=A)] == ["de alice"] and ba["owner"] == "alice"
-    assert [x["name"] for x in ok(P, "GET", "/api/kanban/boards", cookie=Bc)] == ["de bob"]
-    assert call(P, "GET", f"/api/kanban/boards/{ba['id']}", cookie=Bc)[0] == 404
-    assert call(P, "POST", f"/api/kanban/boards/{ba['id']}/cards", {"title": "x"}, Bc)[0] == 404
-    assert call(P, "POST", "/api/kanban/share", {"on": True}, Bc)[0] == 403  # not an admin
-    # guests need no login, even in multi-user mode
-    assert ok(P + 3, "POST", f"/k/{ba['token']}/api/cards", {"title": "guest"})["by"] == ""
-    assert ok(P, "GET", f"/api/kanban/boards/{ba['id']}", cookie=A)["cards"][0]["title"] == "guest"
-finally:
-    srv.terminate()
-    srv.wait()
 shutil.rmtree(TMP, ignore_errors=True)
 print("kanban: all checks passed")

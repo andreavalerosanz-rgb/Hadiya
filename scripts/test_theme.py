@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Light/dark theme across packages: dev pages, admin (Pedir, conversation, Ayuda) and the login page, at 390 (iPhone) and 1440,
+"""Light/dark theme across packages: dev pages, admin (Pedir, conversation, Ayuda) and the phone pairing page, at 390 (iPhone) and 1440,
 in both themes. Checks: <html data-theme> matches, no horizontal overflow, WCAG AA contrast on every visible text node (4.5:1,
-3:1 for large text), and the toggles (Más, Ayuda, login corner) persist across reload. Kanban has its own check in test_kanban_ui.py.
+3:1 for large text), and the toggles (Más, Ayuda, pairing corner) persist across reload. Kanban has its own check in test_kanban_ui.py.
 Run: /tmp/pwenv/bin/python scripts/test_theme.py [shots dir]   Exit 0 = ok."""
 import os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
@@ -25,7 +25,6 @@ for line in sys.stdin:
 (TMP / "bin/claude").chmod(0o755)
 for f in ("server.py", "index.html"):
     shutil.copy(REPO / f, TMP / "app" / f)
-(TMP / "ldata/users.json").write_text('{"ana": {"unix": "ana", "package": "admin", "pw": "x$y"}}')
 
 
 def port():
@@ -84,7 +83,8 @@ def shot(pg, name):
 
 dev, DEV_URL = serve(TMP / "app/data")
 adm, ADM_URL = serve(TMP / "adata", HADIYA_PACKAGE="admin")
-login, LOGIN_URL = serve(TMP / "ldata")
+login, _ = serve(TMP / "ldata", HADIYA_PUBLIC_URL="https://x.example.com")
+LOGIN_URL = f"http://127.0.0.1:{int(_.rsplit(':', 1)[1].strip('/')) + 3}/"  # the pairing page: the public phone listener, unpaired
 try:
     with sync_playwright() as p:
         b = p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
@@ -107,7 +107,7 @@ try:
                 pg.fill("#a-msg", "Resume los correos de hoy"); pg.click(".a-pedir"); pg.wait_for_url("**#session/*")
                 pg.wait_for_selector(".a-say:has-text('2 correos')", timeout=15000); check(pg, f"adm {size} chat", theme); shot(pg, f"adm-chat-{theme}-{size}")
                 pg.goto(ADM_URL + "#guide"); pg.wait_for_selector(".a-acct [data-act=theme]"); check(pg, f"adm {size} ayuda", theme)
-                pg.goto(LOGIN_URL); pg.wait_for_selector("#u"); check(pg, f"login {size}", theme); shot(pg, f"login-{theme}-{size}")
+                pg.goto(LOGIN_URL); pg.wait_for_selector("#code"); check(pg, f"pair {size}", theme); shot(pg, f"pair-{theme}-{size}")
                 ctx.close()
             # toggles flip and persist across reload (one fresh light context per surface)
             for url, open_, sel in ((DEV_URL, lambda pg: (pg.locator("[data-act=more] >> visible=true").first.click(), pg.wait_for_selector("#more[open]")), "#more [data-act=theme]"),

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Self-check for the Second Brain: brain-mcp, /api/brain auth and scoping, child questions routed to the brain.
-Runs server.py from a temp copy on a free port with a fake `claude` on PATH (like test_multiuser.py).
+Runs server.py from a temp copy on a free port with a fake `claude` on PATH.
 Run: python3 scripts/test_brain.py"""
 import json, os, shutil, socket, subprocess, sys, tempfile, time
 from pathlib import Path
@@ -141,7 +141,7 @@ os.environ.update(HADIYA_PACKAGE="admin", HADIYA_DATA=str(TMP / "pkg"))
 sys.path.insert(0, str(d))
 import server
 try:
-    server.start_session({"message": "x", "brain": True}, None)
+    server.start_session({"message": "x", "brain": True})
     raise AssertionError("brain allowed in the admin package")
 except ValueError:
     pass
