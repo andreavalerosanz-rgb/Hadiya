@@ -82,7 +82,11 @@ BRAIN_TOOLS = [
      "inputSchema": {"type": "object", "required": ["name", "folder", "objective"], "properties": {
          "name": {"type": "string"}, "folder": {"type": "string", "description": "Absolute project folder"},
          "objective": {"type": "string", "description": "What to build or check, with every link the user gave"},
-         "schedule": {"type": "object", "description": "Recurring runs: {at: \"HH:MM\", days?: [0-6, 0 = Monday]}"}}}},
+         "schedule": {"type": "object", "description": "Recurring runs: {at: \"HH:MM\", days?: [0-6, 0 = Monday]}"},
+         "allow": {"type": "array", "items": {"type": "string", "enum": ["Trello", "Gmail", "Google_Calendar", "Google_Drive"]},
+                   "description": "Outside services the Goal may write to (default none)"},
+         "max_iter": {"type": "integer", "description": "Verification rounds, 1-20 (default 5)"},
+         "max_hours": {"type": "number", "description": "Time limit in hours, 0.5-48 (default 8)"}}}},
     {"name": "goal_answer", "description": "Save the user's answers to a Goal's intake questions (question id -> answer); the Goal becomes ready.",
      "inputSchema": {"type": "object", "required": ["id", "answers"], "properties": {
          "id": {"type": "string"}, "answers": {"type": "object", "additionalProperties": {"type": "string"}},
@@ -324,7 +328,8 @@ READONLY = ",".join(["Read,Glob,Grep,WebSearch,WebFetch,ToolSearch"] + [f"mcp__c
     "Google_Calendar": "list_events get_event list_calendars search_events suggest_time",
     "Google_Drive": "search_files read_file_content download_file_content get_file_metadata get_file_permissions list_recent_files",
     "Trello": "trelloReadBoard trelloReadCard trelloReadChecklist trelloReadInbox trelloReadList trelloReadMember trelloReadPlanner "
-              "trelloReadWorkspace trelloSearch"}.items() for t in ts.split()])
+              "trelloReadWorkspace trelloSearch",
+    "Figma": "get_design_context get_screenshot get_metadata"}.items() for t in ts.split()])
 CHILD = ("This session is part of a project coordinated by the Second Brain: your AskUserQuestion questions go to it. "
          "Ask it about decisions, contracts with other sessions or anything unclear. When you finish, end with a concise "
          "report of what you did, how you verified it and open issues.")
@@ -830,7 +835,8 @@ def pump(r, p):
                 save_run(r)
             q = r["pending"][ev["request_id"]]
             if goal_of(r) and q["tool"] != "AskUserQuestion":  # a Goal runs unattended: allow, except outward actions
-                no = goal_denies(q["tool"], q["input"], G[goal_of(r)]["slug"])
+                gg = G.get(goal_of(r))  # deleted meanwhile: deny
+                no = goal_denies(q["tool"], q["input"], gg["slug"], gg.get("allow") or ()) if gg else "This goal no longer exists."
                 answer(r, {"id": q["id"], "allow": not no, "message": no}, by="goal")
                 continue
             a = assistant_of(r)
@@ -1537,38 +1543,59 @@ for _g in G.values():
     if _g["status"] == "verifying":  # the verifier died with the server: the idle nudge has the brain report again
         _g["status"] = "running"
 GOAL_RULES = """This is an autonomous Goal: the user is away and won't answer questions. Work to the end on your own.
-- Git: all work goes on the goal branch named in the [Goal] message (create it from the current branch if it doesn't exist). Sessions may edit, install dependencies, run tests, commit on that branch and push it, only as `git push -u origin <goal branch>`. Never merge into main, deploy, publish, or message or email anyone: say so in every session's brief.
+- Git: all work goes on the goal branch named in the [Goal] message (create it from the current branch if it doesn't exist). Sessions may edit, install dependencies, run tests, commit on that branch and push it, only as `git push -u origin <goal branch>`. Never merge into main, deploy, publish, or message or email anyone (except through outside services the [Goal] message explicitly allows): say so in every session's brief.
 - Plan, then run sessions. Quality is part of done: sessions add or update unit and integration tests, run the linters and the project's quality standards, and write and run Playwright front-end tests for any UI. Answer your sessions' questions yourself.
 - When you believe every acceptance criterion is met and all checks pass, call the hadiya tool goal_report with verdict "done" and end your turn. An independent verifier then checks the work; its failures come back as a [Goal] message: fix them and report again.
-- Only if you truly can't continue without the user (a missing credential or access), call goal_report with verdict "blocked" saying exactly what you need, and end your turn. Their reply comes as a [User] message."""
+- Only if you truly can't continue without the user (a missing credential or access), call goal_report with verdict "blocked" saying exactly what you need, and end your turn. Their reply comes as a [User] message.
+- Write goal_report summaries in the same language as the objective."""
 INTAKE = """You prepare an autonomous coding Goal that will then run with no more questions to the user.
 Folder: {folder}
 Objective: {objective}
-Look at the folder briefly (README, package files, test and lint config, git remote) to see what exists. Then output ONLY a JSON object:
-{{"questions": [{{"id": "q1", "q": "the question", "hint": "an example, or where to find it"}}], "acceptance": ["criterion"]}}
-questions: only what you can't find yourself and the work really needs (design or Figma URL, backend repo or API base URL and docs, credentials and env vars, how to run the app, test and lint commands if unclear, anything ambiguous in the objective). At most 8, short, in the objective's language.
-acceptance: 3 to 8 concrete, checkable criteria, including that the tests and lint pass, and the Playwright front-end tests when there is a UI."""
+{chain}First inspect the folder yourself, read-only: `git branch -a`, `git log --oneline -10`, git status, README / CLAUDE.md / docs, and the package scripts for test, lint, build and e2e. Then output ONLY a JSON object:
+{{"questions": [{{"id": "q1", "q": "the question", "hint": "an example, or where to find it", "default": "what to do if unanswered"}}], "acceptance": ["criterion"]}}
+questions: ONLY what you can't find or decide after looking (a Figma URL, credentials, an open business decision). Never ask what a file, branch or script answers, or what the objective already says. At most 5, short, in the objective's language.
+default: required on every question; a concrete, safe decision the agent will act on if the user leaves the answer blank.
+acceptance: 3 to 8 concrete, checkable criteria using the real commands you found (tests, lint, build, and the Playwright front-end tests when there is a UI)."""
+DRAFT = """You write the Objective of an autonomous coding Goal from a rough idea. Another agent will do the work with no questions to the user.
+Folder: {folder}
+Idea: {idea}
+Inspect the folder read-only first (git branch -a, git log --oneline -10, git status, README / CLAUDE.md / docs, package scripts). Then output ONLY a JSON object:
+{{"name": "3 to 5 words", "objective": "markdown"}}
+objective: in the idea's language, structured as: "# Objetivo: <one line>", "Repo: <folder> (branch / starting branch)" and the files to read first, "## Entregable", "## Alcance", "## Medidas" (the commands and numbers that must pass), "## Límites" (no merges to main, no deploys, what not to touch). Invent nothing you can't see; mark gaps "(por decidir)"."""
+IDK = re.compile(r"i don'?t know|idk|no s[eé]|ns/nc|\?+|-+", re.I)
+INTAKE_TOOLS = "Read,Glob,Grep," + ",".join(f"Bash({c}:*)" for c in ("git branch", "git log", "git status", "git remote", "ls"))
 VERIFY = """You are an independent verifier. An agent says the Goal below is done: check it yourself and trust nothing it claims. Don't edit, commit or push anything.
 Folder: {folder} (the work is on git branch {branch})
 {brief}
 The agent's report: {summary}
 Run the project's test suites, the linters and the Playwright tests if there are any, and check every acceptance criterion. Then output ONLY a JSON object:
-{{"verdict": "pass" or "fail", "summary": "one or two lines", "failing": ["each unmet criterion or failing check, short and specific"]}}"""
-# shortcut: a regex over the command, not a sandbox; a determined agent can get around it. Upgrade to a real egress/git-hook guard if goals run untrusted code.
-GOAL_DENY = re.compile(r"\bgit\b[^;&|]*\s(checkout|switch|branch\s+-[fDM])\s+(-\S+\s+)*(main|master)\b|\b(gh\s+pr\s+merge|npm\s+publish|yarn\s+publish|pnpm\s+publish|"
-                       r"twine\s+upload|docker\s+push|kubectl\s+(apply|delete)|helm\s+(install|upgrade)|terraform\s+(apply|destroy)|vercel|netlify\s+deploy|"
-                       r"firebase\s+deploy|fly\s+deploy|wrangler\s+(deploy|publish)|cap\s+deploy|ssh|scp|sftp|sendmail|mailx?)\b|rsync\b[^;&|]*:")
+{{"verdict": "pass" or "fail", "summary": "one or two lines", "failing": ["each unmet criterion or failing check, short and specific"], "criteria": [{{"c": "the criterion text", "ok": true or false, "evidence": "short: command run / file / observation"}}]}}
+criteria: one entry per acceptance criterion. Write summary, failing and evidence in the same language as the objective."""
+# shortcut: a regex over the command, not a sandbox; a determined agent can get around it (`sh -c '...'`, eval, scripts). Upgrade path: a
+# pre-push hook allowing only refs/heads/goal/<slug> + a per-request secret on the local API, or a real egress/git-hook guard for untrusted code.
+CMDPOS = r"(?:^|[;&|(`]|\$\()\s*(?:sudo\s+|\w+=\S*\s+)*(?:\S*/)?"  # where a command name can start
+GOAL_DENY = re.compile(CMDPOS + r"(?:git\b[^;&|]*\s(?:checkout|switch|branch\s+-[fDM])\s+(?:-\S+\s+)*(?:main|master)\b|(?:gh\s+pr\s+merge|npm\s+publish|yarn\s+publish|pnpm\s+publish|"
+                       r"twine\s+upload|docker\s+push|kubectl\s+(?:apply|delete)|helm\s+(?:install|upgrade)|terraform\s+(?:apply|destroy)|vercel|netlify\s+deploy|"
+                       r"firebase\s+deploy|fly\s+deploy|wrangler\s+(?:deploy|publish)|cap\s+deploy|ssh|scp|sftp|sendmail|mailx?)\b|rsync\b[^;&|]*:)", re.M)
+# `git "push"`, `git pu""sh`, `git $X`: a quote, $, backtick or backslash in git's options or subcommand hides what it does
+GIT_ODD = re.compile(CMDPOS + r"git(?:\s+-[^\s;&|]*)*?\s+[^\s;&|]*[\"'`$\\]")
 
 
-def goal_denies(tool, inp, slug):
+GOAL_SERVICES = ["Trello", "Gmail", "Google_Calendar", "Google_Drive"]  # outside services a Goal may be allowed to write to
+
+
+def goal_denies(tool, inp, slug, allow=()):
     """Why an unattended Goal session may not use this tool with this input, or None."""
     cmd = str(inp.get("command") or "")
     # every push must be exactly `git push [-u] <remote> goal/<slug>` (no refspec onto another branch, no force)
     pushes = re.findall(r"\bgit\b[^;&|]*?\spush\b[^;&|]*", cmd)
-    ok = re.compile(r"git\s+push(\s+(-u|--set-upstream))?\s+[\w.-]+\s+(HEAD:)?(refs/heads/)?goal/" + re.escape(slug) + r"\s*")
-    if tool == "Bash" and (GOAL_DENY.search(cmd) or not all(ok.fullmatch(x) for x in pushes)):
+    # `-C <dir>` and output redirects (`2>&1` is cut at `&` by the findall) can't change what is pushed
+    ok = re.compile(r"git(\s+-C\s+\S+)?\s+push(\s+(-u|--set-upstream))?\s+[\w.-]+\s+(HEAD:)?(refs/heads/)?goal/" + re.escape(slug) + r"(\s+\d?>\S*)*\s*")
+    # a goal must not change its own limits or permissions through Hadiya's local API
+    own = re.search(rf"(127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\]):{PORT}\b|/api/goals", cmd)
+    if tool == "Bash" and (GOAL_DENY.search(cmd) or GIT_ODD.search(cmd) or own or not all(ok.fullmatch(x) for x in pushes)):
         return "Not allowed in a Goal: no deploys, publishing, remote shells, merges into main, or pushes other than `git push -u origin <the goal branch>`. Report it in goal_report instead."
-    if tool.startswith("mcp__claude_ai_") and tool not in READONLY.split(","):
+    if tool.startswith("mcp__claude_ai_") and tool not in READONLY.split(",") and tool[15:].split("__")[0] not in allow:
         return "Not allowed in a Goal: it must not message, email or change anything outside the project."
     return None
 
@@ -1585,14 +1612,59 @@ def goal_of(r):
             return x["goal"]
 
 
+def goal_secs(g):
+    """Working time over all rounds: closed rounds + the current one."""
+    return g.get("spent", 0) + ((g["ended"] or time.time()) - g["started"] if g["started"] else 0)
+
+
+def goal_actions(r, n=5):
+    """The last n things a run did, as {ts, who, text}: tool uses (name + the one input that tells what) and its text's first line."""
+    out = []
+    for e in reversed((r.get("events") or [])[-40:]):
+        if e.get("type") != "assistant" or e.get("parent_tool_use_id"):
+            continue
+        for x in reversed((e.get("message") or {}).get("content") or []):
+            if not isinstance(x, dict):
+                continue
+            i = x.get("input") or {}
+            if x.get("type") == "tool_use":
+                what = str(i.get("description") or i.get("file_path") or i.get("command") or i.get("pattern") or i.get("url") or "").strip()
+                text = f"{x.get('name')}: {what.splitlines()[0][:100]}" if what else str(x.get("name"))
+            elif x.get("type") == "text" and x.get("text", "").strip():
+                text = x["text"].strip().splitlines()[0][:100]
+            else:
+                continue
+            out.append({"ts": e.get("ts") or 0, "who": r["name"] if r.get("parent") else "", "text": text})
+        if len(out) >= n:
+            break
+    return out[:n]
+
+
+def goal_view(g, live=False):
+    """g plus derived progress: cost (API-equivalent estimate, not a charge), total seconds and, for the detail, a live snapshot."""
+    mine = [r for r in list(runs.values()) if goal_of(r) == g["id"]]
+    out = {**g, "secs": int(goal_secs(g)), "cost": round(g.get("oneshot_cost", 0) + sum(r.get("cost") or 0 for r in mine), 4)}
+    if live and g["status"] in ("running", "verifying", "blocked") and g.get("run") in runs:
+        brain = runs[g["run"]]
+        kids = [r for r in mine if r.get("parent") == brain["id"]]
+        acts = sorted((a for r in [brain, *kids] for a in goal_actions(r)), key=lambda a: a["ts"])[-5:]
+        out["live"] = {"round": g["iteration"], "of": g["max_iter"], "verifying": g["status"] == "verifying", "brain": brain["status"],
+                       "kids": [{"id": r["id"], "name": r["name"], "status": r["status"], "model": (r.get("config") or {}).get("model") or ""}
+                                for r in sorted(kids, key=lambda r: r.get("started") or 0)[-8:]],
+                       "acts": acts}
+    return out
+
+
 # shortcut: prefix deny rules; Bash can still write files (tests must be able to), so "read-only" means no edit tools and no
 # git writes or deploys. Upgrade to a throwaway worktree for the verifier if it ever changes what it checks.
+# shortcut: prefix rules miss `git -C . push` and friends (`claude -p` has no permission callback to route through goal_denies); the
+# verifier is read-only by intent only. Upgrade: run it with --permission-prompt-tool stdio like the brain and apply goal_denies.
 ONESHOT_DENY = "Edit,Write,NotebookEdit,AskUserQuestion," + ",".join(f"Bash({c}:*)" for c in (
     "git push", "git commit", "git merge", "git rebase", "git reset", "git checkout", "git switch", "git stash", "git tag",
     "gh", "npm publish", "vercel", "netlify", "firebase", "ssh", "scp", "rsync"))
 
 
-def oneshot(cwd, prompt, model, tools, timeout):
+def oneshot(cwd, prompt, model, tools, timeout, g=None):
     """A fresh `claude -p` that must answer with a JSON object; it can't edit files."""
     cmd = [CLAUDE, "-p", "--output-format", "json", "--model", model, "--allowedTools", tools, "--disallowedTools", ONESHOT_DENY]
     p = launch(cmd, workdir(cwd))
@@ -1604,6 +1676,8 @@ def oneshot(cwd, prompt, model, tools, timeout):
         raise ValueError("timed out")
     try:
         res = json.loads(out.strip().splitlines()[-1])
+        if g is not None:  # intake / verifier calls aren't runs: their cost is kept on the goal
+            g["oneshot_cost"] = g.get("oneshot_cost", 0) + (res.get("total_cost_usd") or 0)
         return json.loads(re.search(r"\{.*\}", str(res.get("result") or ""), re.S).group(0))
     except (ValueError, IndexError, AttributeError):
         raise ValueError("no JSON in its answer: " + out.strip()[-300:])
@@ -1617,10 +1691,58 @@ def clean_schedule(s):
 
 
 
+def goal_answer(g, q):
+    """The user's answer, or the question's default when it is blank or an "I don't know"."""
+    a = str(g["answers"].get(q["id"]) or "").strip()
+    return a if a and not IDK.fullmatch(a) else q.get("default") or "(no answer: decide yourself, state your assumption)"
+
+
 def goal_brief(g):
     return ("Objective: " + g["objective"] + "\nContext from the user:\n"
-            + ("\n".join(f"- {q['q']}: {g['answers'].get(q['id'], '(no answer)')}" for q in g["questions"]) or "(none)")
+            + ("\n".join(f"- {q['q']}: {goal_answer(g, q)}" for q in g["questions"]) or "(none)")
             + "\nAcceptance criteria:\n" + "\n".join("- " + a for a in g["acceptance"]))
+
+
+def goal_opts(g, body):
+    """Limits (clamped) and allowed outside services from a request body; absent keys stay as they are."""
+    if body.get("max_iter") is not None:
+        g["max_iter"] = max(1, min(20, int(body["max_iter"])))
+    if body.get("max_hours") is not None:
+        g["max_hours"] = max(0.5, min(48, float(body["max_hours"])))
+    if body.get("allow") is not None:
+        g["allow"] = [x for x in GOAL_SERVICES if x in body["allow"]]
+
+
+def git(folder, *a, t=30):
+    """(returncode, stdout+stderr) of git -C folder; (1, error) when git is missing or times out. Never raises."""
+    try:
+        p = subprocess.run(["git", "-C", folder, *a], capture_output=True, text=True, timeout=t, errors="replace")
+        return p.returncode, (p.stdout + p.stderr if p.returncode else p.stdout)
+    except (OSError, subprocess.SubprocessError) as e:
+        return 1, str(e)
+
+
+def slugify(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "goal"
+
+
+def goal_draft(body):
+    """A full Objective (and a name) from a rough idea, written by a read-only one-shot that has looked at the folder."""
+    idea, folder = str(body.get("idea") or "").strip(), str(workdir(body.get("folder")))
+    if not idea or len(idea) > 4000:
+        raise ValueError("Write the idea (max 4000 characters)")
+    if not body.get("folder") or not os.path.isdir(folder):
+        raise ValueError(f"No such folder: {folder}")
+    j = oneshot(folder, DRAFT.format(folder=folder, idea=idea), "sonnet", INTAKE_TOOLS, 150)
+    obj = str(j.get("objective") or "").strip()[:8000]
+    if not obj:
+        raise ValueError("No objective in its answer")
+    return {"name": str(j.get("name") or "").strip()[:60], "objective": obj}
+
+
+def goal_slug_free(folder, slug):
+    if any(x["folder"] == folder and x["slug"] == slug for x in G.values()):
+        raise ValueError("Another goal in this folder already has that branch name: choose a different name")
 
 
 def goal_create(body):
@@ -1630,18 +1752,26 @@ def goal_create(body):
         raise ValueError("A goal needs name, folder and objective")
     if not os.path.isdir(folder):
         raise ValueError(f"No such folder: {folder}")
-    g = {"id": uuid.uuid4().hex[:8], "name": name, "slug": re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:40] or "goal",
-         "folder": folder, "objective": objective, "schedule": clean_schedule(body.get("schedule")), "status": "intake",
+    prev = G.get(str(body["after"])) if body.get("after") else None
+    if body.get("after") and not prev:
+        raise ValueError("No such goal to follow")
+    goal_slug_free(folder, slugify(name))
+    g = {"id": uuid.uuid4().hex[:8], "name": name, "slug": slugify(name), "after": prev and prev["id"], "from": prev and "goal/" + prev["slug"],
+         "oneshot_cost": 0, "spent": 0, "folder": folder, "objective": objective, "schedule": clean_schedule(body.get("schedule")), "status": "intake",
          "questions": [], "answers": {}, "acceptance": [], "iteration": 0, "max_iter": 5, "max_hours": 8, "run": None,
-         "started": None, "ended": None, "history": [], "report": "", "last": None, "created": time.time()}
+         "started": None, "ended": None, "history": [], "report": "", "last": None, "created": time.time(), "allow": []}
+    goal_opts(g, body)
     try:
-        j = oneshot(folder, INTAKE.format(folder=folder, objective=objective), "haiku", "Read,Glob,Grep", 100)
-        g["questions"] = [{"id": str(q.get("id") or f"q{i}"), "q": str(q.get("q") or ""), "hint": str(q.get("hint") or "")}
-                          for i, q in enumerate(j.get("questions") or [], 1) if q.get("q")][:8]
+        chain = f"This goal continues {g['from']} ({prev['name']}); its branch is the starting point.\n" if prev else ""
+        # shortcut: intake is synchronous (the request waits); move it to a thread + poll if it ever exceeds ~2 min
+        j = oneshot(folder, INTAKE.format(folder=folder, objective=objective, chain=chain), "sonnet", INTAKE_TOOLS, 170, g)
+        g["questions"] = [{"id": str(q.get("id") or f"q{i}"), "q": str(q.get("q") or ""), "hint": str(q.get("hint") or ""),
+                           "default": str(q.get("default") or "")[:500]} for i, q in enumerate(j.get("questions") or [], 1) if q.get("q")][:5]
         g["acceptance"] = [str(a) for a in j.get("acceptance") or []][:8]
     except (ValueError, OSError, AttributeError, TypeError) as e:  # the user can still answer with what they know and write the criteria
         g["report"] = f"Intake failed ({e}); add the context and acceptance criteria yourself."
     with glock:
+        goal_slug_free(folder, g["slug"])  # another create may have won while intake ran
         G[g["id"]] = g
         save_g()
     return g
@@ -1649,28 +1779,173 @@ def goal_create(body):
 
 def goal_answers(g, body):
     with glock:
-        if g["status"] in ("running", "verifying"):
+        if g["status"] not in ("intake", "ready", "failed", "stopped", "done"):
             raise ValueError("The goal is running: send a message instead")
         g["answers"].update({str(k): str(v)[:4000] for k, v in (body.get("answers") or {}).items()})
         if body.get("acceptance") is not None:
             g["acceptance"] = [str(a) for a in body["acceptance"] if str(a).strip()][:20]
+        goal_opts(g, body)
         g["status"] = "ready"
+        save_g()
+    return g
+
+
+def goal_limits(g, body):
+    with glock:
+        if g["status"] == "verifying":
+            raise ValueError("The verifier is running: try again in a moment")
+        goal_opts(g, body)
         save_g()
     return g
 
 
 def goal_start(g):
     with glock:
-        if g["status"] in ("intake", "running", "verifying"):
-            raise ValueError("Answer the intake questions first" if g["status"] == "intake" else "The goal is already running")
-        g.update(status="running", iteration=1, started=time.time(), ended=None, history=[], report="")
+        if g["status"] not in ("ready", "done", "failed", "stopped"):
+            raise ValueError({"intake": "Answer the intake questions first", "waiting": "The goal is waiting for the one it follows",
+                              "blocked": "The goal is blocked: send a message instead"}.get(g["status"], "The goal is already running"))
+        prev = G.get(g.get("after") or "")
+        if g.get("after"):
+            if not prev or prev["status"] in ("failed", "stopped") or prev.get("outcome") == "discarded":
+                g.update(status="running", started=time.time(), ended=None)  # goal_finish only closes running goals
+                goal_finish(g, "failed", "Cancelled: the goal it follows is gone or didn't finish.")
+                return g
+            if prev["status"] != "done":
+                g["status"] = "waiting"
+                save_g()
+                return g
+        br = "goal/" + g["slug"]
+        ok, base_branch = git(g["folder"], "branch", "--show-current")
+        ok2, base = git(g["folder"], "rev-parse", "HEAD")  # what the review diffs against; None outside a git repo
+        base_branch, base = base_branch.strip() or None if not ok else None, base.strip() if not ok2 else None
+        if base_branch == br:  # the agent left its branch checked out: that is never the base
+            base_branch, base = (g.get("base_branch"), g.get("base")) if g.get("base") else goal_fallback_base(g["folder"], br)
+        goal_kill(g)  # an older run of this goal may still be alive
+        g.update(status="running", iteration=1, spent=goal_secs(g), started=time.time(), ended=None, history=[], report="", lost=False, outcome=None,
+                 base_branch=base_branch, base=base, run=None, round=uuid.uuid4().hex)  # run None: the lost check skips it until the new brain exists
+        if g.get("after") and not git(g["folder"], "rev-parse", "--verify", "--quiet", "refs/heads/" + g["from"])[0]:
+            g.update(base_branch=g["from"], base=git(g["folder"], "rev-parse", "refs/heads/" + g["from"])[1].strip())  # review diffs against the previous goal
         save_g()
+    return goal_launch(g, (f"Create the branch goal/{g['slug']} from {g['from']} (check it out first); do not branch from the current branch. " if g.get("after") else "") + "Start now.")
+
+
+def goal_continue(g, body):
+    """Resume a finished goal on its existing branch and history, with the previous report and optional notes."""
+    with glock:
+        if g["status"] not in ("failed", "stopped", "done"):
+            raise ValueError("Only a failed, stopped or done goal can continue")
+        goal_kill(g)
+        g.update(status="running", iteration=1, spent=goal_secs(g), started=time.time(), ended=None, report="", lost=False, outcome=None,
+                 run=None, round=uuid.uuid4().hex)  # run None: the lost check skips it until the new brain exists
+        save_g()
+    last = (g["history"] or [{}])[-1].get("failing") or []
+    text = str(body.get("text") or "").strip()[:4000]
+    return goal_launch(g, "Continue on the existing branch: check it out, don't recreate it.\n"
+                       + (f"Previous report:\n{g['last']['report']}\n" if g.get("last") else "")
+                       + ("Last verifier findings:\n" + "\n".join("- " + x for x in last) + "\n" if last else "")
+                       + (f"Notes from the user: {text}\n" if text else "") + "Continue now.")
+
+
+def goal_clone(g, body):
+    """A fresh ready copy (a template): same folder, objective, intake, limits and schedule; no run, history or link."""
+    name = (str(body.get("name") or "").strip() or f"{g['name']} (copia)")[:60]
+    slug = slugify(name)
+    with glock:
+        goal_slug_free(g["folder"], slug)
+        c = {**json.loads(json.dumps({k: g[k] for k in ("folder", "objective", "questions", "answers", "acceptance", "max_iter", "max_hours", "schedule")})),
+             "allow": list(g.get("allow") or []), "id": uuid.uuid4().hex[:8], "name": name, "slug": slug, "after": None, "from": None,
+             "oneshot_cost": 0, "spent": 0, "status": "ready", "iteration": 0, "run": None, "started": None, "ended": None, "history": [],
+             "report": "", "last": None, "created": time.time()}
+        G[c["id"]] = c
+        save_g()
+    return c
+
+
+def goal_launch(g, tail):
+    """A fresh brain session for the goal; tail ends its first message."""
     msg = (f"[Goal] {g['name']}\nFolder: {g['folder']}\nBranch: goal/{g['slug']}\n{goal_brief(g)}\n"
-           f"Limits: {g['max_iter']} verification rounds or {g['max_hours']} h in total. Start now.")
+           + (f"You may use these outside services: {', '.join(g['allow'])}.\n" if g.get("allow") else "")
+           + f"Limits: {g['max_iter']} verification rounds or {g['max_hours']} h in total. {tail}")
     start_session({"message": msg, "brain": True, "name": "Goal: " + g["name"], "cwd": g["folder"], "permission_mode": "acceptEdits",
                    "allowed_tools": "Read,Glob,Grep,WebSearch,WebFetch,ToolSearch,mcp__playwright"}, goal=g["id"])
     with glock:
         save_g()
+    return g
+
+
+def goal_fallback_base(f, br):
+    """(branch, sha) where br forked from main/master, or (None, None)."""
+    for name in ("main", "master"):
+        if not git(f, "rev-parse", "--verify", "--quiet", "refs/heads/" + name)[0]:
+            rc, sha = git(f, "merge-base", br, name)
+            if not rc:
+                return name, sha.strip()
+    return None, None
+
+
+def goal_review(g):
+    """Branch, commits, files and diff of the goal against where it started."""
+    f, br = g["folder"], "goal/" + g["slug"]
+    out = {"branch": br, "exists": False, "base_branch": g.get("base_branch"), "base": g.get("base"), "commits": [], "files": [], "diff": "",
+           "truncated": False, "criteria": (g["history"] or [{}])[-1].get("criteria") or [], "outcome": g.get("outcome")}
+    if git(f, "rev-parse", "--verify", "--quiet", "refs/heads/" + br)[0]:
+        return out
+    out["exists"] = True
+    if not out["base"]:  # goals from before the base was recorded
+        out["base_branch"], out["base"] = goal_fallback_base(f, br)
+    if not out["base"]:
+        return out
+    b = out["base"]
+    out["commits"] = [{"sha": a, "subject": c} for a, _, c in (x.partition("\t") for x in git(f, "log", "--format=%h%x09%s", f"{b}..{br}")[1].splitlines())]
+    for x in git(f, "diff", "--numstat", f"{b}...{br}")[1].splitlines():
+        a, d, path = (x.split("\t", 2) + ["", ""])[:3]
+        out["files"].append({"path": path, "add": int(a) if a.isdigit() else 0, "del": int(d) if d.isdigit() else 0})  # "-" for binary files
+    diff = git(f, "diff", f"{b}...{br}", t=60)[1]
+    out["truncated"] = len(diff) > 150000
+    out["diff"] = diff[:150000] + "\n… (truncated)" if out["truncated"] else diff
+    return out
+
+
+settle_lock = threading.Lock()  # one merge/discard at a time, so glock isn't held across slow git
+
+
+def goal_settle(g):
+    """Common guard for merge/discard; returns the goal folder, its branch and the checked-out branch."""
+    with glock:
+        if g["status"] in ("intake", "ready", "waiting", "running", "verifying", "blocked"):
+            raise ValueError("The goal hasn't finished: stop it first")
+    return g["folder"], "goal/" + g["slug"], git(g["folder"], "branch", "--show-current")[1].strip()
+
+
+def goal_merge(g):
+    with settle_lock:
+        f, br, cur = goal_settle(g)
+        base = g.get("base_branch")
+        if not base or base == br or cur != base:  # never merge a branch into itself
+            raise ValueError(f"Check out {base if base != br and base else 'the base branch'} first")
+        if git(f, "status", "--porcelain")[1].strip():
+            raise ValueError(f"Uncommitted changes in {f}: commit or stash them first")
+        rc, out = git(f, "merge", "--no-ff", br, "-m", f"Merge {br}: {g['name']}", t=120)
+        if rc:
+            git(f, "merge", "--abort")
+            raise ValueError("Merge failed: " + "\n".join(out.strip().splitlines()[-5:]))
+        with glock:
+            g["outcome"] = "merged"
+            save_g()
+    return g
+
+
+def goal_discard(g):
+    with settle_lock:
+        f, br, cur = goal_settle(g)
+        if cur == br:
+            raise ValueError(f"{br} is checked out in {f}: switch to another branch first")
+        rc, out = git(f, "branch", "-D", br)
+        if rc and "not found" not in out:  # an already missing branch is fine
+            raise ValueError("Could not delete the branch: " + out.strip()[-300:])
+        with glock:
+            g["outcome"] = "discarded"
+            save_g()
     return g
 
 
@@ -1714,20 +1989,22 @@ def goal_reported(gid, rid, a):
 
 
 def goal_verify(g, summary):
-    n = g["iteration"]
+    n, rnd = g["iteration"], g.get("round")
     try:
         v = oneshot(g["folder"], VERIFY.format(folder=g["folder"], branch="goal/" + g["slug"], brief=goal_brief(g), summary=summary),
-                    "sonnet", "Read,Glob,Grep,Bash", 3600)
+                    "sonnet", "Read,Glob,Grep,Bash", 3600, g)
         ok, why, failing = v.get("verdict") == "pass", str(v.get("summary") or "")[:1000], [str(x)[:300] for x in v.get("failing") or []][:20]
-    except (ValueError, OSError) as e:
-        ok, why, failing = False, "The verifier didn't finish", [f"verifier error: {e}"[:300]]
+        crit = [{"c": str(c.get("c") or "")[:300], "ok": bool(c.get("ok")), "evidence": str(c.get("evidence") or "")[:300]}
+                for c in (v.get("criteria") if isinstance(v.get("criteria"), list) else []) if isinstance(c, dict)][:20]
+    except Exception as e:  # a malformed verdict must not leave the goal stuck verifying
+        ok, why, failing, crit = False, "The verifier didn't finish", [f"verifier error: {e}"[:300]], []
     with glock:
-        if g["status"] != "verifying" or g["iteration"] != n:  # stopped or deleted meanwhile
+        if g["status"] != "verifying" or g.get("round") != rnd:  # stopped, continued or deleted meanwhile
             return
-        g["history"].append({"n": n, "verdict": "pass" if ok else "fail", "summary": why, "failing": failing, "ts": time.time()})
+        g["history"].append({"n": n, "verdict": "pass" if ok else "fail", "summary": why, "failing": failing, "criteria": crit, "ts": time.time()})
         out = time.time() - g["started"] > g["max_hours"] * 3600
         if not ok and n < g["max_iter"] and not out:
-            g["iteration"], g["status"] = n + 1, "running"
+            g["iteration"], g["status"], g["round"] = n + 1, "running", uuid.uuid4().hex
         save_g()
     if ok:
         return goal_finish(g, "done", why)
@@ -1753,7 +2030,7 @@ def goal_message(g, text):
 
 def goal_stop(g):
     with glock:
-        if g["status"] in ("running", "verifying", "blocked"):
+        if g["status"] in ("running", "verifying", "blocked", "waiting"):
             g.update(status="stopped", ended=time.time())
             save_g()
     goal_kill(g)
@@ -1763,23 +2040,30 @@ def goal_stop(g):
 def goal_tick(now=None):
     """Worker: limits, a nudge for a brain idle with nothing running, and scheduled runs."""
     now = now or time.localtime()
-    fire, nudge, over = [], [], []
+    fire, nudge, over, lost, go = [], [], [], [], []
     with glock:
         for g in G.values():
             r = runs.get(g["run"] or "")
-            if g["status"] in ("running", "verifying") and (time.time() - g["started"] > g["max_hours"] * 3600 or g["run"] and not r):
+            if g["status"] in ("running", "verifying", "blocked") and g["run"] and not r:  # also right after a restart: runs are loaded by now
+                lost.append(g)
+            elif g["status"] in ("running", "verifying") and time.time() - g["started"] > g["max_hours"] * 3600:
                 over.append(g)
             elif g["status"] == "running" and r and r["status"] in ("idle", "stopped") and not r.get("waiting") and time.time() - r["events"][-1]["ts"] > 600 \
                     and not any(x.get("parent") == r["id"] and x["status"] in ("working", "asking") for x in runs.values()):
                 nudge.append(r)
+            if g["status"] == "waiting" and (G.get(g["after"]) or {"status": "done"})["status"] in ("done", "failed", "stopped"):
+                go.append(g)  # goal_start decides: start, or cancel when the previous one didn't finish
             sch = g.get("schedule")
             slot = sch and job_slot(sch, now)
             if slot:
                 sch["last"] = slot
-                if g["status"] not in ("intake", "running", "verifying", "blocked"):  # recurring: reuse the intake answers
+                if g["status"] not in ("intake", "waiting", "running", "verifying", "blocked"):  # recurring: reuse the intake answers
                     fire.append(g)
         if fire:
             save_g()
+    for g in lost:
+        g["lost"], g["status"] = True, "running"  # goal_finish only closes running/verifying goals
+        goal_finish(g, "failed", "Session lost (server restart or deleted). Use Continue to resume on the same branch.")
     for g in over:
         last = (g["history"] or [{}])[-1].get("failing") or []
         goal_finish(g, "failed", f"Out of time ({g['max_hours']} h)." + (" Pending: " + "; ".join(last[:3]) if last else ""))
@@ -1787,6 +2071,12 @@ def goal_tick(now=None):
         threading.Thread(target=send, args=(r, "[Goal] Nothing is running. Continue toward the objective, or call goal_report if it is done or you are blocked."), daemon=True).start()
     for g in fire:
         goal_start(g)
+    for g in go:
+        g["status"] = "ready"
+        try:
+            goal_start(g)
+        except ValueError:
+            pass
 
 
 def goal_tool(tool, a):
@@ -2589,17 +2879,19 @@ class H(BaseHTTPRequestHandler):
         raise KeyError(p)
 
     def goals(self, m, p, body):
-        """/api/goals[/<id>[/answers|start|stop|message|schedule]]"""
+        """/api/goals[/<id>[/answers|start|stop|message|schedule|continue|limits|merge|discard|review|clone]], POST /api/goals/draft"""
         if package() != "dev":
             return self.send(403, {"error": "Goals are only in the dev package"})
         if len(p) == 2:
             if m == "POST":
                 return self.send(200, goal_create(body))
             with glock:
-                return self.send(200, sorted(G.values(), key=lambda g: g["created"], reverse=True))
+                return self.send(200, sorted((goal_view(g) for g in G.values()), key=lambda g: g["created"], reverse=True))
+        if m == "POST" and p[2:] == ["draft"]:
+            return self.send(200, goal_draft(body))
         g = G[p[2]]
         if m == "GET" and len(p) == 3:
-            return self.send(200, g)
+            return self.send(200, goal_view(g, live=True))
         if m == "DELETE" and len(p) == 3:
             goal_stop(g)
             with glock:
@@ -2607,7 +2899,11 @@ class H(BaseHTTPRequestHandler):
                 save_g()
             return self.send(200, {"ok": True})
         act = {"answers": lambda: goal_answers(g, body), "start": lambda: goal_start(g), "stop": lambda: goal_stop(g),
-               "message": lambda: goal_message(g, body.get("text"))}
+               "message": lambda: goal_message(g, body.get("text")), "continue": lambda: goal_continue(g, body),
+               "limits": lambda: goal_limits(g, body), "merge": lambda: goal_merge(g), "discard": lambda: goal_discard(g),
+               "clone": lambda: goal_clone(g, body)}
+        if m == "GET" and p[3:] == ["review"]:
+            return self.send(200, goal_review(g))
         if m == "POST" and p[3:] == ["schedule"]:
             with glock:
                 g["schedule"] = clean_schedule(body.get("schedule"))
