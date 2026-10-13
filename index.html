@@ -9,7 +9,8 @@ try{if(localStorage.theme=='dark'){document.documentElement.dataset.theme='dark'
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" href="/icons/icon-192.png">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+<link rel="icon" href="/icons/icon-192.png" sizes="192x192">
 <title>Hadiya</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,7 +71,7 @@ a{color:inherit}
 /* ---------- rack (sidebar) ---------- */
 aside{background:var(--char);border-right:1px solid var(--spool);height:100vh;position:sticky;top:0;overflow:auto;padding:18px 12px 24px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;padding:4px 8px 16px;border-bottom:1px solid var(--spool);margin-bottom:8px}
-.brand .i{width:30px;height:30px;color:var(--flag-text)}
+.brand .i{width:30px;height:30px;color:var(--ink)}
 .brand b{font:700 26px/1 var(--cond);letter-spacing:.06em}
 .brand small{display:block;font:500 12px/1.2 var(--cond);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin-top:3px}
 .rack h2{display:flex;justify-content:space-between;align-items:center;margin:18px 8px 6px;color:var(--mute)}
@@ -1461,6 +1462,7 @@ function toast(msg, err) {
 
 /* ============ icons (one stroke family) ============ */
 const P = {
+  hadiya: '<g transform="scale(.375)" style="fill:currentColor;stroke:none"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/><g transform="matrix(-1 0 0 1 64 0)"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/></g><circle cx="32" cy="55" r="2.6" style="fill:var(--flag,#ff5a1f)"/></g>',  // the Hadiya mark (icons/hadiya-mark.svg), filled, not the stroke family
   reel: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="6.8" r="1.8"/><circle cx="16.9" cy="10.4" r="1.8"/><circle cx="15" cy="16.1" r="1.8"/><circle cx="9" cy="16.1" r="1.8"/><circle cx="7.1" cy="10.4" r="1.8"/>',
   figma: '<path d="M9 3h3v6H9a3 3 0 0 1 0-6zM12 3h3a3 3 0 0 1 0 6h-3zM9 9h3v6H9a3 3 0 0 1 0-6zM12 12a3 3 0 1 0 6 0 3 3 0 1 0-6 0M9 15h3v3a3 3 0 1 1-3-3z"/>',
   moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
@@ -1751,7 +1753,7 @@ async function refresh() {
   const w5 = use?.windows?.five_hour, p5 = w5 ? (w5.resetsAt && w5.resetsAt < now() ? 0 : Math.round(w5.utilization * 100)) : null;
   const pill = p5 == null ? '' : `<span class="upill ${p5 >= 80 ? 'hot' : ''}" title="Share of your Claude plan's 5-hour limit used">5h ${p5}%</span>`;
   setHTML('#rack', `
-    <div class="rack-top"><a class="brand" href="#" aria-label="Hadiya, inicio">${icon('reel')}<div><b>HADIYA</b></div></a>
+    <div class="rack-top"><a class="brand" href="#" aria-label="Hadiya, inicio">${icon('hadiya')}<div><b>HADIYA</b></div></a>
       ${kind == 'session' ? `<a class="ic sback" href="#" aria-label="Volver a Inicio">${icon('left')}</a>` : ''}${pill}</div>
     <nav class="dnav" aria-label="Principal">
       ${[['', 'home', 'Inicio'], ['plan', 'cal', 'Plan'], ['assistant', 'talk', 'Asistente'], ['goals', 'flag', 'Goals']].map(([k, ic, t]) => `<a class="item" title="${t}" href="#${k}" ${(kind || '') == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('')}
@@ -3531,7 +3533,7 @@ function admRefresh(me) {
   // three destinations, always in sight: top bar on desktop, bottom tab bar on phones
   const tab = (href, ic, label, on, extra = '') => `<a class="a-tab" href="${href}" ${on ? 'aria-current="page"' : ''}>${icon(ic)}<span>${label}</span>${extra}</a>`;
   setHTML('#rack', `
-    <div class="rack-top"><a class="brand a-brand" href="#" aria-label="Hadiya, inicio">${icon('reel')}<b>Hadiya</b></a>
+    <div class="rack-top"><a class="brand a-brand" href="#" aria-label="Hadiya, inicio">${icon('hadiya')}<b>Hadiya</b></a>
     <nav class="a-tabs" aria-label="Secciones">
       ${tab('#', 'pencil', 'Pedir', !kind)}
       ${tab('#mis', 'list', 'Mis peticiones', kind == 'mis' || kind == 'session', need.length ? `<i class="a-badge" aria-label="${need.length} te necesita${need.length > 1 ? 'n' : ''}">${need.length}</i>` : '')}

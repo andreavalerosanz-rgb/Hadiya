@@ -1228,7 +1228,7 @@ try:  # the only non-stdlib piece; without it phones just don't get push
 except ImportError:
     VAPID = None
 SW_JS = """self.addEventListener('push', e => { const d = e.data ? e.data.json() : {};
-  e.waitUntil(self.registration.showNotification(d.title || 'Hadiya', {body: d.body, tag: d.tag, renotify: true, data: {url: d.url || '/'}})); });
+  e.waitUntil(self.registration.showNotification(d.title || 'Hadiya', {body: d.body, icon: '/icons/icon-192.png', tag: d.tag, renotify: true, data: {url: d.url || '/'}})); });
 // the app shell never caches: when the computer is unreachable, say so instead of a browser error page
 const OFFLINE = `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0d0d">
 <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0d0d;color:#ecebe7;font:16px/1.5 system-ui;text-align:center;padding:24px;box-sizing:border-box">
@@ -1243,8 +1243,9 @@ self.addEventListener('notificationclick', e => { e.notification.close();
   e.waitUntil(clients.matchAll({type: 'window'}).then(ws => { const w = ws[0];
     return w ? w.focus().then(() => w.navigate(e.notification.data.url)) : clients.openWindow(e.notification.data.url); })); });"""
 MANIFEST = {"id": "/", "name": "Hadiya", "short_name": "Hadiya", "description": "Claude Code workbench",
-            "start_url": "/", "scope": "/", "display": "standalone", "background_color": "#0d0d0d", "theme_color": "#0d0d0d",
-            "icons": [{"src": f"/icons/icon-{n}.png", "sizes": f"{n}x{n}", "type": "image/png", "purpose": "any maskable"} for n in (192, 512)]}
+            "start_url": "/", "scope": "/", "display": "standalone", "background_color": "#f4f2ee", "theme_color": "#f4f2ee",
+            "icons": [{"src": f"/icons/icon-{n}.png", "sizes": f"{n}x{n}", "type": "image/png", "purpose": "any"} for n in (192, 512)]
+            + [{"src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
 
 
 def b64u(b):
@@ -2205,11 +2206,12 @@ def new_code():
 
 
 PAIR_HTML = b"""<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#f4f2ee"><title>Emparejar con Hadiya</title>
+<meta name="theme-color" content="#f4f2ee"><title>Emparejar con Hadiya</title><link rel="icon" href="/icons/favicon-32.png">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"><style>
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f2ee;color:#1a1a1a;font:17px/1.5 Barlow,system-ui,sans-serif;padding:16px;box-sizing:border-box}
 main{width:100%;max-width:400px;background:#fff;border:1px solid #dcd7cf;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(26,26,26,.08)}
-.band{background:#ff5a1f;padding:14px 20px;font:700 24px/1.1 "Barlow Condensed","Arial Narrow",system-ui;letter-spacing:.06em;text-transform:uppercase;color:#1a1a1a}
+.band{background:#ff5a1f;padding:14px 20px;font:700 24px/1.1 "Barlow Condensed","Arial Narrow",system-ui;letter-spacing:.06em;text-transform:uppercase;color:#1a1a1a;display:flex;align-items:center;gap:10px}
+.band svg{width:28px;height:28px;flex:none;fill:currentColor}
 form{padding:18px 20px 22px}label{display:block;font-size:16px;font-weight:600;color:#57534d;margin:14px 0 6px}
 input{width:100%;box-sizing:border-box;min-height:52px;border:1px solid #cfcac2;border-radius:12px;padding:11px 14px;font:inherit;background:#fff;color:#1a1a1a}
 input:focus{outline:0;border-color:#1a1a1a}
@@ -2224,7 +2226,7 @@ p{margin:0 0 4px;font-size:17px;color:#57534d}#err{color:#b3360b;min-height:1.4e
 <script>try{if(localStorage.theme=='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script></head><body>
 <button type="button" id="tt" aria-label="Tema oscuro" onclick="var h=document.documentElement,d=h.dataset.theme!='dark';if(d)h.dataset.theme='dark';else delete h.dataset.theme;try{localStorage.theme=d?'dark':'light'}catch(e){}this.setAttribute('aria-pressed',d)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
 <script>document.getElementById('tt').setAttribute('aria-pressed',document.documentElement.dataset.theme=='dark')</script><main>
-<div class="band">Emparejar con Hadiya</div><form id="f"><p>En tu ordenador abre Hadiya, ve a <b>Phone access</b> y crea un c&#243;digo de emparejamiento.</p>
+<div class="band"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/><g transform="matrix(-1 0 0 1 64 0)"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/></g></svg>Emparejar con Hadiya</div><form id="f"><p>En tu ordenador abre Hadiya, ve a <b>Phone access</b> y crea un c&#243;digo de emparejamiento.</p>
 <label for="code">C&#243;digo de emparejamiento</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
 <label for="name">Nombre de este dispositivo</label><input id="name" value="Mi m&#243;vil" maxlength="40">
 <button>Emparejar</button><div id="err" role="alert"></div></form></main><script>const f=document.getElementById('f'),c=document.getElementById('code'),m=/code=(\\d{6})/.exec(location.hash);
@@ -2251,7 +2253,7 @@ def locked(k):
 
 
 LOGIN_HTML = PAIR_HTML.split(b"<main>")[0].replace(b"Emparejar con Hadiya", b"Entrar en Hadiya") + b"""<main>
-<div class="band">Entrar en Hadiya</div><form id="f"><label for="u">Usuario</label><input id="u" autocomplete="username" autocapitalize="none" required>
+<div class="band"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/><g transform="matrix(-1 0 0 1 64 0)"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/></g></svg>Entrar en Hadiya</div><form id="f"><label for="u">Usuario</label><input id="u" autocomplete="username" autocapitalize="none" required>
 <label for="p">Contrase&#241;a</label><input id="p" type="password" autocomplete="current-password" required>
 <button>Entrar</button><div id="err" role="alert"></div></form></main><script>
 const f=document.getElementById('f');f.onsubmit=async e=>{e.preventDefault();const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json','X-Flow':'1'},body:JSON.stringify({user:f.u.value,password:f.p.value})});
