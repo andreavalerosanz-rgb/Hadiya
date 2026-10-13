@@ -1082,6 +1082,8 @@ def start_session(body, owner, brain=None, assistant=False, src=None, goal=None)
         raise ValueError("The Second Brain is only in the dev package")
     workdir(owner, body.get("cwd"))  # refuse a folder outside their home before the session exists
     c = {k: body.get(k) for k in ("cwd", "model", "permission_mode", "allowed_tools", "agents", "caps", "sub_models")}
+    if c["allowed_tools"] is None and package(owner) == "dev":
+        c["allowed_tools"] = "mcp__playwright"  # browser on by default; the UI sends an explicit list, so unticking still works
     if brain:
         c = {**{k: brain["config"].get(k) for k in ("permission_mode", "allowed_tools", "caps", "sub_models")}, "agents": 3,
              "cwd": body.get("cwd") or brain["config"].get("cwd"), "model": body.get("model") or "sonnet"}  # not the brain's opus: children were ~80% of a brain project's cost
@@ -1729,7 +1731,7 @@ def goal_start(g):
     msg = (f"[Goal] {g['name']}\nFolder: {g['folder']}\nBranch: goal/{g['slug']}\n{goal_brief(g)}\n"
            f"Limits: {g['max_iter']} verification rounds or {g['max_hours']} h in total. Start now.")
     start_session({"message": msg, "brain": True, "name": "Goal: " + g["name"], "cwd": g["folder"], "permission_mode": "acceptEdits",
-                   "allowed_tools": "Read,Glob,Grep,WebSearch,WebFetch,ToolSearch"}, g.get("owner"), goal=g["id"])
+                   "allowed_tools": "Read,Glob,Grep,WebSearch,WebFetch,ToolSearch,mcp__playwright"}, g.get("owner"), goal=g["id"])
     with glock:
         save_g()
     return g
