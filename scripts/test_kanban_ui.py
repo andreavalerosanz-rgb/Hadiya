@@ -11,6 +11,7 @@ from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
 SHOTS = REPO / "data/shots"; SHOTS.mkdir(parents=True, exist_ok=True)
+THEME_SHOTS = Path("/home/andrea/Desktop/flows/data/shots/20261013-090747-3e12"); THEME_SHOTS.mkdir(parents=True, exist_ok=True)
 TMP = Path(tempfile.mkdtemp(prefix="flows-kanban-"))
 (TMP / "bin").mkdir(); (TMP / "home").mkdir(); (TMP / "app").mkdir()
 (TMP / "bin/claude").write_text("#!/bin/sh\nexit 0\n"); (TMP / "bin/claude").chmod(0o755)
@@ -30,6 +31,21 @@ CHECK = """() => {
     const r = e.getBoundingClientRect(); return Math.min(r.width, r.height) < 48 && !e.closest('[hidden]'); }).map(e => { const r = e.getBoundingClientRect(); return d(e) + Math.round(r.width) + 'x' + Math.round(r.height); });
   return {font: getComputedStyle(document.body).fontFamily, ow: document.documentElement.scrollWidth - innerWidth, sw: document.documentElement.scrollWidth - screen.width, tiny, small};
 }"""
+CONTRAST = """() => {
+  const P = c => { const m = c.match(/[\\d.]+/g).map(Number); return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1]; };
+  const L = ([r, g, b]) => { const f = v => (v /= 255) <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; return .2126 * f(r) + .7152 * f(g) + .0722 * f(b); };
+  const bgOf = e => { let layers = []; for (; e; e = e.parentElement) { const c = P(getComputedStyle(e).backgroundColor); if (c[3] > 0) { layers.push(c); if (c[3] == 1) break; } }
+    let b = [255, 255, 255]; for (const c of layers.reverse()) b = b.map((v, i) => c[i] * c[3] + v * (1 - c[3])); return b; };
+  const vis = e => e.offsetParent && e.getBoundingClientRect().width > 1 && !e.closest('dialog:not([open])');
+  const bad = [];
+  for (const e of document.querySelectorAll('body *')) {
+    if (!vis(e) || !([...e.childNodes].some(n => n.nodeType == 3 && n.textContent.trim()) || /^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName) && e.type != 'file')) continue;
+    const cs = getComputedStyle(e), fg = P(cs.color), bg = bgOf(e), px = parseFloat(cs.fontSize), large = px >= 24 || px >= 18.66 && +cs.fontWeight >= 700;
+    const f = fg.slice(0, 3).map((v, i) => v * fg[3] + bg[i] * (1 - fg[3])), a = L(f), b = L(bg), r = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+    if (r < (large ? 3 : 4.5)) bad.push(`${e.tagName}.${e.className}'${e.textContent.trim().slice(0, 16)}' ${r.toFixed(2)}`);
+  }
+  return bad;
+}"""
 fails = []
 def check(ok, msg):
     if not ok: fails.append(msg); print("FAIL", msg)
@@ -39,6 +55,23 @@ def floor(pg, where):
     check(r["ow"] <= 0 and r["sw"] <= 0, f"{where}: horizontal overflow {r['ow']}/{r['sw']}")
     check(not r["tiny"], f"{where}: text<16 {r['tiny'][:6]}")
     check(not r["small"], f"{where}: targets<48 {r['small'][:6]}")
+
+
+def themes(pg, where, size=None, shot=False):
+    """contrast in light, then dark via the toggle (persists over reload, no overflow); leaves the page light."""
+    def one(mode):
+        check(not pg.evaluate(CONTRAST), f"{where} {mode}: contrast {pg.evaluate(CONTRAST)[:6]}")
+        r = pg.evaluate(CHECK); check(r["ow"] <= 0 and r["sw"] <= 0 and pg.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), f"{where} {mode}: overflow")
+        if shot: pg.screenshot(path=str(THEME_SHOTS / f"kanban-{mode}-{size}.png"), full_page=True)
+    one("light")
+    t = pg.locator("#theme"); check(t.get_attribute("aria-pressed") == "false", f"{where}: toggle starts off")
+    bx = t.bounding_box(); check(bx["width"] >= 48 and bx["height"] >= 48, f"{where}: toggle size {bx}")
+    t.click(); check(pg.evaluate("document.documentElement.dataset.theme") == "dark" and t.get_attribute("aria-pressed") == "true", f"{where}: dark on")
+    check(pg.evaluate("document.querySelector('meta[name=theme-color]').content") == "#141413", f"{where}: theme-color dark")
+    one("dark")
+    pg.reload(); pg.wait_for_selector(".col")
+    check(pg.evaluate("document.documentElement.dataset.theme") == "dark" and pg.locator("#theme").get_attribute("aria-pressed") == "true", f"{where}: dark persists on reload")
+    pg.locator("#theme").click(); check(pg.evaluate("localStorage.theme") == "light" and pg.evaluate("document.documentElement.dataset.theme") == "light", f"{where}: back to light")
 
 
 class Fake:
@@ -186,6 +219,8 @@ def owner(b, p, size, ca):
         pg.click(".tabs button:has-text('Por hacer')"); check(pg.locator(".col.on").get_attribute("aria-label") == "Por hacer", f"{size}: tab switch")
         pg.click(".tabs button:has-text('En curso')")
     floor(pg, f"{size} board owner"); pg.screenshot(path=str(SHOTS / f"kanban-board-{size}.png"), full_page=True)
+    themes(pg, f"{size} owner", size, shot=True)
+    if mobile: pg.click(".tabs button:has-text('En curso')")  # reload resets the phone tab
     # owner deletes the card
     pg.click(".card .open:visible >> nth=0"); n = len(fake.cards); pg.click("#delcard"); pg.wait_for_timeout(300)
     check(len(fake.cards) == n - 1, f"{size}: delete card")
@@ -218,6 +253,7 @@ def guest(b, size, ca):
     check(next(c for c in fake.cards if c["id"] == "k1")["col"] == "c2", f"{size}: guest move by button")
     pg.click("#dlg [data-close] >> nth=1")
     floor(pg, f"{size} guest board"); pg.screenshot(path=str(SHOTS / f"kanban-guest-{size}.png"), full_page=True)
+    themes(pg, f"{size} guest")
     # a bad link
     pg.goto(f"{URL}/k/nope"); pg.wait_for_selector("text=ya no es válido")
     check(not errs, f"{size}: guest JS errors {errs}")

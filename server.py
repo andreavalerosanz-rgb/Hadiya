@@ -2203,7 +2203,15 @@ input{width:100%;box-sizing:border-box;min-height:52px;border:1px solid #cfcac2;
 input:focus{outline:0;border-color:#1a1a1a}
 #code{font:700 30px/1 ui-monospace,monospace;letter-spacing:.35em;text-align:center}
 button{margin-top:20px;width:100%;border:0;border-radius:12px;background:#ff5a1f;color:#1a1a1a;padding:0 16px;min-height:52px;font:700 20px/1 "Barlow Condensed","Arial Narrow",system-ui;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
-p{margin:0 0 4px;font-size:17px;color:#57534d}#err{color:#b3360b;min-height:1.4em;margin-top:12px;font-weight:500}</style></head><body><main>
+p{margin:0 0 4px;font-size:17px;color:#57534d}#err{color:#b3360b;min-height:1.4em;margin-top:12px;font-weight:500}
+#tt{position:fixed;top:8px;right:8px;margin:0;width:48px;min-height:48px;padding:0;border-radius:999px;background:transparent;color:inherit;display:grid;place-items:center}
+#tt svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linejoin:round}
+[data-theme=dark] body{background:#141413;color:#ece9e3;color-scheme:dark}[data-theme=dark] main{background:#222220;border-color:#3d3c39}
+[data-theme=dark] label,[data-theme=dark] p{color:#b0aca4}[data-theme=dark] input{background:#262624;border-color:#4a4945;color:#ece9e3}
+[data-theme=dark] input:focus{border-color:#ece9e3}[data-theme=dark] #err{color:#ff9a8f}</style>
+<script>try{if(localStorage.theme=='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script></head><body>
+<button type="button" id="tt" aria-label="Tema oscuro" onclick="var h=document.documentElement,d=h.dataset.theme!='dark';if(d)h.dataset.theme='dark';else delete h.dataset.theme;try{localStorage.theme=d?'dark':'light'}catch(e){}this.setAttribute('aria-pressed',d)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+<script>document.getElementById('tt').setAttribute('aria-pressed',document.documentElement.dataset.theme=='dark')</script><main>
 <div class="band">Emparejar con Flows</div><form id="f"><p>En tu ordenador abre Flows, ve a <b>Phone access</b> y crea un c&#243;digo de emparejamiento.</p>
 <label for="code">C&#243;digo de emparejamiento</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
 <label for="name">Nombre de este dispositivo</label><input id="name" value="Mi m&#243;vil" maxlength="40">

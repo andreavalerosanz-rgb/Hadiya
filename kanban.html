@@ -9,15 +9,25 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script>try{if(localStorage.theme==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
 <style>
 /* Flows paper identity (same tokens as index.html body:not(.adm)): orange only for the primary action and focus */
 :root{
   color-scheme:light;
   --ground:#f4f2ee; --char:#ebe8e2; --panel:#fff; --spool:#dedad3; --line:#d3cec6;
   --ink:#1a1a1a; --mute:#57534d; --flag:#ff5a1f; --flag-hi:#ff7038; --flag-text:#c2410c;
+  --field:#fff; --field-line:#d3cec6; --on-flag:#1a1a1a; --scrim:var(--scrim);
+  --warm-bg:#ffe9df; --warm-tx:#9a3412; --bad-bg:#fde4e1; --bad-tx:#9f1d12;
   --r-s:6px; --r-m:10px; --r-l:12px; --pill:999px;
   --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"Barlow",system-ui,sans-serif;
+}
+:root[data-theme=dark]{
+  color-scheme:dark;
+  --ground:#141413; --char:#1c1c1b; --panel:#222220; --spool:#2e2d2b; --line:#3d3c39;
+  --ink:#ece9e3; --mute:#b0aca4; --flag-text:#ff8a5c;
+  --field:#262624; --field-line:#4a4945; --scrim:rgba(0,0,0,.6);
+  --warm-bg:#3d2418; --warm-tx:#ffb08f; --bad-bg:#3d1a17; --bad-tx:#ff9a8f;
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
@@ -31,9 +41,10 @@ a{color:inherit}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;min-width:48px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--panel);color:var(--ink);cursor:pointer;font:600 16px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
 .btn:hover{border-color:var(--mute)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn.pri{background:var(--flag);border-color:var(--flag);color:var(--ink)}
+.btn.pri{background:var(--flag);border-color:var(--flag);color:var(--on-flag)}
 .btn.pri:hover{background:var(--flag-hi)}
-.btn.del{color:#9f1d12}
+.btn.del{color:var(--bad-tx)}
+.btn.tg{padding:0}
 .btn:has(input:focus-visible){outline:2px solid var(--flag);outline-offset:2px}
 header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 16px 8px}
 header h1{margin:0 auto 0 0;min-width:0;overflow-wrap:anywhere;font:700 30px/1.05 var(--cond);letter-spacing:.02em;text-transform:uppercase}
@@ -54,9 +65,9 @@ header h1{margin:0 auto 0 0;min-width:0;overflow-wrap:anywhere;font:700 30px/1.0
 .meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;color:var(--mute)}
 .meta>span{display:inline-flex;align-items:center;gap:4px}
 .prio{padding:1px 10px;border-radius:var(--pill);background:var(--char);color:var(--mute);font-weight:600}
-.prio[data-p=alta]{background:#ffe9df;color:#9a3412}
-.prio[data-p=urgente]{background:#fde4e1;color:#9f1d12}
-.due.late{color:#9f1d12;font-weight:600}
+.prio[data-p=alta]{background:var(--warm-bg);color:var(--warm-tx)}
+.prio[data-p=urgente]{background:var(--bad-bg);color:var(--bad-tx)}
+.due.late{color:var(--bad-tx);font-weight:600}
 .add{justify-content:flex-start;border-style:dashed;background:transparent}
 /* phones: one column at a time, picked from the tabs */
 @media (max-width:820px){
@@ -75,7 +86,7 @@ dialog form{display:grid;gap:12px;padding:16px;min-width:0}
 .dh{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .dh h2{margin:0;font:700 24px/1.1 var(--cond);letter-spacing:.04em;text-transform:uppercase}
 label.f{display:block;font:600 16px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
-label.f input,label.f textarea,label.f select{display:block;width:100%;min-width:0;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);color:var(--ink);font:16px/1.4 var(--body);letter-spacing:0;text-transform:none}
+label.f input,label.f textarea,label.f select{display:block;width:100%;min-width:0;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--field-line);border-radius:var(--r-m);background:var(--field);color:var(--ink);font:16px/1.4 var(--body);letter-spacing:0;text-transform:none}
 label.f textarea{resize:vertical}
 label.f :focus{outline:0;border-color:var(--mute);box-shadow:0 0 0 3px rgba(255,90,31,.3)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -94,7 +105,7 @@ h3{margin:4px 0 0;font:700 16px/1.2 var(--cond);letter-spacing:.09em;text-transf
 </style>
 </head>
 <body>
-<header><h1 id="bname">Tablero</h1><span id="hacts"></span></header>
+<header><h1 id="bname">Tablero</h1><button type="button" class="btn tg" id="theme" aria-pressed="false" aria-label="Tema oscuro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><span id="hacts"></span></header>
 <nav class="tabs" id="tabs" aria-label="Columnas"></nav>
 <main class="cols" id="cols"><p class="none">Cargando…</p></main>
 <p id="msg" role="status" hidden></p>
@@ -124,6 +135,9 @@ h3{margin:4px 0 0;font:700 16px/1.2 var(--cond);letter-spacing:.09em;text-transf
 
 <script>
 const $ = s => document.querySelector(s);
+{ const t = $('#theme'), h = document.documentElement, set = d => { h.dataset.theme = d ? 'dark' : 'light'; t.setAttribute('aria-pressed', d); document.querySelector('meta[name=theme-color]').content = d ? '#141413' : '#f4f2ee'; };
+  set(h.dataset.theme === 'dark');
+  t.onclick = () => { const d = h.dataset.theme !== 'dark'; set(d); try { localStorage.theme = d ? 'dark' : 'light'; } catch (e) {} }; }
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const tok = location.pathname.match(/^\/k\/([^/]+)/)?.[1];
 const B = tok ? `/k/${tok}/api` : '/api/kanban/boards/' + encodeURIComponent(new URLSearchParams(location.search).get('b') || '');
