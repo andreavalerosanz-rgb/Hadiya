@@ -58,6 +58,11 @@ body:not(.adm){
 .theme-t::after{content:"";margin-left:auto;flex:none;width:40px;height:24px;border-radius:var(--pill);background:var(--field-line) radial-gradient(circle 9px at 12px 50%,var(--field) 98%,transparent) no-repeat}
 .theme-t[aria-pressed=true]::after{background:var(--flag) radial-gradient(circle 9px at 28px 50%,#fff 98%,transparent) no-repeat}
 .a-acct .theme-t{margin-top:12px;width:100%}
+.upd{margin:10px 8px 0;font-size:16px;color:var(--mute)}
+.upd a{display:flex;align-items:center;min-height:48px;margin-top:2px;color:var(--flag-text);font-weight:700;text-decoration:underline}
+.a-acct .upd{margin:12px 0 0;color:var(--p-mute)}
+.bdg.upd-dot{min-width:10px;width:10px;height:10px;padding:0}
+body:not(.adm) .dnav .bdg.upd-dot{position:absolute;top:8px;left:calc(50% + 6px);margin:0}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--ground);color:var(--edge);font:15px/1.5 var(--body);display:grid;grid-template-columns:var(--rack-w,264px) minmax(0,1fr)}
@@ -1761,6 +1766,7 @@ const setHTML = (sel, h) => { const el = $(sel); if (el && shown.get(el) !== h) 
 async function refresh() {
   const [all, use, q, w, me] = await Promise.all([api('runs').catch(() => []), api('usage').catch(() => ({})), api('queue').catch(() => queue), api('workflows').catch(() => ({})), api('me').catch(() => ({}))]);
   queue = q; wfs = w; PKG = me.package || 'dev';
+  if (UPDATE === null) UPDATE = false, api('update').then(u => { UPDATE = u; $('#upd')?.replaceWith(Object.assign(document.createElement('div'), {innerHTML: updHtml()}).firstChild); }).catch(() => {});
   if (isRemote == null) { const r = await fetch('/api/remote'); isRemote = r.status == 403; if (r.ok) phoneOn = (j => j.lan.on || j.tunnel.on || j.tailnet.on)(await r.json()); }
   if (isRemote) regSW();
   if (isRemote && !push) await pushLoad();
@@ -1777,7 +1783,7 @@ async function refresh() {
       ${kind == 'session' ? `<a class="ic sback" href="#" aria-label="Volver a Inicio">${icon('left')}</a>` : ''}${pill}</div>
     <nav class="dnav" aria-label="Principal">
       ${[['', 'home', 'Inicio'], ['plan', 'cal', 'Plan'], ['assistant', 'talk', 'Asistente'], ['goals', 'flag', 'Goals']].map(([k, ic, t]) => `<a class="item" title="${t}" href="#${k}" ${(kind || '') == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('')}
-      <button class="item" data-act="more" aria-haspopup="dialog" ${MORE_K.includes(kind) ? 'aria-current="page"' : ''} aria-label="Más${nq ? ', ' + nq + ' en cola' : ''}">${icon('menu')}<span>Más</span>${nq ? `<span class="bdg">${nq}</span>` : ''}</button>
+      <button class="item" data-act="more" aria-haspopup="dialog" ${MORE_K.includes(kind) ? 'aria-current="page"' : ''} aria-label="Más${nq ? ', ' + nq + ' en cola' : ''}${UPDATE?.newer ? ', nueva versión' : ''}">${icon('menu')}<span>Más</span>${nq ? `<span class="bdg">${nq}</span>` : UPDATE?.newer ? '<span class="bdg upd-dot" aria-hidden="true"></span>' : ''}</button>
     </nav>
     <div class="rack-body" id="rack-body">
     ${pinned().length ? `<h2 class="cap">Pinned</h2>${pinned().map(r => delRow('run:' + r.id, r.brain ? 'Second Brain' : 'session', r.name, `<a class="item" title="${esc(r.name)}" href="#session/${r.id}" ${cur('session', r.id)}>${mark(r.status)}${brainIcon(r)}<span>${esc(r.name)}</span><small>${r.status == 'asking' ? 'ASK' : ago(r.started)}</small></a>`, r)).join('')}` : ''}
@@ -1788,7 +1794,7 @@ async function refresh() {
     </div>`);
   setHTML('#more', `<div class="more-h"><h2>Más</h2><button class="ic" data-act="moreClose" aria-label="Cerrar">${icon('x')}</button></div>
     <nav class="more-nav" aria-label="Más secciones">${[['kanban', 'bricks', 'Kanban'], ['agents', 'team', 'Agentes'], ['projects', 'list', 'Proyectos'], ['guide', 'help', 'Guía'], ['templates', 'reel', 'Plantillas'], ...(isRemote ? [] : [['phone', 'phone', 'Teléfono']])].map(([k, ic, t]) => `<a class="item" href="#${k}" ${kind == k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${t}</span>${k == 'phone' && phoneOn ? '<small>ON</small>' : ''}</a>`).join('')}
-    ${themeBtn('item')}</nav>
+    ${themeBtn('item')}</nav>${updHtml()}
     ${queue.items.length || queue.limited_until ? `<h2 class="cap">Queue</h2>${queue.limited_until ? `<p class="none">Usage limit reached. Queue resumes at ${new Date(queue.limited_until * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>` : ''}
     ${queue.items.map(q => delRow('q:' + q.id, q.kind, q.name, `<span class="item">${icon(q.kind == 'session' ? 'team' : q.kind == 'message' ? 'send' : 'list')}<span>${esc(q.name)}</span><small>${q.kind == 'session' ? 'Session' : q.kind == 'message' ? 'Message' : 'Workflow'}</small></span>`)).join('')}` : ''}
     <h2 class="cap">Workflows <a href="#templates" aria-label="New workflow">${icon('plus')}New</a></h2>
@@ -2155,6 +2161,8 @@ ACT.startSession = async (_, btn, q) => {
   } catch (e) { toast('Could not start: ' + e.message, true); btn?.removeAttribute('aria-busy'); }
 };
 const isDark = () => document.documentElement.dataset.theme == 'dark';
+let UPDATE = null;  // /api/update, fetched once on load
+const updHtml = () => !UPDATE ? '' : `<p class="upd" id="upd">Hadiya ${esc(UPDATE.current)}${UPDATE.newer ? `<a href="${esc(UPDATE.url || UPDATE.notes_url)}" target="_blank" rel="noopener">Nueva versión ${esc(UPDATE.latest)} disponible · Descargar</a>` : ''}</p>`;
 const themeBtn = cls => `<button type="button" class="${cls} theme-t" data-act="theme" aria-pressed="${isDark()}">${icon('moon')}<span>Tema oscuro</span></button>`;
 ACT.theme = () => {
   const d = !isDark();
@@ -3876,7 +3884,7 @@ function admGuide() {
     <h2>Qué significa cada marca</h2>
     <ul class="a-card a-marks">${marks.map(([s, t]) => `<li>${astate(s).replace(' · escribe para seguir', '')}<span>${t}</span></li>`).join('')}</ul>
     <a class="a-btn a-pri a-pedir" href="#">Hacer una petición</a>
-    <section class="a-card a-acct"><h2>Apariencia</h2>${themeBtn('a-btn a-sec')}</section>
+    <section class="a-card a-acct"><h2>Apariencia</h2>${themeBtn('a-btn a-sec')}${updHtml()}</section>
 
   </div>`;
 }

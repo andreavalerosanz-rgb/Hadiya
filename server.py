@@ -2516,6 +2516,53 @@ def slim(ev):
     return {**ev, "message": {**ev["message"], "content": [item(i) for i in c]}}
 
 
+UPD = {"at": 0, "val": None}
+
+
+def cur_version():
+    try:
+        return (ROOT / "VERSION").read_text().strip() or "dev"
+    except OSError:
+        pass
+    try:
+        v = subprocess.run(["git", "describe", "--tags"], cwd=ROOT, capture_output=True, text=True, timeout=5, **NOWIN).stdout.strip()
+        return v.lstrip("v") or "dev"
+    except Exception:
+        return "dev"
+
+
+def vparts(v):
+    m = re.match(r"v?(\d+(?:\.\d+)*)", v or "")
+    return tuple(int(x) for x in m.group(1).split(".")) if m else None
+
+
+def update_info():
+    """Current vs latest GitHub release; the answer is cached 6 h, failures never raise."""
+    cur = cur_version()
+    out = {"current": cur, "latest": None, "newer": False, "url": None, "notes_url": None}
+    if time.time() - UPD["at"] > 6 * 3600 or UPD["val"] is None:
+        api = env("UPDATE_API", "https://api.github.com")
+        repo = env("UPDATE_REPO", "andreavalerosanz-rgb/flows")
+        try:
+            with urlopen(Request(f"{api}/repos/{repo}/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "hadiya"}), timeout=5) as r:
+                rel = json.load(r)
+            latest = rel["tag_name"].lstrip("v")
+            want = {"win32": "hadiya-windows_%s.zip", "darwin": "hadiya-macos_%s.zip"}.get(sys.platform, "hadiya-linux_%s.tar.gz") % latest
+            url = next((a["browser_download_url"] for a in rel.get("assets", []) if a.get("name") == want), rel.get("html_url"))
+            UPD["val"] = {"latest": latest, "url": url, "notes_url": rel.get("html_url")}
+            UPD["at"] = time.time()
+        except HTTPError as e:  # 404: private repo or no release yet, so no update
+            UPD["val"] = {} if e.code == 404 else {"error": f"HTTP {e.code}"}
+            UPD["at"] = time.time() if e.code == 404 else time.time() - 5.5 * 3600
+        except Exception as e:
+            UPD["val"] = {"error": str(e)[:120]}
+            UPD["at"] = time.time() - 5.5 * 3600  # retry errors in 30 min
+    out.update(UPD["val"])
+    a, b = vparts(cur), vparts(out["latest"])
+    out["newer"] = bool(a and b and b > a)
+    return out
+
+
 class H(BaseHTTPRequestHandler):
     remote = False  # RH (phone listeners) flips this
     def log_message(self, *a):
@@ -2670,6 +2717,8 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, raw, "text/html; charset=utf-8", hd)
             if m == "GET" and p == ["api", "me"]:
                 return self.send(200, {"package": package()})
+            if m == "GET" and p == ["api", "update"]:
+                return self.send(200, update_info())
             if p == ["api", "plan"] and m == "GET":
                 return self.send(200, plan)
             if p[:2] == ["api", "workflows"]:
