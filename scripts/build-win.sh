@@ -4,11 +4,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
-ver=$(git describe --tags --always --dirty)
-ver=${ver#v}
-git describe --tags >/dev/null 2>&1 || ver=0.0.0+g$ver   # no tags: bare hash
-[[ $ver =~ ^[0-9]+(\.[0-9]+)*- ]] && ver=${ver/-/+}  # tag-N-gHASH -> tag+N-gHASH
-ver=$(printf '%s' "$ver" | tr -c 'A-Za-z0-9.+~:\n-' '.')
+. "$root/scripts/version.sh"
 
 stage=$(mktemp -d); trap 'rm -rf "$stage"' EXIT
 app=$stage/Hadiya
@@ -17,6 +13,7 @@ install -d "$app/icons" "$app/windows"
 
 # Copy core files
 cp server.py index.html kanban.html "$app/"
+printf "%s\n" "$ver" > "$app/VERSION"
 cp -r icons/* "$app/icons/"
 cp -r windows/* "$app/windows/"
 find "$app" \( -name __pycache__ -o -name '*.log' \) -prune -exec rm -rf {} +

@@ -7,11 +7,7 @@ command -v dpkg-deb >/dev/null || { echo "dpkg-deb not found" >&2; exit 1; }
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"
-ver=$(git describe --tags --always --dirty)
-ver=${ver#v}
-git describe --tags >/dev/null 2>&1 || ver=0.0.0+g$ver   # no tags: bare hash
-[[ $ver =~ ^[0-9]+(\.[0-9]+)*- ]] && ver=${ver/-/+}  # tag-N-gHASH -> tag+N-gHASH
-ver=$(printf '%s' "$ver" | tr -c 'A-Za-z0-9.+~:\n-' '.')
+. "$root/scripts/version.sh"
 
 name=hadiya-$pkg
 other=hadiya-admin; [ "$pkg" = admin ] && other=hadiya-dev
@@ -22,6 +18,7 @@ install -d "$app/scripts" "$stage/DEBIAN" "$stage/usr/lib/systemd/user" \
   "$stage/usr/share/icons/hicolor/512x512/apps" "$stage/usr/share/icons/hicolor/192x192/apps"
 
 cp server.py index.html kanban.html PRODUCT.md DEPLOY.md "$app/"
+printf "%s\n" "$ver" > "$app/VERSION"
 cp -r icons deploy "$app/"
 find "$app" \( -name __pycache__ -o -name '*.log' \) -prune -exec rm -rf {} +
 

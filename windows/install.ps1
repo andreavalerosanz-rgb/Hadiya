@@ -37,7 +37,7 @@ Get-Process pythonw -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq "
 Start-Sleep -Milliseconds 500
 # remove folders first: Copy-Item -Recurse into an existing folder nests it (windows\windows)
 Remove-Item "$app\icons", "$app\windows" -Recurse -Force -ErrorAction SilentlyContinue
-foreach ($f in 'server.py', 'index.html', 'kanban.html', 'icons', 'windows') {
+foreach ($f in 'server.py', 'VERSION', 'index.html', 'kanban.html', 'icons', 'windows') {
   Copy-Item (Join-Path $src $f) $app -Recurse -Force
 }
 
