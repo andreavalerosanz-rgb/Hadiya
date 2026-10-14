@@ -6,3 +6,5 @@ __pycache__/
 dist/
 .impeccable/build/
 .impeccable/questions/
+CLAUDE.md
+.impeccable/
