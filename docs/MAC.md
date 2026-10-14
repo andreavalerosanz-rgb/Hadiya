@@ -2,7 +2,7 @@
 
 > **Para quien prepara el paquete**
 > 1. Ejecuta `bash scripts/build-mac.sh`.
-> 2. Se crea `dist/hadiya-macos_<ver>.zip` (o descárgalo de la [última release](https://github.com/andreavalerosanz-rgb/flows/releases/latest)).
+> 2. Se crea `dist/hadiya-macos_<ver>.zip` (o descárgalo de la [última release](https://github.com/andreavalerosanz-rgb/Hadiya/releases/latest)).
 > 3. Envía ese zip a la persona. Nada más.
 
 Hadiya es un panel que se abre en tu Mac para trabajar con Claude Code. Todo funciona en **este Mac** y con tu propia cuenta de Claude (plan de pago).

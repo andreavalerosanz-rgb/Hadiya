@@ -3179,7 +3179,7 @@ def update_info():
     out = {"current": cur, "latest": None, "newer": False, "url": None, "notes_url": None}
     if time.time() - UPD["at"] > 6 * 3600 or UPD["val"] is None:
         api = env("UPDATE_API", "https://api.github.com")
-        repo = env("UPDATE_REPO", "andreavalerosanz-rgb/flows")
+        repo = env("UPDATE_REPO", "andreavalerosanz-rgb/Hadiya")
         try:
             with urlopen(Request(f"{api}/repos/{repo}/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "hadiya"}), timeout=5) as r:
                 rel = json.load(r)

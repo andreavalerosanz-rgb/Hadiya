@@ -2,7 +2,7 @@
 
 > **Para quien prepara el paquete**
 > 1. Ejecuta `bash scripts/build-linux.sh`.
-> 2. Se crea `dist/hadiya-linux_<ver>.tar.gz` (o descárgalo de la [última release](https://github.com/andreavalerosanz-rgb/flows/releases/latest)).
+> 2. Se crea `dist/hadiya-linux_<ver>.tar.gz` (o descárgalo de la [última release](https://github.com/andreavalerosanz-rgb/Hadiya/releases/latest)).
 
 Hadiya es un panel que se abre en tu ordenador para trabajar con Claude Code, con tu propia cuenta de Claude (plan de pago). Todo funciona en **esta máquina**.
 

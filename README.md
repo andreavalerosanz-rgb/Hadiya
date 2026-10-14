@@ -4,7 +4,7 @@ Panel local para trabajar con Claude Code. Un ordenador, una persona, tu propia 
 
 ## Instalar
 
-Descarga el paquete de tu sistema desde la [última release](https://github.com/andreavalerosanz-rgb/flows/releases/latest):
+Descarga el paquete de tu sistema desde la [última release](https://github.com/andreavalerosanz-rgb/Hadiya/releases/latest):
 
 | Sistema | Archivo | Guía |
 |---|---|---|
