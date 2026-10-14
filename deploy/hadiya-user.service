@@ -1,0 +1,14 @@
+[Unit]
+Description=Hadiya (local Claude Code workbench, @PKG@)
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/hadiya/server.py
+Environment=HADIYA_DATA=%h/.local/share/hadiya
+# before the rename the data lived in ~/.local/share/flows
+ExecStartPre=/bin/sh -c '[ -e %h/.local/share/hadiya ] || [ ! -d %h/.local/share/flows ] || mv %h/.local/share/flows %h/.local/share/hadiya'
+Environment=HADIYA_PACKAGE=@PKG@
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+# Install: cp hadiya-whatsapp.service ~/.config/systemd/user/ && systemctl --user daemon-reload && systemctl --user enable --now hadiya-whatsapp
+# Pair the QR once in a terminal first (see README), then enable.
+[Unit]
+Description=Hadiya Asistente WhatsApp bridge
+After=network-online.target
+
+[Service]
+WorkingDirectory=/home/andrea/Desktop/flows/bridge/whatsapp
+ExecStart=/home/andrea/.nvm/versions/node/v20.11.0/bin/node index.mjs
+# Pair with a code instead of the QR: Environment=PAIR_PHONE=<country code + number, digits only>
+Restart=on-failure
+RestartSec=10
+# logged-out exits 1; don't loop forever
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

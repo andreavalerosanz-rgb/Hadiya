@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f2ee">
+<meta name="referrer" content="no-referrer">
+<title>Tablero</title>
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script>/* pre-Hadiya keys: copy once, keep the old ones */try{for(const k of Object.keys(localStorage)){const n=k.startsWith('flows.')?'hadiya.'+k.slice(6):k=='flowsAllActs'?'hadiyaAllActs':'';if(n&&localStorage.getItem(n)==null)localStorage.setItem(n,localStorage.getItem(k))}}catch(e){}
+try{if(localStorage.theme==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
+<style>
+/* Hadiya paper identity (same tokens as index.html body:not(.adm)): orange only for the primary action and focus */
+:root{
+  color-scheme:light;
+  --ground:#f4f2ee; --char:#ebe8e2; --panel:#fff; --spool:#dedad3; --line:#d3cec6;
+  --ink:#1a1a1a; --mute:#57534d; --flag:#ff5a1f; --flag-hi:#ff7038; --flag-text:#c2410c;
+  --field:#fff; --field-line:#d3cec6; --on-flag:#1a1a1a; --scrim:var(--scrim);
+  --warm-bg:#ffe9df; --warm-tx:#9a3412; --bad-bg:#fde4e1; --bad-tx:#9f1d12;
+  --r-s:6px; --r-m:10px; --r-l:12px; --pill:999px;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,sans-serif;
+}
+:root[data-theme=dark]{
+  color-scheme:dark;
+  --ground:#141413; --char:#1c1c1b; --panel:#222220; --spool:#2e2d2b; --line:#3d3c39;
+  --ink:#ece9e3; --mute:#b0aca4; --flag-text:#ff8a5c;
+  --field:#262624; --field-line:#4a4945; --scrim:rgba(0,0,0,.6);
+  --warm-bg:#3d2418; --warm-tx:#ffb08f; --bad-bg:#3d1a17; --bad-tx:#ff9a8f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--ground);color:var(--ink);font:16px/1.5 var(--body)}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--flag);outline-offset:2px}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;min-width:48px;padding:8px 14px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--panel);color:var(--ink);cursor:pointer;font:600 16px/1 var(--cond);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+.btn:hover{border-color:var(--mute)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.pri{background:var(--flag);border-color:var(--flag);color:var(--on-flag)}
+.btn.pri:hover{background:var(--flag-hi)}
+.btn.del{color:var(--bad-tx)}
+.btn.tg{padding:0}
+.btn:has(input:focus-visible){outline:2px solid var(--flag);outline-offset:2px}
+header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 16px 8px}
+header .logo{width:30px;height:30px;flex:none;fill:var(--ink)}
+header h1{margin:0 auto 0 0;min-width:0;overflow-wrap:anywhere;font:700 30px/1.05 var(--cond);letter-spacing:.02em;text-transform:uppercase}
+.none{color:var(--mute);padding:24px 16px}
+/* board: columns side by side; the board scrolls sideways, never the page */
+.tabs{display:none}
+.cols{display:flex;gap:12px;align-items:flex-start;overflow-x:auto;padding:8px 16px 32px;min-height:calc(100dvh - 80px)}
+.col{flex:0 0 300px;display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:var(--r-l);background:var(--char);min-width:0}
+.col.over{box-shadow:inset 0 0 0 2px var(--mute)}
+.col h2{display:flex;align-items:baseline;gap:8px;margin:0;padding:4px 4px 0;font:700 19px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.col h2 span,.tabs span{color:var(--mute);font-weight:600}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px;min-height:8px}
+.mark{height:4px;border-radius:2px;background:var(--mute)}
+.card .open{display:grid;gap:6px;width:100%;min-height:48px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);text-align:left;cursor:pointer}
+.card .open:hover{border-color:var(--mute)}
+.card.drag{opacity:.4}
+.card b{font:500 17px/1.35 var(--body);overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;color:var(--mute)}
+.meta>span{display:inline-flex;align-items:center;gap:4px}
+.prio{padding:1px 10px;border-radius:var(--pill);background:var(--char);color:var(--mute);font-weight:600}
+.prio[data-p=alta]{background:var(--warm-bg);color:var(--warm-tx)}
+.prio[data-p=urgente]{background:var(--bad-bg);color:var(--bad-tx)}
+.due.late{color:var(--bad-tx);font-weight:600}
+.add{justify-content:flex-start;border-style:dashed;background:transparent}
+/* phones: one column at a time, picked from the tabs */
+@media (max-width:820px){
+  header h1{font-size:26px}
+  .tabs{display:flex;gap:6px;overflow-x:auto;padding:0 16px 8px}
+  .tabs button{flex:none;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:var(--pill);background:var(--panel);cursor:pointer;font:600 16px/1 var(--body)}
+  .tabs button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--ground)}
+  .tabs button[aria-pressed=true] span{color:var(--ground)}
+  .cols{display:block;padding:0 12px 32px;min-height:0}
+  .col:not(.on){display:none}
+}
+/* card dialog */
+dialog{width:min(600px,100vw);max-width:100vw;max-height:94dvh;margin:auto;padding:0;border:1px solid var(--line);border-radius:var(--r-l);background:var(--ground);color:var(--ink)}
+dialog::backdrop{background:rgba(26,26,26,.45)}
+dialog form{display:grid;gap:12px;padding:16px;min-width:0}
+.dh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dh h2{margin:0;font:700 24px/1.1 var(--cond);letter-spacing:.04em;text-transform:uppercase}
+label.f{display:block;font:600 16px/1.2 var(--cond);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+label.f input,label.f textarea,label.f select{display:block;width:100%;min-width:0;min-height:48px;margin-top:4px;padding:10px 12px;border:1px solid var(--field-line);border-radius:var(--r-m);background:var(--field);color:var(--ink);font:16px/1.4 var(--body);letter-spacing:0;text-transform:none}
+label.f textarea{resize:vertical}
+label.f :focus{outline:0;border-color:var(--mute);box-shadow:0 0 0 3px rgba(255,90,31,.3)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mv,.acts{display:flex;flex-wrap:wrap;gap:8px}
+.mv .btn{flex:1 1 auto}
+h3{margin:4px 0 0;font:700 16px/1.2 var(--cond);letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+.files{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.files li{display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--panel);min-width:0}
+.files li:has(.btn){padding-right:0}
+.files :is(a,.pf){flex:1;min-width:0;min-height:48px;display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}
+.files li.nf{border:0;background:none;padding:0;color:var(--mute)}
+.files small{color:var(--mute);font-size:16px;white-space:nowrap}
+.files .btn{border:0}
+.note{margin:0;color:var(--mute)}
+#msg{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);max-width:calc(100vw - 32px);padding:12px 16px;border-radius:var(--r-m);background:var(--ink);color:var(--ground);z-index:9}
+</style>
+</head>
+<body>
+<header><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/><g transform="matrix(-1 0 0 1 64 0)"><path d="M23.5 59C19 44 10 22 14 3C17 21 26 42 30.5 59Q27 61.5 23.5 59Z"/></g><circle cx="32" cy="55" r="2.6" fill="var(--flag)"/></svg><h1 id="bname">Tablero</h1><button type="button" class="btn tg" id="theme" aria-pressed="false" aria-label="Tema oscuro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button><span id="hacts"></span></header>
+<nav class="tabs" id="tabs" aria-label="Columnas"></nav>
+<main class="cols" id="cols"><p class="none">Cargando…</p></main>
+<p id="msg" role="status" hidden></p>
+
+<dialog id="dlg" aria-labelledby="dlg-h"><form id="f">
+  <div class="dh"><h2 id="dlg-h">Tarjeta</h2><button type="button" class="btn" data-close aria-label="Cerrar"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <label class="f">Título<input name="title" required maxlength="200"></label>
+  <label class="f">Descripción<textarea name="desc" rows="5" maxlength="10000"></textarea></label>
+  <div class="two"><label class="f">Fecha<input type="date" name="due"></label>
+    <label class="f">Prioridad<select name="prio"><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></label></div>
+  <label class="f">Estado<select name="col"></select></label>
+  <div class="mv" id="mv"></div>
+  <h3>Adjuntos</h3>
+  <ul class="files" id="files"></ul>
+  <label class="btn">Añadir archivo<input type="file" id="file" multiple class="sr"></label>
+  <p class="note">Máximo 10 MB por archivo.</p>
+  <p class="note" id="by"></p>
+  <div class="acts"><button class="btn pri" id="save">Guardar</button><button type="button" class="btn" data-close>Cancelar</button><button type="button" class="btn del" id="delcard" hidden>Borrar tarjeta</button></div>
+</form></dialog>
+
+<dialog id="who" aria-labelledby="who-h"><form id="wf">
+  <div class="dh"><h2 id="who-h">¿Cómo te llamas?</h2></div>
+  <p class="note">Tu nombre aparece en las tarjetas que crees.</p>
+  <label class="f">Nombre<input name="name" required maxlength="60" autocomplete="name"></label>
+  <div class="acts"><button class="btn pri">Continuar</button></div>
+</form></dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+{ const t = $('#theme'), h = document.documentElement, set = d => { h.dataset.theme = d ? 'dark' : 'light'; t.setAttribute('aria-pressed', d); document.querySelector('meta[name=theme-color]').content = d ? '#141413' : '#f4f2ee'; };
+  set(h.dataset.theme === 'dark');
+  t.onclick = () => { const d = h.dataset.theme !== 'dark'; set(d); try { localStorage.theme = d ? 'dark' : 'light'; } catch (e) {} }; }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const tok = location.pathname.match(/^\/k\/([^/]+)/)?.[1];
+const B = tok ? `/k/${tok}/api` : '/api/kanban/boards/' + encodeURIComponent(new URLSearchParams(location.search).get('b') || '');
+const MAX = 10 * 1024 * 1024;
+const NAME = 'hadiya.kanban.by';
+let S = null, cur = 0, drag = null, open = null, pend = [];  // S = GET B; cur = column shown on phones; open = card id in the dialog (null = new card)
+
+const req = (p, o = {}) => fetch(B + p, {...o, headers: {'Content-Type': 'application/json', 'X-Flow': '1'}}).then(async r => {
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), {status: r.status});
+  return j;
+});
+const say = t => { const m = $('#msg'); m.textContent = t; m.hidden = false; clearTimeout(say.t); say.t = setTimeout(() => m.hidden = true, 4000); };
+const today = () => new Date().toLocaleDateString('sv');  // local YYYY-MM-DD
+const fmtDay = d => new Date(d + 'T00:00').toLocaleDateString('es-ES', {day: 'numeric', month: 'short'});
+const fmtTs = t => { const d = new Date(typeof t == 'number' && t < 1e12 ? t * 1000 : t); return isNaN(d) ? '' : d.toLocaleString('es-ES', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}); };
+const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+const clip = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5l-8 8a5 5 0 0 1-7-7l8.5-8.5a3.5 3.5 0 0 1 5 5L10 17.5a2 2 0 0 1-3-3l7.5-7.5"/></svg>';
+const cols = () => S.board.columns;
+const inCol = c => S.cards.filter(k => k.col == c).sort((a, b) => a.pos - b.pos);
+const card = id => S.cards.find(k => k.id == id);
+const me = () => localStorage[NAME] || '';
+
+function cardHTML(k, last) {
+  const late = k.due && !last && k.due < today();
+  return `<li class="card" data-id="${esc(k.id)}"><button class="open" draggable="true" data-open="${esc(k.id)}">
+    <b>${esc(k.title)}</b>
+    <span class="meta"><span class="prio" data-p="${esc(k.prio)}">${esc(k.prio)}</span>${k.due ? `<span class="due ${late ? 'late' : ''}">${late ? 'Vencida · ' : ''}${fmtDay(k.due)}</span>` : ''}${k.files?.length ? `<span>${clip}${k.files.length}<span class="sr"> adjuntos</span></span>` : ''}${k.by ? `<span>por ${esc(k.by)}</span>` : ''}</span></button></li>`;
+}
+function draw() {
+  const cs = cols(); cur = Math.max(0, Math.min(cur, cs.length - 1));
+  document.title = S.board.name + ' · Tablero'; $('#bname').textContent = S.board.name;
+  $('#hacts').innerHTML = S.guest ? `<button class="btn" data-who>${me() ? 'Tú: ' + esc(me()) : 'Tu nombre'}</button>` : '<a class="btn" href="/#kanban">Tableros</a>';
+  $('#tabs').innerHTML = cs.map((c, i) => `<button aria-pressed="${i == cur}" data-tab="${i}">${esc(c.name)} <span>${inCol(c.id).length}</span></button>`).join('');
+  $('#cols').innerHTML = cs.map((c, i) => `<section class="col ${i == cur ? 'on' : ''}" data-col="${esc(c.id)}" aria-label="${esc(c.name)}">
+    <h2>${esc(c.name)} <span>${inCol(c.id).length}</span></h2>
+    <ol class="list">${inCol(c.id).map(k => cardHTML(k, i == cs.length - 1)).join('')}</ol>
+    <button class="btn add" data-new="${esc(c.id)}"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nueva tarjeta</button></section>`).join('');
+}
+async function load() {
+  if (drag) return;
+  try { S = await req(''); draw(); }
+  catch (e) {
+    if (S) return say('Sin conexión. Reintentando…');
+    $('#cols').innerHTML = `<p class="none">${e.status == 401 || e.status == 403 || e.status == 404 ? (tok ? 'Este enlace ya no es válido. Pide uno nuevo a quien te lo compartió.' : 'Tablero no encontrado.') : 'No se pudo cargar el tablero: ' + esc(e.message)}</p>`;
+  }
+}
+
+/* moving: pos = midpoint of the neighbours; a column change from the dialog goes to the end */
+const endPos = (col, id) => { const l = inCol(col).filter(k => k.id != id); return l.length ? l[l.length - 1].pos + 1 : 1; };
+async function move(id, col, pos = endPos(col, id)) {
+  const k = card(id); if (!k) return;
+  Object.assign(k, {col, pos}); draw();
+  try { Object.assign(k, await req(`/cards/${encodeURIComponent(id)}`, {method: 'PATCH', body: JSON.stringify({col, pos})})); }
+  catch (e) { say('No se pudo mover: ' + e.message); }
+  load();
+}
+const mark = Object.assign(document.createElement('li'), {className: 'mark'});
+document.addEventListener('dragstart', e => {
+  const li = e.target.closest?.('.card'); if (!li) return;
+  drag = li.dataset.id; e.dataTransfer.setData('text/plain', drag); e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => li.classList.add('drag'));
+});
+document.addEventListener('dragover', e => {
+  const col = drag && e.target.closest?.('.col'); if (!col) return;
+  e.preventDefault(); document.querySelectorAll('.col.over').forEach(c => c != col && c.classList.remove('over')); col.classList.add('over');
+  const list = col.querySelector('.list');
+  list.insertBefore(mark, [...list.querySelectorAll('.card:not(.drag)')].find(c => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2) || null);
+});
+document.addEventListener('drop', e => {
+  const col = drag && e.target.closest?.('.col'); if (!col) return;
+  e.preventDefault();
+  const sib = dir => { let n = mark[dir]; while (n && n.dataset.id == drag) n = n[dir]; return n && card(n.dataset.id); };
+  const a = sib('previousElementSibling')?.pos, b = sib('nextElementSibling')?.pos;
+  const id = drag; drag = null; mark.remove();
+  move(id, col.dataset.col, a == null && b == null ? 1 : a == null ? b - 1 : b == null ? a + 1 : (a + b) / 2);
+});
+document.addEventListener('dragend', () => { drag = null; mark.remove(); document.querySelectorAll('.drag,.over').forEach(n => n.classList.remove('drag', 'over')); });
+
+/* card dialog */
+const F = $('#f').elements;
+function drawFiles() {
+  const k = open && card(open), url = n => `${B}/cards/${encodeURIComponent(open)}/files/${encodeURIComponent(n)}`;
+  $('#files').innerHTML = (k?.files || []).map(f => `<li><a href="${esc(url(f.name))}" download="${esc(f.name)}">${clip}${esc(f.name)}</a><small>${kb(f.size)}</small>${S.guest ? '' : `<button type="button" class="btn del" data-delfile="${esc(f.name)}" aria-label="Borrar ${esc(f.name)}"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`}</li>`).join('')
+    + pend.map(f => `<li><span class="pf">${clip}${esc(f.name)}</span><small>se sube al guardar</small></li>`).join('')
+    || '<li class="nf">Sin adjuntos.</li>';
+}
+function drawMove() {
+  const k = open && card(open), cs = cols(), i = k ? cs.findIndex(c => c.id == k.col) : -1;
+  $('#mv').innerHTML = k ? [cs[i - 1] && `<button type="button" class="btn" data-mv="${esc(cs[i - 1].id)}">← ${esc(cs[i - 1].name)}</button>`, cs[i + 1] && `<button type="button" class="btn" data-mv="${esc(cs[i + 1].id)}">${esc(cs[i + 1].name)} →</button>`].filter(Boolean).join('') : '';
+  if (k) F.col.value = k.col;
+}
+function openCard(id, col) {
+  const k = id ? card(id) : {title: '', desc: '', due: '', prio: 'media', col};
+  if (!k) return;
+  open = id; pend = [];
+  F.col.innerHTML = cols().map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  F.title.value = k.title; F.desc.value = k.desc || ''; F.due.value = k.due || ''; F.prio.value = k.prio || 'media'; F.col.value = k.col;
+  $('#dlg-h').textContent = id ? 'Tarjeta' : 'Nueva tarjeta';
+  $('#delcard').hidden = !id || S.guest;
+  $('#by').textContent = id ? [k.by && 'Creada por ' + k.by, fmtTs(k.created)].filter(Boolean).join(' · ') : '';
+  drawFiles(); drawMove();
+  $('#dlg').showModal(); F.title.focus();
+}
+const read64 = f => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1] || ''); r.onerror = ko; r.readAsDataURL(f); });
+async function upload(id, f) {
+  const k = await req(`/cards/${encodeURIComponent(id)}/files`, {method: 'POST', body: JSON.stringify({name: f.name, data: await read64(f)})});
+  const i = S.cards.findIndex(c => c.id == id); i < 0 ? S.cards.push(k) : S.cards[i] = k;
+}
+$('#file').onchange = async e => {
+  const fs = [...e.target.files]; e.target.value = '';
+  for (const f of fs) {
+    if (f.size > MAX) { say(`“${f.name}” pesa más de 10 MB.`); continue; }
+    if (!open) { pend.push(f); continue; }
+    try { await upload(open, f); } catch (er) { say('No se pudo subir: ' + er.message); }
+  }
+  drawFiles(); if (open) draw();
+};
+$('#f').onsubmit = async e => {
+  e.preventDefault();
+  const body = {title: F.title.value.trim(), desc: F.desc.value, due: F.due.value, prio: F.prio.value, col: F.col.value};
+  if (!body.title) return F.title.focus();
+  $('#save').disabled = true;
+  try {
+    if (open) {
+      if (body.col != card(open).col) body.pos = endPos(body.col, open);
+      await req(`/cards/${encodeURIComponent(open)}`, {method: 'PATCH', body: JSON.stringify(body)});
+    } else {
+      if (S.guest && me()) body.by = me();
+      const k = await req('/cards', {method: 'POST', body: JSON.stringify(body)});
+      S.cards.push(k);
+      for (const f of pend) await upload(k.id, f).catch(er => say(`No se pudo subir “${f.name}”: ${er.message}`));
+    }
+    cur = cols().findIndex(c => c.id == body.col);
+    $('#dlg').close(); await load();
+  } catch (er) { say('No se pudo guardar: ' + er.message); }
+  finally { $('#save').disabled = false; }
+};
+$('#dlg').addEventListener('close', () => { open = null; pend = []; });
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('button,[data-close]'); if (!t) return;
+  const d = t.dataset;
+  if ('close' in d) $('#dlg').close();
+  else if (d.tab) { cur = +d.tab; draw(); }
+  else if (d.new) { if (S.guest && !me()) askName(); else openCard(null, d.new); }
+  else if (d.open) openCard(d.open);
+  else if ('who' in d) askName();
+  else if (d.mv) { await move(open, d.mv); cur = cols().findIndex(c => c.id == d.mv); drawMove(); draw(); }
+  else if (d.delfile) {
+    if (!confirm(`¿Borrar el adjunto “${d.delfile}”?`)) return;
+    try { await req(`/cards/${encodeURIComponent(open)}/files/${encodeURIComponent(d.delfile)}`, {method: 'DELETE'}); const k = card(open); k.files = k.files.filter(f => f.name != d.delfile); drawFiles(); draw(); }
+    catch (er) { say('No se pudo borrar: ' + er.message); }
+  } else if (t.id == 'delcard') {
+    if (!confirm('¿Borrar esta tarjeta? No se puede deshacer.')) return;
+    try { await req(`/cards/${encodeURIComponent(open)}`, {method: 'DELETE'}); $('#dlg').close(); load(); }
+    catch (er) { say('No se pudo borrar: ' + er.message); }
+  }
+});
+
+/* guests: name asked once, kept on this device, sent as `by` */
+function askName() { $('#wf').elements.name.value = me(); $('#who').showModal(); }
+$('#wf').onsubmit = e => { e.preventDefault(); const n = e.target.elements.name.value.trim(); if (!n) return; localStorage[NAME] = n; $('#who').close(); draw(); };
+
+load().then(() => { if (S?.guest && !me()) askName(); });
+setInterval(() => document.hidden || load(), 10000);  // the open dialog keeps its state: draw() only touches the board
+</script>
+</body>
+</html>

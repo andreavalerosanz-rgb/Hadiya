@@ -7,10 +7,10 @@
 web
 
 ## Users
-One person: a WordPress developer (Matteria) working on a Linux desktop, building LAMP sites (WordPress themes, Bootstrap, Sass) from Figma designs. They run Flows locally next to their editor and a local WP install, launch agent work, then glance back to monitor or steer it while doing other work.
+One person: a WordPress developer (Matteria) working on a Linux desktop, building LAMP sites (WordPress themes, Bootstrap, Sass) from Figma designs. They run Hadiya locally next to their editor and a local WP install, launch agent work, then glance back to monitor or steer it while doing other work.
 
 ## Product Purpose
-Flows is a local control room for Claude Code running on the user's own Claude subscription. It lets them compose multi-step agent workflows from ready-made task blocks, launch live orchestrator sessions where a lead agent fans work out to parallel subagents, and monitor/steer everything as it runs ("add more agents", "skip the footer"). Success: a Figma frame becomes a working, reviewed WP template with little typing, and the user always knows what each agent is doing and what needs them.
+Hadiya is a local control room for Claude Code running on the user's own Claude subscription. It lets them compose multi-step agent workflows from ready-made task blocks, launch live orchestrator sessions where a lead agent fans work out to parallel subagents, and monitor/steer everything as it runs ("add more agents", "skip the footer"). Success: a Figma frame becomes a working, reviewed WP template with little typing, and the user always knows what each agent is doing and what needs them.
 
 ## Positioning
 It drives the real `claude` CLI headlessly (subscription auth, the user's installed plugins and MCP servers such as Figma), so every block is a genuine Claude Code session in a real project folder, not a toy sandbox. Parallelism is conversational: the lead agent can be told to go faster mid-run.

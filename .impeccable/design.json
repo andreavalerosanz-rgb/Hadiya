@@ -1,0 +1,267 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T00:07:54.743372Z",
+  "title": "Design System: Hadiya on paper (admin package, body.adm). Dev package is documented in DESIGN.md Part 1 only.",
+  "extensions": {
+    "colorMeta": {
+      "flag-orange": {
+        "role": "primary",
+        "displayName": "Flag Orange",
+        "canonical": "#ff5a1f",
+        "tonalRamp": [
+          "#4c1400",
+          "#802200",
+          "#b22f00",
+          "#e63c00",
+          "#ff6933",
+          "#ff9670",
+          "#ffc7b2",
+          "#ffece5"
+        ]
+      },
+      "flag-orange-deep": {
+        "role": "primary",
+        "displayName": "Flag Orange Deep",
+        "canonical": "#e2470f",
+        "tonalRamp": [
+          "#481705",
+          "#782608",
+          "#a7350b",
+          "#d7440e",
+          "#f26f40",
+          "#f69a79",
+          "#fac9b7",
+          "#fdede7"
+        ]
+      },
+      "paper-ground": {
+        "role": "neutral",
+        "displayName": "Paper Ground",
+        "canonical": "#f4f2ee",
+        "tonalRamp": [
+          "#2e291e",
+          "#4d4432",
+          "#6c6046",
+          "#8b7b5a",
+          "#afa083",
+          "#c7bda8",
+          "#e1dbd1",
+          "#f5f3f0"
+        ]
+      },
+      "paper-line": {
+        "role": "neutral",
+        "displayName": "Paper Line",
+        "canonical": "#e6e3dd",
+        "tonalRamp": [
+          "#2c2820",
+          "#494336",
+          "#675e4c",
+          "#847961",
+          "#a99e89",
+          "#c2bbad",
+          "#dfdbd3",
+          "#f4f3f0"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1a1a1a",
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#595959",
+          "#737373",
+          "#999999",
+          "#b8b8b8",
+          "#d9d9d9",
+          "#f2f2f2"
+        ]
+      },
+      "ink-mute": {
+        "role": "neutral",
+        "displayName": "Ink Mute",
+        "canonical": "#57534d",
+        "tonalRamp": [
+          "#292724",
+          "#44413c",
+          "#5f5a54",
+          "#7a746c",
+          "#9f9a93",
+          "#bcb8b3",
+          "#dbd9d6",
+          "#f3f2f1"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles, Barlow 700."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Barlow Condensed caps: group labels, state words, logo, primary button only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 2px rgba(26,26,26,.04), 0 8px 18px -12px rgba(26,26,26,.18)",
+        "purpose": "Every white card."
+      },
+      {
+        "name": "dialog",
+        "value": "0 20px 50px rgba(26,26,26,.3)",
+        "purpose": "Decision dialog over rgba(26,26,26,.5) backdrop."
+      },
+      {
+        "name": "toast",
+        "value": "0 10px 24px -8px rgba(26,26,26,.45)",
+        "purpose": "Toast."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-pulse",
+        "value": "1.6s ease-in-out, opacity to .3",
+        "purpose": "Trabajando mark and live line."
+      },
+      {
+        "name": "ui-transition",
+        "value": ".15s background/border-color",
+        "purpose": "Buttons, chips, ask card."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "desktop",
+        "value": "821px (column padding and title grow; column stays 680px)"
+      },
+      {
+        "name": "phone",
+        "value": "820px (dialog footer stacks)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Orange action; one per view. Pedir is the same at 56px, full width.",
+      "html": "<button class=\"ds-pri\">PEDIR</button>",
+      "css": ".ds-pri{min-height:48px;padding:0 20px;border:1px solid transparent;border-radius:12px;background:#ff5a1f;color:#0d0d0d;font:700 19px/1 'Barlow Condensed','Arial Narrow',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:background .15s}.ds-pri:hover{background:#ff7038}.ds-pri:focus-visible{outline:3px solid #e2470f;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White hairline button for non-primary choices.",
+      "html": "<button class=\"ds-sec\">Más tarde</button>",
+      "css": ".ds-sec{min-height:48px;padding:0 20px;border:1px solid #e6e3dd;border-radius:12px;background:#fff;color:#1a1a1a;font:700 17px/1.1 Barlow,system-ui,sans-serif;cursor:pointer;transition:border-color .15s}.ds-sec:hover{border-color:#57534d}.ds-sec:focus-visible{outline:3px solid #e2470f;outline-offset:2px}"
+    },
+    {
+      "name": "Ask card",
+      "kind": "input",
+      "refersTo": "card",
+      "description": "White card with borderless textarea; border turns ink on focus.",
+      "html": "<div class=\"ds-box\"><textarea rows=\"4\" placeholder=\"Escríbelo con tus palabras\"></textarea></div>",
+      "css": ".ds-box{width:320px;background:#fff;border:1px solid #e6e3dd;border-radius:12px;box-shadow:0 1px 2px rgba(26,26,26,.04),0 8px 18px -12px rgba(26,26,26,.18);transition:border-color .15s}.ds-box:focus-within{border-color:#1a1a1a}.ds-box textarea{display:block;width:100%;min-height:120px;border:0;background:transparent;padding:14px 16px 6px;color:#1a1a1a;font:18px/1.5 Barlow,system-ui,sans-serif;resize:none;box-sizing:border-box}.ds-box textarea:focus-visible{outline:0}"
+    },
+    {
+      "name": "Idea chip",
+      "kind": "chip",
+      "refersTo": "chip-idea",
+      "description": "Quick-idea tile; toggles to ink border.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">Correo</button>",
+      "css": ".ds-chip{display:flex;align-items:center;min-height:56px;padding:0 14px;border:1px solid #e6e3dd;border-radius:12px;background:#fff;color:#1a1a1a;font:600 17px/1.2 Barlow,system-ui,sans-serif;cursor:pointer;width:150px}.ds-chip:hover{border-color:#57534d}.ds-chip[aria-pressed=true]{border-color:#1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a}.ds-chip:focus-visible{outline:3px solid #e2470f;outline-offset:2px}"
+    },
+    {
+      "name": "Request row with state mark",
+      "kind": "card",
+      "refersTo": "request-row",
+      "description": "Row in Mis peticiones: text, time, state mark plus word.",
+      "html": "<div class=\"ds-rows\"><a class=\"ds-row\" href=\"#\"><span class=\"ds-rt\">Resume los correos de hoy</span><span class=\"ds-rm\">Correo · hace 5 min</span><span class=\"ds-s\"><svg class=\"ds-g\" viewBox=\"0 0 100 60\" aria-hidden=\"true\"><path d=\"M10 33 L37 52 L92 7\"/></svg>Listo</span></a></div>",
+      "css": ".ds-rows{width:340px;background:#fff;border:1px solid #e6e3dd;border-radius:12px;overflow:hidden}.ds-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;min-height:64px;padding:14px 16px;color:#1a1a1a;text-decoration:none;font:17px/1.55 Barlow,system-ui,sans-serif}.ds-row:hover{background:#faf9f7}.ds-rt{font-weight:500}.ds-rm{font-size:14px;color:#57534d;text-align:right;white-space:nowrap}.ds-s{grid-column:1/-1;display:inline-flex;align-items:center;gap:6px;font:600 14px/1.2 'Barlow Condensed','Arial Narrow',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#1a1a1a}.ds-g{width:24px;height:15px}.ds-g path{fill:none;stroke:#1a1a1a;stroke-width:10;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Te necesita flag",
+      "kind": "chip",
+      "refersTo": "state-flag",
+      "description": "Orange folded tape flag; the only coloured state.",
+      "html": "<span class=\"ds-flag\">Te necesita</span>",
+      "css": ".ds-flag{display:inline-block;padding:5px 9px 9px;background:#ff5a1f;color:#0d0d0d;font:700 13px/1 'Barlow Condensed','Arial Narrow',system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;clip-path:polygon(0 0,100% 0,100% 100%,50% 76%,0 100%)}"
+    },
+    {
+      "name": "Chat bubbles",
+      "kind": "custom",
+      "refersTo": "bubble-say",
+      "description": "Own message as ink wash; assistant reply as white card.",
+      "html": "<div class=\"ds-log\"><div class=\"ds-you\">Resume los correos de hoy</div><div class=\"ds-say\">Tienes tres correos nuevos.</div></div>",
+      "css": ".ds-log{display:flex;flex-direction:column;gap:14px;width:320px;font:17px/1.55 Barlow,system-ui,sans-serif;color:#1a1a1a}.ds-you{align-self:flex-end;max-width:85%;padding:10px 14px;border-radius:12px 12px 4px 12px;background:rgba(26,26,26,.1)}.ds-say{align-self:flex-start;padding:14px 16px;border:1px solid #e6e3dd;border-radius:12px 12px 12px 4px;background:#fff;line-height:1.6}"
+    },
+    {
+      "name": "Option card",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Decision dialog choice; selected = ink border and filled box.",
+      "html": "<label class=\"ds-opt\"><span class=\"ds-bx\"></span><b>Sí, con copia</b></label>",
+      "css": ".ds-opt{display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 14px;border:1px solid #1a1a1a;box-shadow:inset 0 0 0 1px #1a1a1a;border-radius:12px;background:#fff;width:300px;font:600 17px/1.3 Barlow,system-ui,sans-serif;color:#1a1a1a}.ds-bx{width:24px;height:24px;border:2px solid #1a1a1a;background:#1a1a1a;border-radius:4px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Hadiya on Paper",
+    "overview": "The same brand made calm and light. A warm paper ground, white cards with hairlines, ink text, and one orange that only ever says press this or this needs you. One column, one obvious action, plain Spanish. The film world survives as brand parts: reel logo, Barlow with condensed caps for small labels, the Hadiya state marks, and one perforated orange strip.",
+    "keyCharacteristics": [
+      "One column, mobile-first; centered about 680px on desktop.",
+      "Orange only on the primary action, the Te necesita flag, focus, selection and the one perforated strip.",
+      "State is always a mark plus a word.",
+      "Flat paper: hairlines and a very soft card shadow.",
+      "Targets 44-56px; 3px deep-orange focus ring."
+    ],
+    "rules": [
+      {
+        "name": "The Orange Is Action Rule",
+        "body": "Orange says press or you are needed, or marks focus. Not decoration, headings, links or secondary buttons; the perforated strip is the single film echo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Word Beside Mark Rule",
+        "body": "Every state is a mark plus its word; colour never carries state.",
+        "section": "colors"
+      },
+      {
+        "name": "The Caps Are Small Rule",
+        "body": "Condensed caps are for labels, state words, the logo and the primary button, never headings or running text.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Voice Rule",
+        "body": "No third family; emphasis is weight within Barlow.",
+        "section": "typography"
+      },
+      {
+        "name": "The Paper Stays Flat Rule",
+        "body": "Surfaces are white on paper with a hairline; selection is an ink border plus a 1px inset ring, not a lift.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do pair every state with its mark and word, using the five Hadiya marks.",
+      "Do keep text on orange in Bench Ink and put orange only on the primary action, the Te necesita flag, focus, selection and the one strip.",
+      "Do build new surfaces from white cards with a 1px Paper Line border on Paper Ground, 12px radius, in the single 680px column.",
+      "Do keep targets at least 44px and the 3px Flag Orange Deep focus ring.",
+      "Do write new copy in plain Spanish tú and put the next step in every error.",
+      "Do keep admin rules scoped to body.adm."
+    ],
+    "donts": [
+      "Don't show tool names, model names, paths, costs or permission jargon; translate to a plain Spanish line.",
+      "Don't convey state by colour alone, or invent per-errand colours.",
+      "Don't add a second perforated strip, a sidebar, or dark panels to this world.",
+      "Don't use condensed caps for headings or running text.",
+      "Don't open a modal for anything but a blocking decision."
+    ]
+  }
+}
